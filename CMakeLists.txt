@@ -128,10 +128,12 @@ endif()
 add_executable(skynet
     examples/skynet/main.cpp
 )
+target_include_directories(skynet PRIVATE examples/skynet)
 
 add_executable(skynet_prio
     examples/skynet/priorities/main.cpp
 )
+target_include_directories(skynet_prio PRIVATE examples/skynet)
 
 add_executable(fib
     examples/fib.cpp
@@ -141,12 +143,12 @@ add_executable(runtime
     examples/runtime.cpp
 )
 
-add_executable(http_server
-    examples/http_server.cpp
+add_executable(asio_http_server
+    examples/asio/http_server.cpp
 )
 
-add_executable(http_skynet
-    examples/http_skynet.cpp
+add_executable(asio_http_skynet
+    examples/asio/http_skynet.cpp
 )
 
 if(UNIX)
@@ -171,12 +173,9 @@ if(UNIX)
     target_link_libraries(skynet_prio ${JEMALLOC_LIBRARY} libhwloc.so)
     target_link_libraries(fib ${JEMALLOC_LIBRARY} libhwloc.so)
     target_link_libraries(runtime ${LIBURING_LIBRARY} libhwloc.so)
-    target_link_libraries(http_server ${JEMALLOC_LIBRARY} ${LIBURING_LIBRARY} libhwloc.so)
-    target_link_libraries(http_skynet ${JEMALLOC_LIBRARY} ${LIBURING_LIBRARY} libhwloc.so)
+    target_link_libraries(asio_http_server ${JEMALLOC_LIBRARY} ${LIBURING_LIBRARY} libhwloc.so)
+    target_link_libraries(asio_http_skynet ${JEMALLOC_LIBRARY} ${LIBURING_LIBRARY} libhwloc.so)
 endif(UNIX)
-
-target_include_directories(skynet PRIVATE examples/skynet)
-target_include_directories(skynet_prio PRIVATE examples/skynet)
 
 # copy compile_commands.json to the root directory after build so clangd can find it
 # clangd won't look in the /build/{config} directory, only in the top-level /build directory
