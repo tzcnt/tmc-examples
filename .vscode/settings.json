@@ -1,0 +1,9 @@
+{
+    "lldb.displayFormat": "auto",
+    "lldb.dereferencePointers": true,
+    "editor.formatOnSave": true,
+    "lldb.showDisassembly": "never",
+    "C_Cpp.intelliSenseEngine": "disabled",
+    "editor.tabSize": 2,
+    "lldb.consoleMode": "commands",
+}
