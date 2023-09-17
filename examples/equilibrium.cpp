@@ -35,7 +35,7 @@ task<void> make_task(uint64_t *out_ptr) {
       b = b + a;
     }
   }
-  // required to prevent compiler optimize away loop
+
   *out_ptr = b;
   co_return;
 }
@@ -53,7 +53,7 @@ task<void> get_task(size_t slot, uint64_t *data) {
       b = b + a;
     }
   }
-  // required to prevent compiler optimize away loop
+
   data[slot] = b;
   co_return;
 }

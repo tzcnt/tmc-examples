@@ -7,8 +7,8 @@
 using namespace tmc;
 template <size_t COUNT> tmc::task<void> large_task_spawn_bench_lazy_bulk() {
   ex_braid br;
-  // Make it so we can spawn_many with the braid as a parameter instead of
-  // needing to s.enter() here
+  // TODO make spawn_many take an executor parameter so we don't need to
+  // preemptively enter() here
   co_await br.enter();
   std::array<uint64_t, COUNT> data;
   for (size_t i = 0; i < COUNT; ++i) {
@@ -25,8 +25,6 @@ template <size_t COUNT> tmc::task<void> large_task_spawn_bench_lazy_bulk() {
                                          b = b + a;
                                        }
                                      }
-                                     // required to prevent compiler optimize
-                                     // away loop
                                      *data_ptr = b;
                                      co_return;
                                    }),
@@ -63,7 +61,7 @@ template <size_t COUNT> tmc::task<void> braid_lock() {
   //         b = b + a;
   //       }
   //     }
-  //     // required to prevent compiler optimize away loop
+  //
   //     *data_ptr = b;
   //     co_await braid_lock->enter();
   //     *value_ptr = *value_ptr + b;
@@ -85,7 +83,7 @@ template <size_t COUNT> tmc::task<void> braid_lock() {
                            b = b + a;
                          }
                        }
-                       // required to prevent compiler optimize away loop
+
                        *data_ptr = b;
                        co_await braid_lock->enter();
                        *value_ptr = *value_ptr + b;
@@ -142,7 +140,7 @@ template <size_t COUNT> tmc::task<void> braid_lock_middle() {
             b = b + a;
           }
         }
-        // required to prevent compiler optimize away loop
+
         *data_ptr = b;
         co_await braid_lock->enter();
         *value_ptr = *value_ptr + b;
@@ -204,7 +202,7 @@ template <size_t COUNT> tmc::task<void> braid_lock_middle_resume_on() {
             b = b + a;
           }
         }
-        // required to prevent compiler optimize away loop
+
         *data_ptr = b;
         co_await resume_on(braid_lock);
         *value_ptr = *value_ptr + b;

@@ -138,8 +138,6 @@ void large_task_spawn_bench_lazy_bulk() {
                                           }
                                           co_await yield_if_requested();
                                         }
-                                        // required to prevent compiler optimize
-                                        // away loop
                                         *data_ptr = b;
                                       }),
                          0, COUNT);
@@ -192,7 +190,7 @@ void prio_reversal_test() {
                 co_await yield();
               }
             }
-            // required to prevent compiler optimize away loop
+
             *data = b;
             // std::printf("co %ld\t", prio);
           }(data.data() + slot, prio),
