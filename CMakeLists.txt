@@ -53,9 +53,9 @@ CPMAddPackage(
     GIT_TAG asio-1-28-1
     DOWNLOAD_ONLY)
 
-# For development, I use TMC repos as submodules
-# This is off by default, and they will download as CPM packages instead
-option(TMC_AS_SUBMODULE "Download TMC repos as Git submodules" OFF)
+# By default, download the TMC repos as git submodules. This simplifies my development, and aids in code exploration.
+# If this option is disabled, they will be downloaded as CPM packages instead.
+option(TMC_AS_SUBMODULE "Download TMC repos as Git submodules" ON)
 
 if(TMC_AS_SUBMODULE)
     find_package(Git QUIET)
@@ -89,6 +89,7 @@ else()
         GIT_REPOSITORY github-as-tzcnt:tzcnt/tmc-asio.git
         GIT_TAG 8d1c6eb
         DOWNLOAD_ONLY)
+
     include_directories(
         ${TooManyCooks_SOURCE_DIR}/include
         ${tmc_asio_SOURCE_DIR}/include
