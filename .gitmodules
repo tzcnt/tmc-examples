@@ -1,0 +1,6 @@
+[submodule "submodules/TooManyCooks"]
+	path = submodules/TooManyCooks
+	url = github-as-tzcnt:tzcnt/TooManyCooks.git
+[submodule "submodules/tmc-asio"]
+	path = submodules/tmc-asio
+	url = github-as-tzcnt:tzcnt/tmc-asio.git

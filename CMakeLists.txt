@@ -53,22 +53,50 @@ CPMAddPackage(
     GIT_TAG asio-1-28-1
     DOWNLOAD_ONLY)
 
-CPMAddPackage(
-    NAME TooManyCooks
-    GIT_REPOSITORY github-as-tzcnt:tzcnt/TooManyCooks.git
-    GIT_TAG b6ff034
-    DOWNLOAD_ONLY)
+# For development, I use TMC repos as submodules
+# This is off by default, and they will download as CPM packages instead
+option(TMC_AS_SUBMODULE "Download TMC repos as Git submodules" OFF)
 
-CPMAddPackage(
-    NAME tmc_asio
-    GIT_REPOSITORY github-as-tzcnt:tzcnt/tmc-asio.git
-    GIT_TAG 8d1c6eb
-    DOWNLOAD_ONLY)
+if(TMC_AS_SUBMODULE)
+    find_package(Git QUIET)
+
+    if(NOT GIT_FOUND)
+        message(FATAL_ERROR "Git not found!")
+    endif()
+
+    message(STATUS "Updating git submodules...")
+    execute_process(COMMAND ${GIT_EXECUTABLE} submodule update --init --recursive
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+        RESULT_VARIABLE GIT_SUBMOD_RESULT)
+
+    if(NOT GIT_SUBMOD_RESULT EQUAL "0")
+        message(FATAL_ERROR "`git submodule update --init --recursive` failed with ${GIT_SUBMOD_RESULT}. Please checkout submodules manually.")
+    endif()
+
+    include_directories(
+        ${tmc_examples_SOURCE_DIR}/submodules/TooManyCooks/include
+        ${tmc_examples_SOURCE_DIR}/submodules/tmc-asio/include
+    )
+else()
+    CPMAddPackage(
+        NAME TooManyCooks
+        GIT_REPOSITORY github-as-tzcnt:tzcnt/TooManyCooks.git
+        GIT_TAG b6ff034
+        DOWNLOAD_ONLY)
+
+    CPMAddPackage(
+        NAME tmc_asio
+        GIT_REPOSITORY github-as-tzcnt:tzcnt/tmc-asio.git
+        GIT_TAG 8d1c6eb
+        DOWNLOAD_ONLY)
+    include_directories(
+        ${TooManyCooks_SOURCE_DIR}/include
+        ${tmc_asio_SOURCE_DIR}/include
+    )
+endif()
 
 include_directories(
     ${asio_SOURCE_DIR}/asio/include
-    ${TooManyCooks_SOURCE_DIR}/include
-    ${tmc_asio_SOURCE_DIR}/include
 )
 
 add_executable(alignment
@@ -127,13 +155,14 @@ if(UNIX)
         libjemalloc.so.2
         REQUIRED
     )
-    find_library(TCMALLOC_LIBRARY NAMES
-        tcmalloc_minimal
-        libtcmalloc_minimal.so.4*
-        tcmalloc
-        libtcmalloc.so.4
-        REQUIRED
-    )
+
+    # find_library(TCMALLOC_LIBRARY NAMES
+    # tcmalloc_minimal
+    # libtcmalloc_minimal.so.4*
+    # tcmalloc
+    # libtcmalloc.so.4
+    # REQUIRED
+    # )
     target_link_libraries(alignment libhwloc.so)
     target_link_libraries(braid libhwloc.so)
     target_link_libraries(spawn_misc ${JEMALLOC_LIBRARY} libhwloc.so)
