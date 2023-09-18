@@ -184,10 +184,10 @@ add_executable(fib
     examples/fib.cpp
 )
 
-add_executable(runtime
-    examples/runtime.cpp
+add_executable(delay
+    examples/asio/delay.cpp
 )
-target_link_libraries(runtime ${LIBURING_LIBRARY})
+target_link_libraries(delay ${LIBURING_LIBRARY})
 
 add_executable(asio_http_server
     examples/asio/http_server.cpp
@@ -243,7 +243,7 @@ add_custom_command(TARGET braid POST_BUILD
     ${CMAKE_CURRENT_LIST_DIR}/build
 )
 
-add_custom_command(TARGET runtime POST_BUILD
+add_custom_command(TARGET delay POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
     ${CMAKE_BINARY_DIR}/compile_commands.json
     ${CMAKE_CURRENT_LIST_DIR}/build

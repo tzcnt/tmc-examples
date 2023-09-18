@@ -1,7 +1,10 @@
-#include "asio/buffer.hpp"
-#include "asio/use_awaitable.hpp"
+// A simple "Hello, World!" HTTP response server
+// Listens on http://localhost:55550/
+
 #define TMC_IMPL
+#include "asio/buffer.hpp"
 #include "asio/error.hpp"
+#include "asio/use_awaitable.hpp"
 #include "tmc/asio/aw_asio.hpp"
 #include "tmc/asio/ex_asio.hpp"
 #include "tmc/aw_resume_on.hpp"
@@ -47,8 +50,9 @@ int main() {
   tmc::cpu_executor().init();
   tmc::asio_executor().init();
   return tmc::async_main([]() -> tmc::task<int> {
+    std::printf("serving on http://localhost::55550/\n");
     co_await resume_on(tmc::asio_executor());
-    tcp::acceptor acceptor(tmc::asio_executor(), {tcp::v4(), 55555});
+    tcp::acceptor acceptor(tmc::asio_executor(), {tcp::v4(), 55550});
     while (true) {
       auto [error, sock] = co_await acceptor.async_accept(tmc::aw_asio);
       if (error) {

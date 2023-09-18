@@ -1,3 +1,6 @@
+// Run the same number of small tasks with increasing numbers of threads,
+// from 1 to 32 threads. Find the point of diminishing returns.
+
 #define TMC_IMPL
 #include "tmc/aw_yield.hpp"
 #include "tmc/ex_cpu.hpp"

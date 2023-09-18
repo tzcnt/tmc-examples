@@ -1,3 +1,12 @@
+// Various implementations of the skynet benchmark as described here:
+// https://github.com/atemerev/skynet
+
+// The most efficient implementation is in `skynet::coro::bulk`
+
+// There are also implementations in the priorities/ subfolder,
+// which use different priority levels for different depths of the
+// task tree. This does not enhance performance.
+
 #define TMC_IMPL
 #include "skynet_braid.hpp"
 #include "skynet_coro_bulk.hpp"

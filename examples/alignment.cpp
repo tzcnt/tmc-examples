@@ -1,16 +1,20 @@
+// This example is a reproducer for the below bugs:
+
+// Clang <16 does not obey alignment when creating coroutine frames
+// https://github.com/llvm/llvm-project/issues/56671
+// This test seems to reproduce the failure in Debug mode at least
+// In Clang 16 you must supply `-fcoro-aligned-allocation` to fix it.
+
+// Bug also exists in GCC 13
+// https://gcc.gnu.org/bugzilla/show_bug.cgi?id=104177
+// This test repros in Debug or Release
+
 #define TMC_IMPL
 #include "tmc/aw_yield.hpp"
 #include "tmc/ex_cpu.hpp"
 #include "tmc/spawn_task_many.hpp"
 #include <iostream>
 using namespace tmc;
-
-// Clang <16 does not obey alignment when creating coroutine frames
-// https://github.com/llvm/llvm-project/issues/56671
-// This test seems to reproduce the failure in Debug mode at least
-// Bug also exists in GCC 13
-// https://gcc.gnu.org/bugzilla/show_bug.cgi?id=104177
-// This test repros in Debug or Release
 
 constexpr size_t ALIGNMENT = 64;
 struct UnalignedStruct {

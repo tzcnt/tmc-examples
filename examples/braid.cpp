@@ -1,3 +1,6 @@
+// A demonstration of the capabilities and performance of `ex_braid`
+// It is both a serializing executor, and an async mutex
+
 #define TMC_IMPL
 #include "tmc/aw_resume_on.hpp"
 #include "tmc/ex_braid.hpp"
@@ -47,29 +50,6 @@ template <size_t COUNT> tmc::task<void> braid_lock() {
   }
   uint64_t value = 0;
   auto pre = std::chrono::high_resolution_clock::now();
-  // std::vector<std::coroutine_handle<>> tasks;
-  // tasks.resize(COUNT);
-  // for (uint64_t slot = 0; slot < COUNT; ++slot) {
-  //   tasks[slot] = [](auto *data_ptr, ex_braid *braid_lock, uint64_t
-  //   *value_ptr)
-  //   -> task<void> {
-  //     int a = 0;
-  //     int b = 1;
-  //     for (int i = 0; i < 1000; ++i) {
-  //       for (int j = 0; j < 500; ++j) {
-  //         a = a + b;
-  //         b = b + a;
-  //       }
-  //     }
-  //
-  //     *data_ptr = b;
-  //     co_await braid_lock->enter();
-  //     *value_ptr = *value_ptr + b;
-  //     // for example, but not necessary since the task ends here
-  //     // co_await braid_lock->exit();
-  //   }(&data[slot], &s, &value);
-  // }
-  // executor.post_bulk(tasks.data(), 0, COUNT);
   co_await spawn_many(
       iter_adapter(data.data(),
                    [&br, &value](auto *data_ptr) -> task<void> {
@@ -129,9 +109,9 @@ template <size_t COUNT> tmc::task<void> braid_lock_middle() {
             b = b + a;
           }
         }
-        co_await braid_lock->enter();
         a = a + b;
         b = b + a;
+        co_await braid_lock->enter();
         (*lock_count_ptr)++;
         co_await braid_lock->exit();
         for (int i = 0; i < 500; ++i) {
@@ -191,9 +171,9 @@ template <size_t COUNT> tmc::task<void> braid_lock_middle_resume_on() {
             b = b + a;
           }
         }
-        co_await resume_on(braid_lock);
         a = a + b;
         b = b + a;
+        co_await resume_on(braid_lock);
         (*lock_count_ptr)++;
         co_await resume_on(tmc::cpu_executor());
         for (int i = 0; i < 500; ++i) {

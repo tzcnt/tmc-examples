@@ -1,3 +1,8 @@
+// Runs the skynet benchmark on demand when the HTTP endpoint is called.
+// Connections to http://localhost:55551/ will be served at lower priority
+// Connections on http://localhost:55550/ will be served at higher priority
+// Try load testing both sockets at the same time and observe
+
 #define TMC_IMPL
 #include "tmc/asio/aw_asio.hpp"
 #include "tmc/asio/ex_asio.hpp"
@@ -97,10 +102,12 @@ tmc::task<void> accept(ushort port) {
 }
 
 int main() {
-  tmc::cpu_executor().set_priority_count(1).init();
+  tmc::cpu_executor().set_priority_count(2).init();
   tmc::asio_executor().init();
   return tmc::async_main([]() -> tmc::task<int> {
-    // spawn(accept(55551), 1);
+    std::printf("serving low priority on http://localhost::55551/\n");
+    spawn(accept(55551), 1);
+    std::printf("serving high priority on http://localhost::55550/\n");
     co_await accept(55550);
     co_return 0;
   }());

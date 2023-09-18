@@ -1,3 +1,7 @@
+// An implementation of the recursive fork fibonacci parallelism test.
+// This is not intended to be an efficient fibonacci calculator,
+// but a test of the runtime's fork/join efficiency.
+
 #define TMC_IMPL
 #include "tmc/ex_cpu.hpp"
 #include "tmc/run_task.hpp"
@@ -13,23 +17,28 @@ using namespace tmc;
 task<size_t> fib(size_t n) {
   if (n < 2)
     co_return n;
+  /* Several different ways to spawn / await 2 child tasks */
+
+  /* Execute them one-by-one (serially) */
+  // auto x = co_await fib(n - 2);
+  // auto y = co_await fib(n - 1);
+  // co_return x + y;
+
+  /* Preallocated task array, bulk spawn */
   // std::array<task<size_t>, 2> tasks;
   // tasks[0] = fib(n - 2);
   // tasks[1] = fib(n - 1);
   // auto results = co_await spawn_many<2>(tasks.data(), 0);
   // co_return results[0] + results[1];
 
-  // co_await spawn_many<2>(iter_adapter(n - 2, fib), 0);
-
-  // std::array<size_t, 2> results;
-  // results[0] = co_await fib(n - 2);
-  // results[1] = co_await fib(n - 1);
+  /* Iterator adapter function to generate tasks, bulk spawn */
+  // auto results = co_await spawn_many<2>(iter_adapter(n - 2, fib), 0);
   // co_return results[0] + results[1];
 
+  /* Spawn one, then serially execute the other, then await the first */
   auto xt = spawn_early(fib(n - 1));
   auto y = co_await fib(n - 2);
   auto x = co_await xt;
-  x = co_await xt;
   co_return x + y;
 }
 
