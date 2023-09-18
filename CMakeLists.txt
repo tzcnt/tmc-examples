@@ -13,7 +13,6 @@ set(CMAKE_CXX_STANDARD 20)
 add_definitions(
     "-march=native"
 
-    "-DTMC_USE_HWLOC"
     "-DTMC_WORK_ITEM=CORO" # one of: CORO, FUNC, FUNCORO, FUNCORO32
 
     # "-DTMC_PRIORITY_COUNT=2"
@@ -23,7 +22,21 @@ add_definitions(
     # "-DTMC_USE_MUTEXQ"
     # "-DTMC_NO_LIFO"
 )
-include_directories(include)
+
+# HWLOC support
+option(TMC_USE_HWLOC "libhwloc" ON)
+
+if(TMC_USE_HWLOC)
+    message(STATUS "TMC_USE_HWLOC: running find_package(libhwloc)...")
+    find_package(libhwloc)
+
+    if(NOT LIBHWLOC_FOUND)
+        message(FATAL_ERROR "TMC_USE_HWLOC: ERROR package libhwloc not found")
+    else()
+        message(STATUS "TMC_USE_HWLOC: using ${LIBHWLOC_LIBRARY}")
+        add_compile_definitions(TMC_USE_HWLOC)
+    endif()
+endif()
 
 # URING support
 option(TMC_USE_IO_URING "io_uring (requires Linux and liburing)" ON)
@@ -166,16 +179,16 @@ if(UNIX)
     # libtcmalloc.so.4
     # REQUIRED
     # )
-    target_link_libraries(alignment libhwloc.so)
-    target_link_libraries(braid libhwloc.so)
-    target_link_libraries(spawn_misc ${JEMALLOC_LIBRARY} libhwloc.so)
-    target_link_libraries(equilibrium ${JEMALLOC_LIBRARY} libhwloc.so)
-    target_link_libraries(skynet ${JEMALLOC_LIBRARY} libhwloc.so)
-    target_link_libraries(skynet_prio ${JEMALLOC_LIBRARY} libhwloc.so)
-    target_link_libraries(fib ${JEMALLOC_LIBRARY} libhwloc.so)
-    target_link_libraries(runtime ${LIBURING_LIBRARY} libhwloc.so)
-    target_link_libraries(asio_http_server ${JEMALLOC_LIBRARY} ${LIBURING_LIBRARY} libhwloc.so)
-    target_link_libraries(asio_http_skynet ${JEMALLOC_LIBRARY} ${LIBURING_LIBRARY} libhwloc.so)
+    target_link_libraries(alignment ${LIBHWLOC_LIBRARY})
+    target_link_libraries(braid ${LIBHWLOC_LIBRARY})
+    target_link_libraries(spawn_misc ${JEMALLOC_LIBRARY} ${LIBHWLOC_LIBRARY})
+    target_link_libraries(equilibrium ${JEMALLOC_LIBRARY} ${LIBHWLOC_LIBRARY})
+    target_link_libraries(skynet ${JEMALLOC_LIBRARY} ${LIBHWLOC_LIBRARY})
+    target_link_libraries(skynet_prio ${JEMALLOC_LIBRARY} ${LIBHWLOC_LIBRARY})
+    target_link_libraries(fib ${JEMALLOC_LIBRARY} ${LIBHWLOC_LIBRARY})
+    target_link_libraries(runtime ${LIBURING_LIBRARY} ${LIBHWLOC_LIBRARY})
+    target_link_libraries(asio_http_server ${JEMALLOC_LIBRARY} ${LIBURING_LIBRARY} ${LIBHWLOC_LIBRARY})
+    target_link_libraries(asio_http_skynet ${JEMALLOC_LIBRARY} ${LIBURING_LIBRARY} ${LIBHWLOC_LIBRARY})
 endif(UNIX)
 
 # copy compile_commands.json to the root directory after build so clangd can find it
