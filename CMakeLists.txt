@@ -35,6 +35,7 @@ if(TMC_USE_HWLOC)
     else()
         message(STATUS "TMC_USE_HWLOC: using ${LIBHWLOC_LIBRARY}")
         add_compile_definitions(TMC_USE_HWLOC)
+        link_libraries(${LIBHWLOC_LIBRARY})
     endif()
 endif()
 
@@ -113,6 +114,36 @@ include_directories(
     ${asio_SOURCE_DIR}/asio/include
 )
 
+# Since each new coroutine requires an allocation,
+# they are sensitive to allocator performance.
+# All of jemalloc, mimalloc, and tcmalloc provide
+# greatly superior performance to the default glibc malloc.
+# Try to find any of these 3 before falling back to default.
+find_package(libjemalloc)
+
+if(LIBJEMALLOC_FOUND)
+    set(MALLOC_LIB "${LIBJEMALLOC_LIBRARY}")
+    message(STATUS "Using malloc: ${MALLOC_LIB}")
+else()
+    find_package(libmimalloc)
+
+    if(LIBMIMALLOC_FOUND)
+        set(MALLOC_LIB "${LIBMIMALLOC_LIBRARY}")
+        message(STATUS "Using malloc: ${MALLOC_LIB}")
+    else()
+        find_package(libtcmalloc)
+
+        if(LIBTCMALLOC_FOUND)
+            set(MALLOC_LIB "${LIBTCMALLOC_LIBRARY}")
+            message(STATUS "Using malloc: ${MALLOC_LIB}")
+        else()
+            message(STATUS "Using malloc: default")
+        endif()
+    endif()
+endif()
+
+link_libraries(${MALLOC_LIB})
+
 add_executable(alignment
     examples/alignment.cpp
 )
@@ -156,40 +187,17 @@ add_executable(fib
 add_executable(runtime
     examples/runtime.cpp
 )
+target_link_libraries(runtime ${LIBURING_LIBRARY})
 
 add_executable(asio_http_server
     examples/asio/http_server.cpp
 )
+target_link_libraries(asio_http_server ${LIBURING_LIBRARY})
 
 add_executable(asio_http_skynet
     examples/asio/http_skynet.cpp
 )
-
-if(UNIX)
-    find_library(JEMALLOC_LIBRARY NAMES
-        jemalloc
-        libjemalloc.so.2
-        REQUIRED
-    )
-
-    # find_library(TCMALLOC_LIBRARY NAMES
-    # tcmalloc_minimal
-    # libtcmalloc_minimal.so.4*
-    # tcmalloc
-    # libtcmalloc.so.4
-    # REQUIRED
-    # )
-    target_link_libraries(alignment ${LIBHWLOC_LIBRARY})
-    target_link_libraries(braid ${LIBHWLOC_LIBRARY})
-    target_link_libraries(spawn_misc ${JEMALLOC_LIBRARY} ${LIBHWLOC_LIBRARY})
-    target_link_libraries(equilibrium ${JEMALLOC_LIBRARY} ${LIBHWLOC_LIBRARY})
-    target_link_libraries(skynet ${JEMALLOC_LIBRARY} ${LIBHWLOC_LIBRARY})
-    target_link_libraries(skynet_prio ${JEMALLOC_LIBRARY} ${LIBHWLOC_LIBRARY})
-    target_link_libraries(fib ${JEMALLOC_LIBRARY} ${LIBHWLOC_LIBRARY})
-    target_link_libraries(runtime ${LIBURING_LIBRARY} ${LIBHWLOC_LIBRARY})
-    target_link_libraries(asio_http_server ${JEMALLOC_LIBRARY} ${LIBURING_LIBRARY} ${LIBHWLOC_LIBRARY})
-    target_link_libraries(asio_http_skynet ${JEMALLOC_LIBRARY} ${LIBURING_LIBRARY} ${LIBHWLOC_LIBRARY})
-endif(UNIX)
+target_link_libraries(asio_http_skynet ${LIBURING_LIBRARY})
 
 # copy compile_commands.json to the root directory after build so clangd can find it
 # clangd won't look in the /build/{config} directory, only in the top-level /build directory
