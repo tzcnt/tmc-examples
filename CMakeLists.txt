@@ -67,26 +67,13 @@ CPMAddPackage(
     GIT_TAG asio-1-28-1
     DOWNLOAD_ONLY)
 
-# By default, download the TMC repos as git submodules. This simplifies my development, and aids in code exploration.
-# If this option is disabled, they will be downloaded as CPM packages instead.
-option(TMC_AS_SUBMODULE "Download TMC repos as Git submodules" ON)
+# By default, download the TMC repos as CPM packages.
+# If this option is enabled, CMake will expect them to be in git submodules.
+# You must run `submodule update --init --recursive` before turning this on.
+# This option exists to simplify parallel development across repositories.
+option(TMC_AS_SUBMODULE "Download TMC repos as Git submodules" OFF)
 
 if(TMC_AS_SUBMODULE)
-    find_package(Git QUIET)
-
-    if(NOT GIT_FOUND)
-        message(FATAL_ERROR "Git not found!")
-    endif()
-
-    message(STATUS "Updating git submodules...")
-    execute_process(COMMAND ${GIT_EXECUTABLE} submodule update --init --recursive
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-        RESULT_VARIABLE GIT_SUBMOD_RESULT)
-
-    if(NOT GIT_SUBMOD_RESULT EQUAL "0")
-        message(FATAL_ERROR "`git submodule update --init --recursive` failed with ${GIT_SUBMOD_RESULT}. Please checkout submodules manually.")
-    endif()
-
     include_directories(
         ${tmc_examples_SOURCE_DIR}/submodules/TooManyCooks/include
         ${tmc_examples_SOURCE_DIR}/submodules/tmc-asio/include
