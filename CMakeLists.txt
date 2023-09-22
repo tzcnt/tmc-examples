@@ -13,9 +13,9 @@ set(CMAKE_CXX_STANDARD 20)
 add_definitions(
     "-march=native"
 
-    "-DTMC_WORK_ITEM=CORO" # one of: CORO, FUNC, FUNCORO, FUNCORO32
+    # "-DTMC_WORK_ITEM=CORO" # one of: CORO, FUNC, FUNCORO, FUNCORO32
 
-    # "-DTMC_PRIORITY_COUNT=2"
+    # "-DTMC_PRIORITY_COUNT=2" # unsigned integer >= 1
     # "-DTMC_USE_BOOST_ASIO"
 
     # Debug / testing options
