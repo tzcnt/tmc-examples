@@ -10,9 +10,6 @@
 using namespace tmc;
 template <size_t COUNT> tmc::task<void> large_task_spawn_bench_lazy_bulk() {
   ex_braid br;
-  // TODO make spawn_many take an executor parameter so we don't need to
-  // preemptively enter() here
-  co_await br.enter();
   std::array<uint64_t, COUNT> data;
   for (size_t i = 0; i < COUNT; ++i) {
     data[i] = 0;
@@ -31,7 +28,8 @@ template <size_t COUNT> tmc::task<void> large_task_spawn_bench_lazy_bulk() {
                                      *data_ptr = b;
                                      co_return;
                                    }),
-                      0, COUNT);
+                      COUNT)
+      .run_on(br);
   auto done = std::chrono::high_resolution_clock::now();
 
   auto exec_dur =
@@ -71,7 +69,7 @@ template <size_t COUNT> tmc::task<void> braid_lock() {
                        //  here co_await braid_lock->exit();
                      }(data_ptr, &br, &value);
                    }),
-      0, COUNT);
+      COUNT);
   auto done = std::chrono::high_resolution_clock::now();
 
   if (value != data[0] * COUNT) {
@@ -129,7 +127,7 @@ template <size_t COUNT> tmc::task<void> braid_lock_middle() {
       }(&data[slot], &br, &value, &mid_locks);
     }
   }
-  co_await spawn_many(tasks.data(), 0, COUNT);
+  co_await spawn_many(tasks.data(), COUNT);
   auto done = std::chrono::high_resolution_clock::now();
 
   if (value != data[0] * COUNT) {
@@ -189,7 +187,7 @@ template <size_t COUNT> tmc::task<void> braid_lock_middle_resume_on() {
       }(&data[slot], &br, &value, &mid_locks);
     }
   }
-  co_await spawn_many(tasks.data(), 0, COUNT);
+  co_await spawn_many(tasks.data(), COUNT);
   auto done = std::chrono::high_resolution_clock::now();
 
   if (value != data[0] * COUNT) {

@@ -106,7 +106,7 @@ int main() {
   tmc::asio_executor().init();
   return tmc::async_main([]() -> tmc::task<int> {
     std::printf("serving low priority on http://localhost::55551/\n");
-    spawn(accept(55551), 1);
+    spawn(accept(55551)).with_priority(1);
     std::printf("serving high priority on http://localhost::55550/\n");
     co_await accept(55550);
     co_return 0;

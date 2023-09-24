@@ -46,20 +46,24 @@ tmc::task<void> handler(auto socket) {
   socket.close();
 }
 
+tmc::task<void> accept(ushort port) {
+  std::printf("serving on http://localhost:%d/\n", port);
+  tcp::acceptor acceptor(tmc::asio_executor(), {tcp::v4(), port});
+  while (true) {
+    auto [error, sock] = co_await acceptor.async_accept(tmc::aw_asio);
+    if (error) {
+      break;
+    }
+    spawn(handler(std::move(sock)));
+  }
+}
+
 int main() {
   tmc::cpu_executor().init();
   tmc::asio_executor().init();
   return tmc::async_main([]() -> tmc::task<int> {
-    std::printf("serving on http://localhost::55550/\n");
-    co_await resume_on(tmc::asio_executor());
-    tcp::acceptor acceptor(tmc::asio_executor(), {tcp::v4(), 55550});
-    while (true) {
-      auto [error, sock] = co_await acceptor.async_accept(tmc::aw_asio);
-      if (error) {
-        break;
-      }
-      spawn(handler(std::move(sock)));
-    }
+    spawn(accept(55550));
+    co_await spawn(accept(55551)).run_on(tmc::asio_executor());
 
     co_return 0;
   }());

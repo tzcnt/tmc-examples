@@ -55,7 +55,7 @@ template <size_t count> tmc::task<void> run() {
                                    [&](size_t idx) -> task<void> {
                                      return run_one(idx, &r1[idx], &r2[idx]);
                                    }),
-                      0, count);
+                      count);
   for (size_t i = 0; i < count; ++i) {
     if (r2[i].value == 0) {
       std::printf("fail");

@@ -25,13 +25,11 @@ static task<size_t> skynet_one(size_t base_num, size_t local_depth) {
   for (size_t i = 0; i < depth_max - local_depth - 1; ++i) {
     depth_offset *= 10;
   }
-  std::array<size_t, 10> results = co_await spawn_many<10>(
-      iter_adapter(0,
-                   [=](size_t idx) -> task<size_t> {
-                     return skynet_one<depth_max>(base_num + depth_offset * idx,
-                                                  local_depth + 1);
-                   }),
-      local_depth + 1);
+  std::array<size_t, 10> results =
+      co_await spawn_many<10>(iter_adapter(0, [=](size_t idx) -> task<size_t> {
+        return skynet_one<depth_max>(base_num + depth_offset * idx,
+                                     local_depth + 1);
+      })).with_priority(local_depth + 1);
   for (size_t idx = 0; idx < 10; ++idx) {
     count += results[idx];
   }
@@ -81,13 +79,11 @@ static task<size_t> skynet_one(size_t base_num, size_t local_depth) {
   for (size_t i = 0; i < depth_max - local_depth - 1; ++i) {
     depth_offset *= 10;
   }
-  std::array<size_t, 10> results = co_await spawn_many<10>(
-      iter_adapter(0,
-                   [=](size_t idx) -> task<size_t> {
-                     return skynet_one<depth_max>(base_num + depth_offset * idx,
-                                                  local_depth + 1);
-                   }),
-      depth_max - local_depth - 1);
+  std::array<size_t, 10> results =
+      co_await spawn_many<10>(iter_adapter(0, [=](size_t idx) -> task<size_t> {
+        return skynet_one<depth_max>(base_num + depth_offset * idx,
+                                     local_depth + 1);
+      })).with_priority(depth_max - local_depth - 1);
   for (size_t idx = 0; idx < 10; ++idx) {
     count += results[idx];
   }
@@ -138,9 +134,9 @@ static task<size_t> skynet_one(size_t base_num, size_t local_depth) {
     depth_offset *= 10;
   }
   for (size_t idx = 0; idx < 10; ++idx) {
-    count += co_await spawn(
-        skynet_one<depth_max>(base_num + depth_offset * idx, local_depth + 1),
-        local_depth + 1);
+    count += co_await spawn(skynet_one<depth_max>(base_num + depth_offset * idx,
+                                                  local_depth + 1))
+                 .with_priority(local_depth + 1);
   }
   co_return count;
 }
@@ -189,9 +185,9 @@ static task<size_t> skynet_one(size_t base_num, size_t local_depth) {
     depth_offset *= 10;
   }
   for (size_t idx = 0; idx < 10; ++idx) {
-    count += co_await spawn(
-        skynet_one<depth_max>(base_num + depth_offset * idx, local_depth + 1),
-        depth_max - local_depth - 1);
+    count += co_await spawn(skynet_one<depth_max>(base_num + depth_offset * idx,
+                                                  local_depth + 1))
+                 .with_priority(depth_max - local_depth - 1);
   }
   co_return count;
 }

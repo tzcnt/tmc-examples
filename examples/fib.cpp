@@ -4,7 +4,7 @@
 
 #define TMC_IMPL
 #include "tmc/ex_cpu.hpp"
-#include "tmc/run_task.hpp"
+#include "tmc/spawn_task_early.hpp"
 #include "tmc/spawn_task_many.hpp"
 #include "tmc/task.hpp"
 #include <atomic>
