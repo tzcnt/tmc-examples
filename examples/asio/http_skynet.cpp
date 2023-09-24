@@ -4,13 +4,9 @@
 // Try load testing both sockets at the same time and observe
 
 #define TMC_IMPL
+#include "tmc/all_headers.hpp"
 #include "tmc/asio/aw_asio.hpp"
 #include "tmc/asio/ex_asio.hpp"
-#include "tmc/aw_resume_on.hpp"
-#include "tmc/detail/thread_locals.hpp"
-#include "tmc/ex_cpu.hpp"
-#include "tmc/spawn_task.hpp"
-#include "tmc/spawn_task_many.hpp"
 #include <array>
 #include <asio/buffer.hpp>
 #include <asio/detached.hpp>

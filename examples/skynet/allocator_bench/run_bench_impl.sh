@@ -8,7 +8,7 @@ for ((nthreads=1; nthreads<=nproc; nthreads++))
 do
     echo -n "$nthreads,"
     echo "#define NTHREADS $nthreads" > ./build/bench_config.hpp
-    clang++ -DTMC_NO_POST_FUNC -DTMC_USE_CAMELQ -DTMC_PRIORITY_COUNT=1 -I../../../include -O3 -DNDEBUG -std=gnu++20 -march=native -c main.cpp -o ./build/main.cpp.o > /dev/null 2>&1
+    clang++ -DTMC_PRIORITY_COUNT=1 -I../../../include -O3 -DNDEBUG -std=gnu++20 -march=native -c main.cpp -o ./build/main.cpp.o > /dev/null 2>&1
 
     clang++ ./build/main.cpp.o -o ./build/bench
     sleep 1

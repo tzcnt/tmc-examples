@@ -10,9 +10,7 @@
 // This test repros in Debug or Release
 
 #define TMC_IMPL
-#include "tmc/aw_yield.hpp"
-#include "tmc/ex_cpu.hpp"
-#include "tmc/spawn_task_many.hpp"
+#include "tmc/all_headers.hpp"
 #include <iostream>
 using namespace tmc;
 

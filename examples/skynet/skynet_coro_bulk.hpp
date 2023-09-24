@@ -1,7 +1,5 @@
 #pragma once
-#include "tmc/ex_cpu.hpp"
-#include "tmc/spawn_task_many.hpp"
-#include "tmc/task.hpp"
+#include "tmc/all_headers.hpp"
 #include <atomic>
 #include <chrono>
 #include <coroutine>

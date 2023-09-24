@@ -2,10 +2,7 @@
 // It is both a serializing executor, and an async mutex
 
 #define TMC_IMPL
-#include "tmc/aw_resume_on.hpp"
-#include "tmc/ex_braid.hpp"
-#include "tmc/ex_cpu.hpp"
-#include "tmc/spawn_task_many.hpp"
+#include "tmc/all_headers.hpp"
 #include <vector>
 using namespace tmc;
 template <size_t COUNT> tmc::task<void> large_task_spawn_bench_lazy_bulk() {

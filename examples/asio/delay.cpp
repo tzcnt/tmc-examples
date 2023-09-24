@@ -3,11 +3,9 @@
 // between asio_executor() and cpu_executor()
 
 #define TMC_IMPL
+#include "tmc/all_headers.hpp"
 #include "tmc/asio/aw_asio.hpp"
 #include "tmc/asio/ex_asio.hpp"
-#include "tmc/aw_resume_on.hpp"
-#include "tmc/ex_cpu.hpp"
-#include "tmc/spawn_task_many.hpp"
 #include <atomic>
 #include <iostream>
 

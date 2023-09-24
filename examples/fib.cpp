@@ -3,10 +3,7 @@
 // but a test of the runtime's fork/join efficiency.
 
 #define TMC_IMPL
-#include "tmc/ex_cpu.hpp"
-#include "tmc/spawn_task_early.hpp"
-#include "tmc/spawn_task_many.hpp"
-#include "tmc/task.hpp"
+#include "tmc/all_headers.hpp"
 #include <atomic>
 #include <chrono>
 #include <coroutine>
