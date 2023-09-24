@@ -70,7 +70,7 @@ CPMAddPackage(
 # By default, download the TMC repos as CPM packages.
 # If this option is enabled, CMake will expect them to be in git submodules.
 # You must run `submodule update --init --recursive` before turning this on.
-# This option exists to simplify parallel development across repositories.
+# This option exists to simplify my development across repositories.
 option(TMC_AS_SUBMODULE "Download TMC repos as Git submodules" OFF)
 
 if(TMC_AS_SUBMODULE)
@@ -81,13 +81,13 @@ if(TMC_AS_SUBMODULE)
 else()
     CPMAddPackage(
         NAME TooManyCooks
-        GIT_REPOSITORY github-as-tzcnt:tzcnt/TooManyCooks.git
-        GIT_TAG 62cf9085edb83e4aef0592a3de50e5f3c2d1ecd1
+        GIT_REPOSITORY https://github.com/tzcnt/TooManyCooks.git
+        GIT_TAG 5beb14cfcb86e0a92cc54657328ef75a7100a97c
         DOWNLOAD_ONLY)
 
     CPMAddPackage(
         NAME tmc_asio
-        GIT_REPOSITORY github-as-tzcnt:tzcnt/tmc-asio.git
+        GIT_REPOSITORY https://github.com/tzcnt/tmc-asio.git
         GIT_TAG b1496fc
         DOWNLOAD_ONLY)
 
