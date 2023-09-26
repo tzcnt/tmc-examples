@@ -17,10 +17,11 @@ add_definitions(
 
     # "-DTMC_PRIORITY_COUNT=2" # unsigned integer >= 1
     # "-DTMC_USE_BOOST_ASIO"
+    # "-DTMC_QUEUE_PREFER_STEAL"
 
     # Debug / testing options
     # "-DTMC_USE_MUTEXQ"
-    # "-DTMC_NO_LIFO"
+    # "-DTMC_QUEUE_NO_LIFO"
 )
 
 # HWLOC support
@@ -82,7 +83,7 @@ else()
     CPMAddPackage(
         NAME TooManyCooks
         GIT_REPOSITORY https://github.com/tzcnt/TooManyCooks.git
-        GIT_TAG 5beb14cfcb86e0a92cc54657328ef75a7100a97c
+        GIT_TAG 13044f9710265b2efc20e901649a3c08359d87a0
         DOWNLOAD_ONLY)
 
     CPMAddPackage(
