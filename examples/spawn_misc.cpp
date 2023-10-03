@@ -226,9 +226,10 @@ template <size_t COUNT, size_t nthreads> void co_await_eager_test() {
   auto future = post_waitable(
       executor,
       []() -> task<void> {
-        auto r1 = co_await spawn_early([]() -> task<size_t> { co_return 1; }());
+        auto r1 =
+            co_await spawn([]() -> task<size_t> { co_return 1; }()).run_early();
         std::printf("got %ld\n", r1);
-        auto rt2 = spawn_early([]() -> task<size_t> { co_return 2; }());
+        auto rt2 = spawn([]() -> task<size_t> { co_return 2; }()).run_early();
         auto r2 = co_await rt2;
         std::printf("got %ld\n", r2);
         // Awaiting the same task multiple times returns the same result without
