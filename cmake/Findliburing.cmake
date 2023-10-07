@@ -1,6 +1,7 @@
 # Find liburing
 # creates variables LIBURING_FOUND, LIBURING_LIBRARY, LIBURING_LIBRARY_DIR, LIBURING_INCLUDE_DIR
 
+# requires system package "liburing-dev" on Debian/Ubuntu
 find_library(LIBURING_LIBRARY NAMES uring)
 mark_as_advanced(LIBURING_LIBRARY)
 find_path(LIBURING_INCLUDE_DIR NAMES liburing.h)
