@@ -1,6 +1,7 @@
 # Find libhwloc
 # creates variables LIBHWLOC_FOUND, LIBHWLOC_LIBRARY, LIBHWLOC_LIBRARY_DIR, LIBHWLOC_INCLUDE_DIR
 
+# requires system package "libhwloc-dev" on Debian/Ubuntu
 find_library(LIBHWLOC_LIBRARY NAMES hwloc)
 mark_as_advanced(LIBHWLOC_LIBRARY)
 find_path(LIBHWLOC_INCLUDE_DIR NAMES hwloc.h)
