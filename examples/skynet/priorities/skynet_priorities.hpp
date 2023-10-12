@@ -59,8 +59,6 @@ template <size_t depth = 6> static void run_skynet() {
       end_time - start_time);
   std::printf("executed skynet in %ld ns: %ld thread-ns\n", exec_dur.count(),
               executor.thread_count() * exec_dur.count());
-
-  executor.graceful_stop();
 }
 } // namespace prio_asc
 
@@ -112,8 +110,6 @@ template <size_t depth = 6> static void run_skynet() {
       end_time - start_time);
   std::printf("executed skynet in %ld ns: %ld thread-ns\n", exec_dur.count(),
               executor.thread_count() * exec_dur.count());
-
-  executor.graceful_stop();
 }
 } // namespace prio_desc
 } // namespace bulk
@@ -164,8 +160,6 @@ template <size_t depth> static void run_skynet() {
       end_time - start_time);
   std::printf("executed skynet in %ld ns: %ld thread-ns\n", exec_dur.count(),
               executor.thread_count() * exec_dur.count());
-
-  executor.graceful_stop();
 }
 } // namespace prio_asc
 
@@ -215,8 +209,6 @@ template <size_t depth> static void run_skynet() {
       end_time - start_time);
   std::printf("executed skynet in %ld ns: %ld thread-ns\n", exec_dur.count(),
               executor.thread_count() * exec_dur.count());
-
-  executor.graceful_stop();
 }
 } // namespace prio_desc
 } // namespace single

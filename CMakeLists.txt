@@ -83,7 +83,7 @@ else()
     CPMAddPackage(
         NAME TooManyCooks
         GIT_REPOSITORY https://github.com/tzcnt/TooManyCooks.git
-        GIT_TAG 7f9cc26d360d4b237b20a79346d05b82e6bae603
+        GIT_TAG 9a2d532d8d3fb126b847ca1e1f912805b3589c93
         DOWNLOAD_ONLY)
 
     CPMAddPackage(
@@ -151,12 +151,6 @@ add_executable(equilibrium
 add_executable(braid
     examples/braid.cpp
 )
-
-# braid requires aligned allocation since it creates braids (which have queues, which use alignas)
-# inside of coroutines
-if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 16)
-    target_compile_options(braid PRIVATE -fcoro-aligned-allocation)
-endif()
 
 add_executable(skynet
     examples/skynet/main.cpp

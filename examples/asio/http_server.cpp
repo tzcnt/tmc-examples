@@ -62,7 +62,17 @@ int main() {
   tmc::cpu_executor().init();
   tmc::asio_executor().init();
   return tmc::async_main([]() -> tmc::task<int> {
+    // The default behavior is to submit each I/O call to ASIO, then resume the
+    // coroutine back on tmc::cpu_executor(). This incurs additional overhead,
+    // but enables unfettered access to the CPU executor without any risk of
+    // accidentally blocking the I/O thread.
     spawn(accept(55550));
+
+    // This customization runs both the I/O calls and the continuations inline
+    // on the single-threaded tmc::asio_executor(). Although this yields higher
+    // performance for a strictly I/O latency bound benchmark such as this
+    // example, the coroutine no longer becomes suitable for executing any kind
+    // of CPU-bound work.
     co_await spawn(accept(55551)).run_on(tmc::asio_executor());
 
     co_return 0;

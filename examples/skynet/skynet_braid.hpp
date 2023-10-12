@@ -67,8 +67,6 @@ template <size_t depth = 6> void run_skynet() {
       end_time - start_time);
   std::printf("executed skynet in %ld ns: %ld thread-ns\n", exec_dur.count(),
               executor.thread_count() * exec_dur.count());
-
-  executor.graceful_stop();
 }
 } // namespace single
 
@@ -127,8 +125,6 @@ template <size_t depth = 6> void run_skynet() {
       end_time - start_time);
   std::printf("executed skynet in %ld ns: %ld thread-ns\n", exec_dur.count(),
               executor.thread_count() * exec_dur.count());
-
-  executor.graceful_stop();
 }
 } // namespace bulk
 
@@ -195,8 +191,6 @@ template <size_t depth = 6> void run_skynet() {
       end_time - start_time);
   std::printf("executed skynet in %ld ns: %ld thread-ns\n", exec_dur.count(),
               executor.thread_count() * exec_dur.count());
-
-  executor.graceful_stop();
 }
 } // namespace fork
 } // namespace braids

@@ -57,8 +57,6 @@ template <size_t COUNT, size_t nthreads> void small_task_spawn_bench_lazy() {
       "executed %ld tasks in %ld ns: %ld ns/task (wall), %ld ns/task/thread\n",
       COUNT, exec_dur.count(), exec_dur.count() / COUNT,
       nthreads * exec_dur.count() / COUNT);
-
-  executor.graceful_stop();
 }
 
 template <size_t COUNT, size_t nthreads> void large_task_spawn_bench_lazy() {
@@ -107,8 +105,6 @@ template <size_t COUNT, size_t nthreads> void large_task_spawn_bench_lazy() {
       "executed %ld tasks in %ld ns: %ld ns/task (wall), %ld ns/task/thread\n",
       COUNT, exec_dur.count(), exec_dur.count() / COUNT,
       nthreads * exec_dur.count() / COUNT);
-
-  executor.graceful_stop();
 }
 
 template <size_t COUNT, size_t nthreads>
@@ -151,8 +147,6 @@ void large_task_spawn_bench_lazy_bulk() {
       "executed %ld tasks in %ld ns: %ld ns/task (wall), %ld ns/task/thread\n",
       COUNT, exec_dur.count(), exec_dur.count() / COUNT,
       nthreads * exec_dur.count() / COUNT);
-
-  executor.graceful_stop();
 }
 
 // Dispatch lowest prio -> highest prio so that each task is interrupted
@@ -217,7 +211,6 @@ DONE:
       "executed %ld tasks in %ld ns: %ld ns/task (wall), %ld ns/task/thread\n",
       COUNT, exec_dur.count(), exec_dur.count() / COUNT,
       nthreads * exec_dur.count() / COUNT);
-  executor.graceful_stop();
 }
 
 template <size_t COUNT, size_t nthreads> void co_await_eager_test() {
@@ -242,7 +235,6 @@ template <size_t COUNT, size_t nthreads> void co_await_eager_test() {
       }(),
       0);
   future.wait();
-  executor.graceful_stop();
 }
 
 template <size_t COUNT, size_t nthreads> void spawn_test() {
@@ -307,8 +299,6 @@ template <size_t COUNT, size_t nthreads> void spawn_test() {
   // ns/task/thread\n", COUNT, exec_dur.count(),
   //             exec_dur.count() / COUNT, nthreads * exec_dur.count() /
   //             COUNT);
-
-  executor.graceful_stop();
 }
 
 template <size_t COUNT, size_t nthreads> void spawn_value_test() {
@@ -376,8 +366,6 @@ template <size_t COUNT, size_t nthreads> void spawn_value_test() {
       "executed %ld tasks in %ld ns: %ld ns/task (wall), %ld ns/task/thread\n",
       COUNT, exec_dur.count(), exec_dur.count() / COUNT,
       nthreads * exec_dur.count() / COUNT);
-
-  executor.graceful_stop();
 }
 
 template <size_t COUNT, size_t nthreads> void spawn_many_test() {
@@ -433,8 +421,6 @@ template <size_t COUNT, size_t nthreads> void spawn_many_test() {
       "executed %ld tasks in %ld ns: %ld ns/task (wall), %ld ns/task/thread\n",
       COUNT, exec_dur.count(), exec_dur.count() / COUNT,
       nthreads * exec_dur.count() / COUNT);
-
-  executor.graceful_stop();
 }
 int main() {
   small_task_spawn_bench_lazy<32000, 16>();
