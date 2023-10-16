@@ -46,7 +46,7 @@ tmc::task<void> handler(auto socket) {
   socket.close();
 }
 
-tmc::task<void> accept(ushort port) {
+tmc::task<void> accept(uint16_t port) {
   std::printf("serving on http://localhost:%d/\n", port);
   tcp::acceptor acceptor(tmc::asio_executor(), {tcp::v4(), port});
   while (true) {
@@ -66,14 +66,14 @@ int main() {
     // coroutine back on tmc::cpu_executor(). This incurs additional overhead,
     // but enables unfettered access to the CPU executor without any risk of
     // accidentally blocking the I/O thread.
-    spawn(accept(55550));
+    tmc::spawn(accept(55550));
 
     // This customization runs both the I/O calls and the continuations inline
     // on the single-threaded tmc::asio_executor(). Although this yields higher
     // performance for a strictly I/O latency bound benchmark such as this
     // example, the coroutine no longer becomes suitable for executing any kind
     // of CPU-bound work.
-    co_await spawn(accept(55551)).run_on(tmc::asio_executor());
+    co_await tmc::spawn(accept(55551)).run_on(tmc::asio_executor());
 
     co_return 0;
   }());

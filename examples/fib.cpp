@@ -6,6 +6,7 @@
 #include "tmc/all_headers.hpp"
 #include <atomic>
 #include <chrono>
+#include <cinttypes>
 #include <coroutine>
 #include <iostream>
 #include <thread>
@@ -41,18 +42,18 @@ task<size_t> fib(size_t n) {
 
 task<void> top_fib(size_t n) {
   auto result = co_await fib(n);
-  std::printf("%ld\n", result);
+  std::printf("%" PRIu64 "\n", result);
   co_return;
 }
 
 constexpr size_t NRUNS = 1;
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
   if (argc != 2) {
     printf("Usage: fib <n-th fibonacci number requested>\n");
     exit(0);
   }
 
-  size_t n = atoi(argv[1]);
+  int n = atoi(argv[1]);
   tmc::async_main([](int n) -> tmc::task<int> {
     auto start_time = std::chrono::high_resolution_clock::now();
     for (size_t i = 0; i < NRUNS; ++i) {
@@ -61,8 +62,9 @@ int main(int argc, char *argv[]) {
 
     auto end_time = std::chrono::high_resolution_clock::now();
     auto total_time_us = std::chrono::duration_cast<std::chrono::microseconds>(
-        end_time - start_time);
-    std::printf("%ld us\n", total_time_us.count() / NRUNS);
+      end_time - start_time
+    );
+    std::printf("%" PRIu64 " us\n", total_time_us.count() / NRUNS);
     co_return 0;
   }(n));
 }

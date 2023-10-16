@@ -11,6 +11,7 @@
 
 #define TMC_IMPL
 #include "tmc/all_headers.hpp"
+#include <cinttypes>
 #include <iostream>
 using namespace tmc;
 
@@ -22,17 +23,19 @@ struct alignas(ALIGNMENT) AlignedStruct {
   int value;
   int value2;
 };
-void check_alignment(void *ptr) {
+void check_alignment(void* ptr) {
   auto low_bits = reinterpret_cast<uint64_t>(ptr) % ALIGNMENT;
   if (low_bits != 0) {
-    std::printf("FAIL: Expected align %ld but got align %ld\n", ALIGNMENT,
-                low_bits);
+    std::printf(
+      "FAIL: Expected align %" PRIu64 " but got align %" PRIu64 "\n", ALIGNMENT,
+      low_bits
+    );
     std::cout.flush();
   }
 }
-task<void> run_one(size_t i, UnalignedStruct *ur, AlignedStruct *ar) {
+task<void> run_one(int i, UnalignedStruct* ur, AlignedStruct* ar) {
   static_assert(alignof(AlignedStruct) == ALIGNMENT);
-  static_assert(sizeof(void *) == sizeof(uint64_t));
+  static_assert(sizeof(void*) == sizeof(uint64_t));
   UnalignedStruct u;
   AlignedStruct a;
   u.value = i & 0xFF;
@@ -49,11 +52,12 @@ template <size_t count> tmc::task<void> run() {
   std::vector<AlignedStruct> r2;
   r1.resize(count);
   r2.resize(count);
-  co_await spawn_many(iter_adapter(0,
-                                   [&](size_t idx) -> task<void> {
-                                     return run_one(idx, &r1[idx], &r2[idx]);
-                                   }),
-                      count);
+  co_await spawn_many(
+    iter_adapter(
+      0, [&](int idx) -> task<void> { return run_one(idx, &r1[idx], &r2[idx]); }
+    ),
+    count
+  );
   for (size_t i = 0; i < count; ++i) {
     if (r2[i].value == 0) {
       std::printf("fail");

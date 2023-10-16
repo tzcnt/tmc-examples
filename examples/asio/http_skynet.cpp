@@ -29,10 +29,12 @@ tmc::task<size_t> skynet_one(size_t base_num, size_t depth) {
     depth_offset *= 10;
   }
 
-  std::array<size_t, 10> results = co_await spawn_many<10>(
-      tmc::iter_adapter(0, [=](size_t idx) -> tmc::task<size_t> {
-        return skynet_one<depth_max>(base_num + depth_offset * idx, depth + 1);
-      }));
+  std::array<size_t, 10> results = co_await spawn_many<10>(tmc::iter_adapter(
+    0,
+    [=](size_t idx) -> tmc::task<size_t> {
+      return skynet_one<depth_max>(base_num + depth_offset * idx, depth + 1);
+    }
+  ));
 
   for (size_t idx = 0; idx < 10; ++idx) {
     count += results[idx];
@@ -48,7 +50,8 @@ template <size_t depth_max> tmc::task<std::string> skynet() {
     output << "got wrong result: " << count << "\n";
   }
   auto exec_dur = std::chrono::duration_cast<std::chrono::microseconds>(
-      end_time - start_time);
+    end_time - start_time
+  );
   output << "executed skynet in " << exec_dur.count() << " us\n";
   co_return std::string(output.str());
 }
@@ -76,7 +79,7 @@ tmc::task<void> handler(auto socket) {
 
     // Send response
     auto [error2, n2] =
-        co_await asio::async_write(socket, ostream, tmc::aw_asio);
+      co_await asio::async_write(socket, ostream, tmc::aw_asio);
     if (error2) {
       socket.close();
       co_return;
@@ -86,7 +89,7 @@ tmc::task<void> handler(auto socket) {
   socket.close();
 }
 
-tmc::task<void> accept(ushort port) {
+tmc::task<void> accept(uint16_t port) {
   tcp::acceptor acceptor(tmc::asio_executor(), {tcp::v4(), port});
   while (true) {
     auto [error, sock] = co_await acceptor.async_accept(tmc::aw_asio);
@@ -102,7 +105,7 @@ int main() {
   tmc::asio_executor().init();
   return tmc::async_main([]() -> tmc::task<int> {
     std::printf("serving low priority on http://localhost::55551/\n");
-    spawn(accept(55551)).with_priority(1);
+    tmc::spawn(accept(55551)).with_priority(1);
     std::printf("serving high priority on http://localhost::55550/\n");
     co_await accept(55550);
     co_return 0;

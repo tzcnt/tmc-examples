@@ -7,6 +7,7 @@
 #include "tmc/task.hpp"
 #include <atomic>
 #include <chrono>
+#include <cinttypes>
 #include <coroutine>
 #include <iostream>
 #include <thread>
@@ -31,8 +32,8 @@ task<size_t> skynet_one(size_t base_num, size_t depth) {
     depth_offset *= 10;
   }
   for (size_t idx = 0; idx < 10; ++idx) {
-    count += co_await skynet_one<depth_max>(base_num + depth_offset * idx,
-                                            depth + 1);
+    count +=
+      co_await skynet_one<depth_max>(base_num + depth_offset * idx, depth + 1);
   }
   co_return count;
 }
@@ -40,7 +41,7 @@ task<size_t> skynet_one(size_t base_num, size_t depth) {
 template <size_t depth_max> task<void> skynet() {
   size_t count = co_await skynet_one<depth_max>(0, 0);
   if (count != 499999500000) {
-    std::printf("%ld\n", count);
+    std::printf("%" PRIu64 "\n", count);
   }
   done.store(true);
 }
@@ -58,10 +59,12 @@ template <size_t depth = 6> void run_skynet() {
     std::printf("skynet_direct did not finish!\n");
   }
 
-  auto exec_dur = std::chrono::duration_cast<std::chrono::nanoseconds>(
-      end_time - start_time);
-  std::printf("executed skynet in %ld ns: %ld thread-ns\n", exec_dur.count(),
-              executor.thread_count() * exec_dur.count());
+  auto exec_dur =
+    std::chrono::duration_cast<std::chrono::nanoseconds>(end_time - start_time);
+  std::printf(
+    "executed skynet in %" PRIu64 " ns: %" PRIu64 " thread-ns\n",
+    exec_dur.count(), executor.thread_count() * exec_dur.count()
+  );
 }
 } // namespace direct
 } // namespace skynet

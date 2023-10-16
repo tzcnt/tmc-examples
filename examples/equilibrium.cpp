@@ -5,6 +5,7 @@
 #include "tmc/all_headers.hpp"
 #include <atomic>
 #include <chrono>
+#include <cinttypes>
 #include <coroutine>
 #include <iostream>
 #include <thread>
@@ -21,7 +22,7 @@ struct bench_result {
   std::chrono::duration<long, std::ratio<1, 1000000000>> dur_ns;
 };
 
-task<void> make_task(uint64_t *out_ptr) {
+task<void> make_task(uint64_t* out_ptr) {
   int a = 0;
   int b = 1;
 #pragma unroll 1
@@ -37,9 +38,9 @@ task<void> make_task(uint64_t *out_ptr) {
   co_return;
 }
 
-task<void> get_task(size_t slot, uint64_t *data) {
+task<void> get_task(size_t slot, uint64_t* data) {
   auto slot_in = slot;
-  auto &data_in = data;
+  auto& data_in = data;
   int a = 0;
   int b = 1;
 #pragma unroll 1
@@ -56,7 +57,7 @@ task<void> get_task(size_t slot, uint64_t *data) {
 }
 
 bench_result find_equilibrium(size_t count, size_t nthreads) {
-  auto &executor = tmc::cpu_executor();
+  auto& executor = tmc::cpu_executor();
   executor.set_thread_count(nthreads).init();
   auto data = new uint64_t[count];
   for (size_t i = 0; i < count; ++i) {
@@ -67,12 +68,12 @@ bench_result find_equilibrium(size_t count, size_t nthreads) {
   // this is around 100ns slower per-task :(
   for (size_t i = 0; i < WARMUP_COUNT; ++i) {
     future =
-        post_bulk_waitable(executor, iter_adapter(data, make_task), 0, count);
+      post_bulk_waitable(executor, iter_adapter(data, make_task), 0, count);
     future.wait();
   }
   auto pre = std::chrono::high_resolution_clock::now();
   future =
-      post_bulk_waitable(executor, iter_adapter(data, make_task), 0, count);
+    post_bulk_waitable(executor, iter_adapter(data, make_task), 0, count);
 #else
   auto tasks = new task<void>[count];
   for (size_t i = 0; i < WARMUP_COUNT; ++i) {
@@ -94,9 +95,9 @@ bench_result find_equilibrium(size_t count, size_t nthreads) {
   auto done = std::chrono::high_resolution_clock::now();
 
   auto post_dur =
-      std::chrono::duration_cast<std::chrono::nanoseconds>(post_done - pre);
+    std::chrono::duration_cast<std::chrono::nanoseconds>(post_done - pre);
   auto total_dur =
-      std::chrono::duration_cast<std::chrono::nanoseconds>(done - pre);
+    std::chrono::duration_cast<std::chrono::nanoseconds>(done - pre);
 
   tmc::cpu_executor().teardown();
   delete[] data;
@@ -113,15 +114,17 @@ int main() {
     results[i] = find_equilibrium(count, i + 1);
   }
 
-  std::printf("%ld tasks\n", count);
+  std::printf("%" PRIu64 " tasks\n", count);
   for (size_t i = 0; i < results.size(); ++i) {
     auto bench_result = results[i];
     std::printf(
-        "%ld thr, %ld post ns, %ld tot ns: %ld ns/task (wall), %ld "
-        "thread-ns/task\n",
-        bench_result.thread_count, bench_result.post_dur_ns.count(),
-        bench_result.dur_ns.count(), bench_result.dur_ns.count() / count,
-        (bench_result.thread_count) * bench_result.dur_ns.count() / count);
+      "%" PRIu64 " thr, %ld post ns, %ld tot ns: %" PRIu64
+      " ns/task (wall), %" PRIu64 " "
+      "thread-ns/task\n",
+      bench_result.thread_count, bench_result.post_dur_ns.count(),
+      bench_result.dur_ns.count(), bench_result.dur_ns.count() / count,
+      (bench_result.thread_count) * bench_result.dur_ns.count() / count
+    );
   }
   //}
 }

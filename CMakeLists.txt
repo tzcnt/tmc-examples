@@ -24,6 +24,47 @@ add_definitions(
     # "-DTMC_QUEUE_NO_LIFO"
 )
 
+include(cmake/CPM.cmake)
+# By default, download the TMC repos as CPM packages.
+# If this option is enabled, CMake will expect them to be in git submodules.
+# You must run `submodule update --init --recursive` before turning this on.
+# This option exists to simplify my development across repositories.
+option(TMC_AS_SUBMODULE "Download TMC repos as Git submodules" OFF)
+
+if(TMC_AS_SUBMODULE)
+    include_directories(
+        ${tmc_examples_SOURCE_DIR}/submodules/TooManyCooks/include
+        ${tmc_examples_SOURCE_DIR}/submodules/tmc-asio/include
+    )
+else()
+    CPMAddPackage(
+        NAME TooManyCooks
+        GIT_REPOSITORY https://github.com/tzcnt/TooManyCooks.git
+        GIT_TAG ac10f779f333e3137610a948b5ceea582706bdc3
+        DOWNLOAD_ONLY)
+
+    CPMAddPackage(
+        NAME tmc_asio
+        GIT_REPOSITORY https://github.com/tzcnt/tmc-asio.git
+        GIT_TAG 49bdb8f8a2a2c8dce9edbafa48917b49c6f5b762
+        DOWNLOAD_ONLY)
+
+    include_directories(
+        ${TooManyCooks_SOURCE_DIR}/include
+        ${tmc_asio_SOURCE_DIR}/include
+    )
+endif()
+
+CPMAddPackage(
+    NAME asio
+    GIT_REPOSITORY https://github.com/chriskohlhoff/asio.git
+    VERSION 1.28.1
+    GIT_TAG asio-1-28-1
+    DOWNLOAD_ONLY)
+include_directories(
+    ${asio_SOURCE_DIR}/asio/include
+)
+
 # HWLOC support
 option(TMC_USE_HWLOC "libhwloc" ON)
 
@@ -59,48 +100,6 @@ if(TMC_USE_IO_URING)
         endif()
     endif()
 endif()
-
-include(cmake/CPM.cmake)
-CPMAddPackage(
-    NAME asio
-    GIT_REPOSITORY https://github.com/chriskohlhoff/asio.git
-    VERSION 1.28.1
-    GIT_TAG asio-1-28-1
-    DOWNLOAD_ONLY)
-
-# By default, download the TMC repos as CPM packages.
-# If this option is enabled, CMake will expect them to be in git submodules.
-# You must run `submodule update --init --recursive` before turning this on.
-# This option exists to simplify my development across repositories.
-option(TMC_AS_SUBMODULE "Download TMC repos as Git submodules" OFF)
-
-if(TMC_AS_SUBMODULE)
-    include_directories(
-        ${tmc_examples_SOURCE_DIR}/submodules/TooManyCooks/include
-        ${tmc_examples_SOURCE_DIR}/submodules/tmc-asio/include
-    )
-else()
-    CPMAddPackage(
-        NAME TooManyCooks
-        GIT_REPOSITORY https://github.com/tzcnt/TooManyCooks.git
-        GIT_TAG 16b6d656eab39064e88674cfa0e39a7579ab0a31
-        DOWNLOAD_ONLY)
-
-    CPMAddPackage(
-        NAME tmc_asio
-        GIT_REPOSITORY https://github.com/tzcnt/tmc-asio.git
-        GIT_TAG b1496fc
-        DOWNLOAD_ONLY)
-
-    include_directories(
-        ${TooManyCooks_SOURCE_DIR}/include
-        ${tmc_asio_SOURCE_DIR}/include
-    )
-endif()
-
-include_directories(
-    ${asio_SOURCE_DIR}/asio/include
-)
 
 # Since each new coroutine requires an allocation,
 # they are sensitive to allocator performance.

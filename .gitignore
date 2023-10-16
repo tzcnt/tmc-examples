@@ -32,9 +32,12 @@
 *.app
 
 compile_commands.json
-/build
+**/build
 CMakeCache.txt
 *.CMake
 Makefile
 **/CMakeFiles
 .cache
+.vs
+.vscode
+CMakePresets.json

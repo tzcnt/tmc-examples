@@ -5,6 +5,7 @@
 #include "tmc/task.hpp"
 #include <atomic>
 #include <chrono>
+#include <cinttypes>
 #include <coroutine>
 #include <iostream>
 #include <thread>
@@ -27,7 +28,7 @@ task<size_t> skynet_one(size_t base_num, size_t depth) {
   std::array<task<size_t>, 10> children;
   for (size_t idx = 0; idx < 10; ++idx) {
     children[idx] =
-        skynet_one<depth_max>(base_num + depth_offset * idx, depth + 1);
+      skynet_one<depth_max>(base_num + depth_offset * idx, depth + 1);
   }
   std::array<size_t, 10> results = co_await spawn_many<10>(children.data());
   for (size_t idx = 0; idx < 10; ++idx) {
@@ -38,7 +39,7 @@ task<size_t> skynet_one(size_t base_num, size_t depth) {
 template <size_t depth_max> task<void> skynet() {
   size_t count = co_await skynet_one<depth_max>(0, 0);
   if (count != 499999500000) {
-    std::printf("%ld\n", count);
+    std::printf("%" PRIu64 "\n", count);
   }
   done.store(true);
 }
@@ -54,8 +55,9 @@ tmc::task<int> bench_main() {
   co_return 0;
 }
 
-tmc::task<void> bench_client_main_awaiter(tmc::task<int> client_main,
-                                          std::atomic<int> *exit_code_out) {
+tmc::task<void> bench_client_main_awaiter(
+  tmc::task<int> client_main, std::atomic<int>* exit_code_out
+) {
   client_main.resume_on(tmc::cpu_executor());
   int exit_code = co_await client_main;
   exit_code_out->store(exit_code);
@@ -68,14 +70,16 @@ int bench_async_main(tmc::task<int> client_main) {
   auto start_time = std::chrono::high_resolution_clock::now();
 
   tmc::cpu_executor().set_thread_count(NTHREADS).init();
-  post(tmc::cpu_executor(), bench_client_main_awaiter(client_main, &exit_code),
-       0);
+  post(
+    tmc::cpu_executor(), bench_client_main_awaiter(client_main, &exit_code), 0
+  );
   exit_code.wait(std::numeric_limits<int>::min());
 
   auto end_time = std::chrono::high_resolution_clock::now();
   auto total_time_ns = std::chrono::duration_cast<std::chrono::microseconds>(
-      end_time - start_time);
-  std::printf("%ld", total_time_ns.count() / NRUNS);
+    end_time - start_time
+  );
+  std::printf("%" PRIu64 "", total_time_ns.count() / NRUNS);
 
   tmc::cpu_executor().teardown();
   return exit_code.load();

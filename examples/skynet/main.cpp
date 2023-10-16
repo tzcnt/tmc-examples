@@ -19,7 +19,7 @@
 int main() {
   tmc::cpu_executor().init();
   return async_main([]() -> tmc::task<int> {
-    std::printf("sizeof(work_item): %ld\n", sizeof(work_item));
+    std::printf("sizeof(work_item): %" PRIu64 "\n", sizeof(work_item));
     co_await loop_skynet<DEPTH>();
     co_return 0;
   }());
