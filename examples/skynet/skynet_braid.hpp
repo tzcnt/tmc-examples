@@ -99,7 +99,7 @@ template <size_t depth_max> task<void> skynet() {
   // also need eager execution / delayed await since each task goes on a diff
   // exec
   size_t count = co_await [](ex_braid* braid_ptr) -> task<size_t> {
-    co_await braid_ptr->enter();
+    co_await tmc::enter(braid_ptr);
     co_return co_await skynet_one<depth_max>(0, 0);
   }(&br);
   if (count != 499999500000) {
@@ -161,7 +161,7 @@ template <size_t depth_max> task<void> skynet() {
     // this also need eager execution / delayed await since each task goes on a
     // diff exec
     children[i] = [](size_t i_in, ex_braid* braid_ptr) -> task<size_t> {
-      co_await braid_ptr->enter();
+      co_await tmc::enter(braid_ptr);
       co_return co_await skynet_one<depth_max>(100000 * i_in, 1);
     }(i, &braids[i]);
   }

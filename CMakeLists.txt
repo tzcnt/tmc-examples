@@ -25,6 +25,7 @@ add_definitions(
 )
 
 include(cmake/CPM.cmake)
+
 # By default, download the TMC repos as CPM packages.
 # If this option is enabled, CMake will expect them to be in git submodules.
 # You must run `submodule update --init --recursive` before turning this on.
@@ -40,13 +41,13 @@ else()
     CPMAddPackage(
         NAME TooManyCooks
         GIT_REPOSITORY https://github.com/tzcnt/TooManyCooks.git
-        GIT_TAG ac10f779f333e3137610a948b5ceea582706bdc3
+        GIT_TAG 3cf13da0dbf6af7aa1ee12c2d384af7531999efc
         DOWNLOAD_ONLY)
 
     CPMAddPackage(
         NAME tmc_asio
         GIT_REPOSITORY https://github.com/tzcnt/tmc-asio.git
-        GIT_TAG 49bdb8f8a2a2c8dce9edbafa48917b49c6f5b762
+        GIT_TAG 5efa98762cf4f414cc49c62bd19272b6a7347d3f
         DOWNLOAD_ONLY)
 
     include_directories(
@@ -164,6 +165,11 @@ target_include_directories(skynet_prio PRIVATE examples/skynet)
 add_executable(fib
     examples/fib.cpp
 )
+
+add_executable(prio
+    examples/asio/prio.cpp
+)
+target_link_libraries(prio ${LIBURING_LIBRARY})
 
 add_executable(delay
     examples/asio/delay.cpp
