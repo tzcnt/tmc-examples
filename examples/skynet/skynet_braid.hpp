@@ -14,11 +14,6 @@
 #include <iostream>
 #include <thread>
 
-using namespace std::chrono;
-using namespace std::chrono_literals;
-using namespace std;
-using namespace std::chrono;
-using namespace std::chrono_literals;
 using namespace tmc;
 
 namespace skynet {

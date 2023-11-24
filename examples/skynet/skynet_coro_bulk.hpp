@@ -7,11 +7,6 @@
 #include <iostream>
 #include <thread>
 
-using namespace std::chrono;
-using namespace std::chrono_literals;
-using namespace std;
-using namespace std::chrono;
-using namespace std::chrono_literals;
 using namespace tmc;
 
 namespace skynet {
@@ -30,6 +25,7 @@ task<size_t> skynet_one(size_t base_num, size_t depth) {
     depth_offset *= 10;
   }
 
+  /// Simplest way to spawn subtasks
   // std::array<task<size_t>, 10> children;
   // for (size_t idx = 0; idx < 10; ++idx) {
   //   children[idx] = skynet_one<depth_max>(base_num + depth_offset * idx,
@@ -37,6 +33,8 @@ task<size_t> skynet_one(size_t base_num, size_t depth) {
   // }
   // std::array<size_t, 10> results = co_await
   // spawn_many<10>(children.data());
+
+  /// Concise and slightly faster way to run subtasks
   std::array<size_t, 10> results =
     co_await spawn_many<10>(iter_adapter(0, [=](size_t idx) -> task<size_t> {
       return skynet_one<depth_max>(base_num + depth_offset * idx, depth + 1);

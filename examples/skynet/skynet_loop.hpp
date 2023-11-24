@@ -14,6 +14,9 @@ template <size_t depth = 6> task<void> loop_skynet() {
   for (size_t j = 0; j < 5; ++j) {
     auto start_time = std::chrono::high_resolution_clock::now();
     for (size_t i = 0; i < iter_count; ++i) {
+      // Different implementations of skynet below. The most efficient
+      // implementation, coro::bulk, is the default.
+
       // co_await skynet::direct::skynet<depth>();
       // co_await skynet::func::single::skynet<depth>();
       // co_await skynet::coro::single::skynet<depth>();
