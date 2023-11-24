@@ -3,6 +3,7 @@
 // between asio_executor() and cpu_executor()
 
 #define TMC_IMPL
+
 #include "tmc/all_headers.hpp"
 #include "tmc/asio/aw_asio.hpp"
 #include "tmc/asio/ex_asio.hpp"
@@ -31,14 +32,16 @@ int main() {
     for (size_t i = 0; i < 8; ++i) {
       auto [error] =
         co_await asio::steady_timer{
-          tmc::asio_executor(), std::chrono::milliseconds(250)}
+          tmc::asio_executor(), std::chrono::milliseconds(250)
+        }
           .async_wait(tmc::aw_asio)
           .resume_on(tmc::asio_executor());
       std::cout << tmc::detail::this_thread::thread_name << std::endl;
       std::cout.flush();
       // co_await tmc::delay(std::chrono::milliseconds(250));
       co_await asio::steady_timer{
-        tmc::asio_executor(), std::chrono::milliseconds(250)}
+        tmc::asio_executor(), std::chrono::milliseconds(250)
+      }
         .async_wait(tmc::aw_asio)
         .resume_on(tmc::cpu_executor());
       std::cout << tmc::detail::this_thread::thread_name << std::endl;

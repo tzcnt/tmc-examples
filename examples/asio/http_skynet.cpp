@@ -4,6 +4,7 @@
 // Try load testing both sockets at the same time and observe
 
 #define TMC_IMPL
+
 #include "tmc/all_headers.hpp"
 #include "tmc/asio/aw_asio.hpp"
 #include "tmc/asio/ex_asio.hpp"
@@ -16,6 +17,7 @@
 #include <asio/write.hpp>
 #include <sstream>
 #include <string>
+
 using asio::ip::tcp;
 
 template <size_t depth_max>

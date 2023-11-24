@@ -2,6 +2,7 @@
 // Listens on http://localhost:55550/
 
 #define TMC_IMPL
+
 #include "asio/buffer.hpp"
 #include "asio/error.hpp"
 #include "asio/use_awaitable.hpp"
@@ -16,7 +17,9 @@
 #include <asio/signal_set.hpp>
 #include <asio/write.hpp>
 #include <string>
+
 using asio::ip::tcp;
+
 const std::string static_response = R"(HTTP/1.1 200 OK
 Content-Length: 12
 Content-Type: text/plain; charset=utf-8
@@ -71,8 +74,8 @@ int main() {
     // This customization runs both the I/O calls and the continuations inline
     // on the single-threaded tmc::asio_executor(). Although this yields higher
     // performance for a strictly I/O latency bound benchmark such as this
-    // example, the coroutine no longer becomes suitable for executing any kind
-    // of CPU-bound work.
+    // example, care must be taken to manually offload CPU-bound work to the cpu
+    // executor.
     co_await tmc::spawn(accept(55551)).run_on(tmc::asio_executor());
 
     co_return 0;

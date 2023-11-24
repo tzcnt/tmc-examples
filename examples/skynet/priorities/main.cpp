@@ -1,4 +1,5 @@
 #define TMC_IMPL
+
 #include "priorities/skynet_priorities.hpp"
 #include "skynet_braid.hpp"
 #include "skynet_coro_bulk.hpp"
@@ -7,7 +8,9 @@
 #include "skynet_func.hpp"
 #include "skynet_loop.hpp"
 #include "tmc/ex_cpu.hpp"
+
 #define DEPTH 6
+
 int main() {
   tmc::cpu_executor().set_priority_count(DEPTH + 1);
   async_main([]() -> tmc::task<int> {

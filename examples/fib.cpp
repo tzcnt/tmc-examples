@@ -3,6 +3,7 @@
 // but a test of the runtime's fork/join efficiency.
 
 #define TMC_IMPL
+
 #include "tmc/all_headers.hpp"
 #include <atomic>
 #include <chrono>
@@ -10,6 +11,7 @@
 #include <coroutine>
 #include <iostream>
 #include <thread>
+
 using namespace tmc;
 
 task<size_t> fib(size_t n) {

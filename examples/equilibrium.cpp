@@ -2,6 +2,7 @@
 // from 1 to 32 threads. Find the point of diminishing returns.
 
 #define TMC_IMPL
+
 #include "tmc/all_headers.hpp"
 #include <atomic>
 #include <chrono>
@@ -9,9 +10,9 @@
 #include <coroutine>
 #include <iostream>
 #include <thread>
-using namespace std::chrono;
-using namespace std::chrono_literals;
+
 using namespace tmc;
+
 #define USE_TRANSFORMER
 constexpr int WARMUP_COUNT = 10;
 

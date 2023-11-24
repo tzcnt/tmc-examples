@@ -1,4 +1,5 @@
 #define TMC_IMPL
+
 #include "build/bench_config.hpp"
 #include "tmc/ex_cpu.hpp"
 #include "tmc/spawn_task_many.hpp"
@@ -9,7 +10,9 @@
 #include <coroutine>
 #include <iostream>
 #include <thread>
+
 using namespace tmc;
+
 namespace skynet {
 namespace coro {
 namespace bulk {

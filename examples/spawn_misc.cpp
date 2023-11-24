@@ -1,6 +1,7 @@
 // Miscellaneous ways to spawn and await tasks
 
 #define TMC_IMPL
+
 #include "tmc/all_headers.hpp"
 #include <atomic>
 #include <chrono>
@@ -8,12 +9,7 @@
 #include <coroutine>
 #include <iostream>
 #include <thread>
-using namespace std::chrono;
-using namespace std::chrono_literals;
-using namespace std;
 
-using namespace std::chrono;
-using namespace std::chrono_literals;
 using namespace tmc;
 
 template <size_t COUNT, size_t nthreads> void small_task_spawn_bench_lazy() {

@@ -2,10 +2,13 @@
 // It is both a serializing executor, and an async mutex
 
 #define TMC_IMPL
+
 #include "tmc/all_headers.hpp"
 #include <cinttypes>
 #include <vector>
+
 using namespace tmc;
+
 template <size_t COUNT> tmc::task<void> large_task_spawn_bench_lazy_bulk() {
   ex_braid br;
   std::array<uint64_t, COUNT> data;
@@ -70,7 +73,7 @@ template <size_t COUNT> tmc::task<void> braid_lock() {
           }
 
           *data_ptr = b;
-          co_await braid_lock->enter();
+          co_await tmc::enter(braid_lock);
           *value_ptr = *value_ptr + b;
           //  for example, but not necessary since the task ends
           //  here co_await braid_lock->exit();
@@ -124,9 +127,9 @@ template <size_t COUNT> tmc::task<void> braid_lock_middle() {
         }
         a = a + b;
         b = b + a;
-        co_await braid_lock->enter();
+        auto braid_scope = co_await tmc::enter(braid_lock);
         (*lock_count_ptr)++;
-        co_await braid_lock->exit();
+        co_await braid_scope.exit();
         for (int i = 0; i < 500; ++i) {
           for (int j = 0; j < 500; ++j) {
             a = a + b;
@@ -135,7 +138,7 @@ template <size_t COUNT> tmc::task<void> braid_lock_middle() {
         }
 
         *data_ptr = b;
-        co_await braid_lock->enter();
+        co_await tmc::enter(braid_lock);
         *value_ptr = *value_ptr + b;
         // for example, but not necessary since the task ends here
         // co_await braid_lock->exit();
