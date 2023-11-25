@@ -40,8 +40,6 @@ task<void> make_task(uint64_t* out_ptr) {
 }
 
 task<void> get_task(size_t slot, uint64_t* data) {
-  auto slot_in = slot;
-  auto& data_in = data;
   int a = 0;
   int b = 1;
 #pragma unroll 1

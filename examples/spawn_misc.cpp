@@ -264,7 +264,7 @@ template <size_t COUNT, size_t nthreads> void co_await_eager_test() {
 template <size_t COUNT, size_t nthreads> void spawn_test() {
   ex_cpu executor;
   executor.set_thread_count(nthreads).init();
-  auto pre = std::chrono::high_resolution_clock::now();
+  // auto pre = std::chrono::high_resolution_clock::now();
   auto future = post_bulk_waitable(
     executor,
     iter_adapter(
@@ -312,9 +312,9 @@ template <size_t COUNT, size_t nthreads> void spawn_test() {
     ),
     0, COUNT
   );
-  auto post = std::chrono::high_resolution_clock::now();
+  // auto post = std::chrono::high_resolution_clock::now();
   future.wait();
-  auto done = std::chrono::high_resolution_clock::now();
+  // auto done = std::chrono::high_resolution_clock::now();
 
   // auto spawn_dur = std::chrono::duration_cast<std::chrono::nanoseconds>(post
   // - pre); std::printf("spawned %"PRIu64" tasks in %"PRIu64" ns: %"PRIu64"
@@ -413,7 +413,6 @@ template <size_t COUNT, size_t nthreads> void spawn_many_test() {
     iter_adapter(
       0,
       [](size_t slot) -> task<void> {
-        auto slot_start = slot;
         //  TODO make spawn take an invokable
         //  instead of constructing std::function
         //  here

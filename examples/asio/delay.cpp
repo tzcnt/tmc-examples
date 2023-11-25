@@ -36,14 +36,23 @@ int main() {
         }
           .async_wait(tmc::aw_asio)
           .resume_on(tmc::asio_executor());
+      if (error) {
+        std::printf("error: %s\n", error.message().c_str());
+        co_return -1;
+      }
       std::cout << tmc::detail::this_thread::thread_name << std::endl;
       std::cout.flush();
       // co_await tmc::delay(std::chrono::milliseconds(250));
-      co_await asio::steady_timer{
-        tmc::asio_executor(), std::chrono::milliseconds(250)
+      auto [error2] =
+        co_await asio::steady_timer{
+          tmc::asio_executor(), std::chrono::milliseconds(250)
+        }
+          .async_wait(tmc::aw_asio)
+          .resume_on(tmc::cpu_executor());
+      if (error2) {
+        std::printf("error2: %s\n", error.message().c_str());
+        co_return -1;
       }
-        .async_wait(tmc::aw_asio)
-        .resume_on(tmc::cpu_executor());
       std::cout << tmc::detail::this_thread::thread_name << std::endl;
       std::cout.flush();
     }
