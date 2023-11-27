@@ -25,7 +25,8 @@ struct alignas(ALIGNMENT) AlignedStruct {
   int value;
   int value2;
 };
-void check_alignment(void* ptr) {
+
+static void check_alignment(void* ptr) {
   auto low_bits = reinterpret_cast<uint64_t>(ptr) % ALIGNMENT;
   if (low_bits != 0) {
     std::printf(
@@ -35,7 +36,7 @@ void check_alignment(void* ptr) {
     std::cout.flush();
   }
 }
-task<void> run_one(int i, UnalignedStruct* ur, AlignedStruct* ar) {
+static task<void> run_one(int i, UnalignedStruct* ur, AlignedStruct* ar) {
   static_assert(alignof(AlignedStruct) == ALIGNMENT);
   static_assert(sizeof(void*) == sizeof(uint64_t));
   UnalignedStruct u;
