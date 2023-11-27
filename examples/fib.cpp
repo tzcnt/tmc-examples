@@ -59,7 +59,7 @@ int main(int argc, char* argv[]) {
   tmc::async_main([](int n) -> tmc::task<int> {
     auto start_time = std::chrono::high_resolution_clock::now();
     for (size_t i = 0; i < NRUNS; ++i) {
-      co_await top_fib(n), 0;
+      co_await top_fib(n);
     }
 
     auto end_time = std::chrono::high_resolution_clock::now();
