@@ -36,7 +36,7 @@ template <size_t depth = 6> task<void> loop_skynet() {
       "%" PRIu64 " skynet iterations in %" PRIu64 " us: %" PRIu64
       " thread-us\n",
       iter_count, exec_dur.count(),
-      tmc::cpu_executor().thread_count() * exec_dur.count()
+      tmc::cpu_executor().thread_count() * static_cast<size_t>(exec_dur.count())
     );
   }
 }

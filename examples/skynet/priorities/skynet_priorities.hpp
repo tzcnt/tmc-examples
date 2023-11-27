@@ -26,7 +26,7 @@ static task<size_t> skynet_one(size_t base_num, size_t local_depth) {
   }
   std::array<size_t, 10> results =
     co_await spawn_many<10>(iter_adapter(
-                              0,
+                              0ULL,
                               [=](size_t idx) -> task<size_t> {
                                 return skynet_one<depth_max>(
                                   base_num + depth_offset * idx, local_depth + 1
@@ -65,7 +65,8 @@ template <size_t depth = 6> static void run_skynet() {
     std::chrono::duration_cast<std::chrono::nanoseconds>(end_time - start_time);
   std::printf(
     "executed skynet in %" PRIu64 " ns: %" PRIu64 " thread-ns\n",
-    exec_dur.count(), executor.thread_count() * exec_dur.count()
+    exec_dur.count(),
+    executor.thread_count() * static_cast<size_t>(exec_dur.count())
   );
 }
 } // namespace prio_asc
@@ -85,7 +86,7 @@ static task<size_t> skynet_one(size_t base_num, size_t local_depth) {
   }
   std::array<size_t, 10> results =
     co_await spawn_many<10>(iter_adapter(
-                              0,
+                              0ULL,
                               [=](size_t idx) -> task<size_t> {
                                 return skynet_one<depth_max>(
                                   base_num + depth_offset * idx, local_depth + 1
@@ -123,7 +124,8 @@ template <size_t depth = 6> static void run_skynet() {
     std::chrono::duration_cast<std::chrono::nanoseconds>(end_time - start_time);
   std::printf(
     "executed skynet in %" PRIu64 " ns: %" PRIu64 " thread-ns\n",
-    exec_dur.count(), executor.thread_count() * exec_dur.count()
+    exec_dur.count(),
+    executor.thread_count() * static_cast<size_t>(exec_dur.count())
   );
 }
 } // namespace prio_desc
@@ -177,7 +179,8 @@ template <size_t depth> static void run_skynet() {
     std::chrono::duration_cast<std::chrono::nanoseconds>(end_time - start_time);
   std::printf(
     "executed skynet in %" PRIu64 " ns: %" PRIu64 " thread-ns\n",
-    exec_dur.count(), executor.thread_count() * exec_dur.count()
+    exec_dur.count(),
+    executor.thread_count() * static_cast<size_t>(exec_dur.count())
   );
 }
 } // namespace prio_asc
@@ -230,7 +233,8 @@ template <size_t depth> static void run_skynet() {
     std::chrono::duration_cast<std::chrono::nanoseconds>(end_time - start_time);
   std::printf(
     "executed skynet in %" PRIu64 " ns: %" PRIu64 " thread-ns\n",
-    exec_dur.count(), executor.thread_count() * exec_dur.count()
+    exec_dur.count(),
+    executor.thread_count() * static_cast<size_t>(exec_dur.count())
   );
 }
 } // namespace prio_desc

@@ -17,7 +17,7 @@ using namespace tmc;
 namespace skynet {
 namespace coro {
 namespace single {
-std::atomic_bool done;
+static std::atomic_bool done;
 // all tasks are spawned at the same priority
 template <size_t depth_max>
 task<size_t> skynet_one(size_t base_num, size_t depth) {
@@ -61,7 +61,8 @@ template <size_t depth = 6> void run_skynet() {
     std::chrono::duration_cast<std::chrono::nanoseconds>(end_time - start_time);
   std::printf(
     "executed skynet in %" PRIu64 " ns: %" PRIu64 " thread-ns\n",
-    exec_dur.count(), executor.thread_count() * exec_dur.count()
+    exec_dur.count(),
+    executor.thread_count() * static_cast<size_t>(exec_dur.count())
   );
 }
 
