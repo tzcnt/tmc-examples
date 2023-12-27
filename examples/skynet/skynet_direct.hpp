@@ -12,13 +12,11 @@
 #include <iostream>
 #include <thread>
 
-using namespace tmc;
-
 namespace skynet {
 namespace direct {
 static std::atomic_bool done;
 template <size_t depth_max>
-task<size_t> skynet_one(size_t base_num, size_t depth) {
+tmc::task<size_t> skynet_one(size_t base_num, size_t depth) {
   if (depth == depth_max) {
     co_return base_num;
   }
@@ -34,7 +32,7 @@ task<size_t> skynet_one(size_t base_num, size_t depth) {
   co_return count;
 }
 
-template <size_t depth_max> task<void> skynet() {
+template <size_t depth_max> tmc::task<void> skynet() {
   size_t count = co_await skynet_one<depth_max>(0, 0);
   if (count != 499999500000) {
     std::printf("%" PRIu64 "\n", count);
@@ -45,7 +43,7 @@ template <size_t depth_max> task<void> skynet() {
 template <size_t depth = 6> void run_skynet() {
   done.store(false);
   static_assert(depth <= 6);
-  ex_cpu executor;
+  tmc::ex_cpu executor;
   executor.init();
   auto start_time = std::chrono::high_resolution_clock::now();
   auto future = post_waitable(executor, skynet<depth>(), 0);

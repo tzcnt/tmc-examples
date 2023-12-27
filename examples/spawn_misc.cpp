@@ -12,16 +12,16 @@
 
 using namespace tmc;
 
-template <size_t COUNT, size_t nthreads> void small_task_spawn_bench_lazy() {
+template <size_t Count, size_t ThreadCount> void small_task_spawn_bench_lazy() {
   ex_cpu executor;
-  executor.set_thread_count(nthreads).init();
-  std::array<uint64_t, COUNT> data;
-  for (size_t i = 0; i < COUNT; ++i) {
+  executor.set_thread_count(ThreadCount).init();
+  std::array<uint64_t, Count> data;
+  for (size_t i = 0; i < Count; ++i) {
     data[i] = 0;
   }
-  std::array<std::future<void>, COUNT> results;
+  std::array<std::future<void>, Count> results;
   auto pre = std::chrono::high_resolution_clock::now();
-  for (uint64_t i = 0; i < COUNT; ++i) {
+  for (uint64_t i = 0; i < Count; ++i) {
     results[i] = post_waitable(
       executor,
       [i, &data]() {
@@ -38,7 +38,7 @@ template <size_t COUNT, size_t nthreads> void small_task_spawn_bench_lazy() {
   }
   auto done = std::chrono::high_resolution_clock::now();
 
-  for (uint64_t i = 0; i < COUNT; ++i) {
+  for (uint64_t i = 0; i < Count; ++i) {
     if (data[i] != i) {
       std::printf("FAIL: index %" PRIu64 " value %" PRIu64 "", i, data[i]);
     }
@@ -47,8 +47,8 @@ template <size_t COUNT, size_t nthreads> void small_task_spawn_bench_lazy() {
   auto spawn_dur =
     std::chrono::duration_cast<std::chrono::nanoseconds>(post - pre);
   std::printf(
-    "spawned %" PRIu64 " tasks in %" PRIu64 " ns: %" PRIu64 " ns/task\n", COUNT,
-    spawn_dur.count(), spawn_dur.count() / COUNT
+    "spawned %" PRIu64 " tasks in %" PRIu64 " ns: %" PRIu64 " ns/task\n", Count,
+    spawn_dur.count(), spawn_dur.count() / Count
   );
 
   auto exec_dur =
@@ -57,21 +57,21 @@ template <size_t COUNT, size_t nthreads> void small_task_spawn_bench_lazy() {
     "executed %" PRIu64 " tasks in %" PRIu64 " ns: %" PRIu64
     " ns/task (wall), %" PRIu64 " "
     "ns/task/thread\n",
-    COUNT, exec_dur.count(), exec_dur.count() / COUNT,
-    nthreads * exec_dur.count() / COUNT
+    Count, exec_dur.count(), exec_dur.count() / Count,
+    ThreadCount * exec_dur.count() / Count
   );
 }
 
-template <size_t COUNT, size_t nthreads> void large_task_spawn_bench_lazy() {
+template <size_t Count, size_t nthreads> void large_task_spawn_bench_lazy() {
   ex_cpu executor;
   executor.set_thread_count(nthreads).init();
-  std::array<uint64_t, COUNT> data;
-  for (size_t i = 0; i < COUNT; ++i) {
+  std::array<uint64_t, Count> data;
+  for (size_t i = 0; i < Count; ++i) {
     data[i] = 0;
   }
-  std::array<std::future<void>, COUNT> results;
+  std::array<std::future<void>, Count> results;
   auto pre = std::chrono::high_resolution_clock::now();
-  for (uint64_t slot = 0; slot < COUNT; ++slot) {
+  for (uint64_t slot = 0; slot < Count; ++slot) {
     results[slot] = post_waitable(
       executor,
       // this workaround works with lazy pool + eager coro only
@@ -101,8 +101,8 @@ template <size_t COUNT, size_t nthreads> void large_task_spawn_bench_lazy() {
   auto spawn_dur =
     std::chrono::duration_cast<std::chrono::nanoseconds>(post - pre);
   std::printf(
-    "spawned %" PRIu64 " tasks in %" PRIu64 " ns: %" PRIu64 " ns/task\n", COUNT,
-    spawn_dur.count(), spawn_dur.count() / COUNT
+    "spawned %" PRIu64 " tasks in %" PRIu64 " ns: %" PRIu64 " ns/task\n", Count,
+    spawn_dur.count(), spawn_dur.count() / Count
   );
 
   auto exec_dur =
@@ -111,17 +111,17 @@ template <size_t COUNT, size_t nthreads> void large_task_spawn_bench_lazy() {
     "executed %" PRIu64 " tasks in %" PRIu64 " ns: %" PRIu64
     " ns/task (wall), %" PRIu64 " "
     "ns/task/thread\n",
-    COUNT, exec_dur.count(), exec_dur.count() / COUNT,
-    nthreads * exec_dur.count() / COUNT
+    Count, exec_dur.count(), exec_dur.count() / Count,
+    nthreads * exec_dur.count() / Count
   );
 }
 
-template <size_t COUNT, size_t nthreads>
+template <size_t Count, size_t nthreads>
 void large_task_spawn_bench_lazy_bulk() {
   ex_cpu executor;
   executor.set_thread_count(nthreads).init();
-  std::array<uint64_t, COUNT> data;
-  for (size_t i = 0; i < COUNT; ++i) {
+  std::array<uint64_t, Count> data;
+  for (size_t i = 0; i < Count; ++i) {
     data[i] = 0;
   }
   auto pre = std::chrono::high_resolution_clock::now();
@@ -129,7 +129,7 @@ void large_task_spawn_bench_lazy_bulk() {
     executor,
     iter_adapter(
       data.data(),
-      [](uint64_t* data_ptr) -> task<void> {
+      [](uint64_t* Data) -> task<void> {
         int a = 0;
         int b = 1;
         for (int i = 0; i < 1000; ++i) {
@@ -139,10 +139,10 @@ void large_task_spawn_bench_lazy_bulk() {
           }
           co_await yield_if_requested();
         }
-        *data_ptr = b;
+        *Data = b;
       }
     ),
-    0, COUNT
+    0, Count
   );
   auto post = std::chrono::high_resolution_clock::now();
   future.wait();
@@ -151,8 +151,8 @@ void large_task_spawn_bench_lazy_bulk() {
   auto spawn_dur =
     std::chrono::duration_cast<std::chrono::nanoseconds>(post - pre);
   std::printf(
-    "spawned %" PRIu64 " tasks in %" PRIu64 " ns: %" PRIu64 " ns/task\n", COUNT,
-    spawn_dur.count(), spawn_dur.count() / COUNT
+    "spawned %" PRIu64 " tasks in %" PRIu64 " ns: %" PRIu64 " ns/task\n", Count,
+    spawn_dur.count(), spawn_dur.count() / Count
   );
 
   auto exec_dur =
@@ -161,21 +161,21 @@ void large_task_spawn_bench_lazy_bulk() {
     "executed %" PRIu64 " tasks in %" PRIu64 " ns: %" PRIu64
     " ns/task (wall), %" PRIu64 " "
     "ns/task/thread\n",
-    COUNT, exec_dur.count(), exec_dur.count() / COUNT,
-    nthreads * exec_dur.count() / COUNT
+    Count, exec_dur.count(), exec_dur.count() / Count,
+    nthreads * exec_dur.count() / Count
   );
 }
 
 // Dispatch lowest prio -> highest prio so that each task is interrupted
-template <size_t COUNT, size_t nthreads, size_t npriorities>
+template <size_t Count, size_t nthreads, size_t npriorities>
 void prio_reversal_test() {
   ex_cpu executor;
   executor.set_priority_count(npriorities).set_thread_count(nthreads).init();
-  std::array<uint64_t, COUNT> data;
-  for (size_t i = 0; i < COUNT; ++i) {
+  std::array<uint64_t, Count> data;
+  for (size_t i = 0; i < Count; ++i) {
     data[i] = 0;
   }
-  std::array<std::future<void>, COUNT> results;
+  std::array<std::future<void>, Count> results;
   auto pre = std::chrono::high_resolution_clock::now();
   size_t slot = 0;
   while (true) {
@@ -183,7 +183,7 @@ void prio_reversal_test() {
       results[slot] = post_waitable(
         executor,
         // this workaround works with lazy pool + eager coro only
-        [](size_t* data_ptr, size_t prio) -> task<void> {
+        [](size_t* Data, size_t Priority) -> task<void> {
           int a = 0;
           int b = 1;
           for (int i = 0; i < 1000; ++i) {
@@ -197,13 +197,13 @@ void prio_reversal_test() {
             }
           }
 
-          *data_ptr = b;
+          *Data = b;
           // std::printf("co %"PRIu64"\t", prio);
         }(data.data() + slot, prio),
         prio
       );
       slot++;
-      if (slot == COUNT) {
+      if (slot == Count) {
         goto DONE;
       }
       // uncomment this for small number of nthreads
@@ -221,8 +221,8 @@ DONE:
   auto spawn_dur =
     std::chrono::duration_cast<std::chrono::nanoseconds>(post - pre);
   std::printf(
-    "spawned %" PRIu64 " tasks in %" PRIu64 " ns: %" PRIu64 " ns/task\n", COUNT,
-    spawn_dur.count(), spawn_dur.count() / COUNT
+    "spawned %" PRIu64 " tasks in %" PRIu64 " ns: %" PRIu64 " ns/task\n", Count,
+    spawn_dur.count(), spawn_dur.count() / Count
   );
 
   auto exec_dur =
@@ -231,12 +231,12 @@ DONE:
     "executed %" PRIu64 " tasks in %" PRIu64 " ns: %" PRIu64
     " ns/task (wall), %" PRIu64 " "
     "ns/task/thread\n",
-    COUNT, exec_dur.count(), exec_dur.count() / COUNT,
-    nthreads * exec_dur.count() / COUNT
+    Count, exec_dur.count(), exec_dur.count() / Count,
+    nthreads * exec_dur.count() / Count
   );
 }
 
-template <size_t COUNT, size_t nthreads> void co_await_eager_test() {
+template <size_t Count, size_t nthreads> void co_await_eager_test() {
   ex_cpu executor;
   executor.set_thread_count(nthreads).init();
   auto future = post_waitable(
@@ -261,7 +261,7 @@ template <size_t COUNT, size_t nthreads> void co_await_eager_test() {
   future.wait();
 }
 
-template <size_t COUNT, size_t nthreads> void spawn_test() {
+template <size_t Count, size_t nthreads> void spawn_test() {
   ex_cpu executor;
   executor.set_thread_count(nthreads).init();
   // auto pre = std::chrono::high_resolution_clock::now();
@@ -310,7 +310,7 @@ template <size_t COUNT, size_t nthreads> void spawn_test() {
         co_return;
       }
     ),
-    0, COUNT
+    0, Count
   );
   // auto post = std::chrono::high_resolution_clock::now();
   future.wait();
@@ -318,17 +318,17 @@ template <size_t COUNT, size_t nthreads> void spawn_test() {
 
   // auto spawn_dur = std::chrono::duration_cast<std::chrono::nanoseconds>(post
   // - pre); std::printf("spawned %"PRIu64" tasks in %"PRIu64" ns: %"PRIu64"
-  // ns/task\n", COUNT, spawn_dur.count(), spawn_dur.count() / COUNT);
+  // ns/task\n", Count, spawn_dur.count(), spawn_dur.count() / Count);
 
   // auto exec_dur = std::chrono::duration_cast<std::chrono::nanoseconds>(done -
   // post); std::printf("executed %"PRIu64" tasks in %"PRIu64" ns: %"PRIu64"
   // ns/task (wall),
-  // %"PRIu64" ns/task/thread\n", COUNT, exec_dur.count(),
-  //             exec_dur.count() / COUNT, nthreads * exec_dur.count() /
-  //             COUNT);
+  // %"PRIu64" ns/task/thread\n", Count, exec_dur.count(),
+  //             exec_dur.count() / Count, nthreads * exec_dur.count() /
+  //             Count);
 }
 
-template <size_t COUNT, size_t nthreads> void spawn_value_test() {
+template <size_t Count, size_t nthreads> void spawn_value_test() {
   ex_cpu executor;
   executor.set_thread_count(nthreads).init();
   auto pre = std::chrono::high_resolution_clock::now();
@@ -380,7 +380,7 @@ template <size_t COUNT, size_t nthreads> void spawn_value_test() {
         }(slot);
       }
     ),
-    0, COUNT
+    0, Count
   );
   auto post = std::chrono::high_resolution_clock::now();
   future.wait();
@@ -389,8 +389,8 @@ template <size_t COUNT, size_t nthreads> void spawn_value_test() {
   auto spawn_dur =
     std::chrono::duration_cast<std::chrono::nanoseconds>(post - pre);
   std::printf(
-    "spawned %" PRIu64 " tasks in %" PRIu64 " ns: %" PRIu64 " ns/task\n", COUNT,
-    spawn_dur.count(), spawn_dur.count() / COUNT
+    "spawned %" PRIu64 " tasks in %" PRIu64 " ns: %" PRIu64 " ns/task\n", Count,
+    spawn_dur.count(), spawn_dur.count() / Count
   );
 
   auto exec_dur =
@@ -399,12 +399,12 @@ template <size_t COUNT, size_t nthreads> void spawn_value_test() {
     "executed %" PRIu64 " tasks in %" PRIu64 " ns: %" PRIu64
     " ns/task (wall), %" PRIu64 " "
     "ns/task/thread\n",
-    COUNT, exec_dur.count(), exec_dur.count() / COUNT,
-    nthreads * exec_dur.count() / COUNT
+    Count, exec_dur.count(), exec_dur.count() / Count,
+    nthreads * exec_dur.count() / Count
   );
 }
 
-template <size_t COUNT, size_t nthreads> void spawn_many_test() {
+template <size_t Count, size_t nthreads> void spawn_many_test() {
   ex_cpu executor;
   executor.set_thread_count(nthreads).init();
   auto pre = std::chrono::high_resolution_clock::now();
@@ -442,7 +442,7 @@ template <size_t COUNT, size_t nthreads> void spawn_many_test() {
         co_return;
       }
     ),
-    0, COUNT
+    0, Count
   );
   auto post = std::chrono::high_resolution_clock::now();
   future.wait();
@@ -451,8 +451,8 @@ template <size_t COUNT, size_t nthreads> void spawn_many_test() {
   auto spawn_dur =
     std::chrono::duration_cast<std::chrono::nanoseconds>(post - pre);
   std::printf(
-    "spawned %" PRIu64 " tasks in %" PRIu64 " ns: %" PRIu64 " ns/task\n", COUNT,
-    spawn_dur.count(), spawn_dur.count() / COUNT
+    "spawned %" PRIu64 " tasks in %" PRIu64 " ns: %" PRIu64 " ns/task\n", Count,
+    spawn_dur.count(), spawn_dur.count() / Count
   );
 
   auto exec_dur =
@@ -461,8 +461,8 @@ template <size_t COUNT, size_t nthreads> void spawn_many_test() {
     "executed %" PRIu64 " tasks in %" PRIu64 " ns: %" PRIu64
     " ns/task (wall), %" PRIu64 " "
     "ns/task/thread\n",
-    COUNT, exec_dur.count(), exec_dur.count() / COUNT,
-    nthreads * exec_dur.count() / COUNT
+    Count, exec_dur.count(), exec_dur.count() / Count,
+    nthreads * exec_dur.count() / Count
   );
 }
 int main() {

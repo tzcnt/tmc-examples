@@ -12,20 +12,7 @@ set(CMAKE_CXX_STANDARD 20)
 
 add_definitions(
     "-march=native"
-    "-Weverything"
-
-    # these warnings are part of the design of the library
-    "-Wno-c++98-compat"
-    "-Wno-c++98-compat-pedantic"
-    "-Wno-padded"
-    "-Wno-unsafe-buffer-usage"
-    "-Wno-global-constructors"
-    "-Wno-exit-time-destructors"
-
-    # these warnings are part of the example code, it's a bit quick and dirty
-    "-Wno-sign-conversion"
-    "-Wno-missing-prototypes"
-    "-Wmissing-variable-declarations"
+    "-Wall"
 
     "-DTMC_WORK_ITEM=CORO" # one of: CORO, FUNC, FUNCORO, FUNCORO32
 
@@ -37,6 +24,28 @@ add_definitions(
     # "-DTMC_USE_MUTEXQ"
     # "-DTMC_QUEUE_NO_LIFO"
 )
+
+option(TMC_CHECK_WARNINGS_CLANG "exhaustive warning checks with clang's -Weverything" OFF)
+
+if(TMC_CHECK_WARNINGS_CLANG)
+    add_definitions(
+        "-Weverything"
+
+        # Ignore these (from the library)
+        "-Wno-c++98-compat"
+        "-Wno-c++98-compat-pedantic"
+        "-Wno-c++20-compat"
+        "-Wno-padded"
+        "-Wno-unsafe-buffer-usage"
+        "-Wno-global-constructors"
+        "-Wno-exit-time-destructors"
+
+        # Ignore these (from some quick and dirty examples)
+        "-Wno-sign-conversion"
+        "-Wno-missing-prototypes"
+        "-Wno-missing-variable-declarations"
+    )
+endif()
 
 include(cmake/CPM.cmake)
 
@@ -76,7 +85,9 @@ CPMAddPackage(
     VERSION 1.28.1
     GIT_TAG asio-1-28-1
     DOWNLOAD_ONLY)
-include_directories(
+
+# mark Asio headers as SYSTEM to ignore warnings
+include_directories(SYSTEM
     ${asio_SOURCE_DIR}/asio/include
 )
 

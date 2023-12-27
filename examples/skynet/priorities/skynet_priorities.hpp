@@ -6,7 +6,6 @@
 #include <coroutine>
 #include <iostream>
 #include <thread>
-using namespace tmc;
 
 namespace skynet {
 namespace coro {
@@ -15,7 +14,7 @@ namespace prio_asc {
 std::atomic_bool done;
 // child tasks are spawned with ascending priority number (lower priority)
 template <size_t depth_max>
-static task<size_t> skynet_one(size_t base_num, size_t local_depth) {
+static tmc::task<size_t> skynet_one(size_t base_num, size_t local_depth) {
   if (local_depth == depth_max) {
     co_return base_num;
   }
@@ -25,9 +24,9 @@ static task<size_t> skynet_one(size_t base_num, size_t local_depth) {
     depth_offset *= 10;
   }
   std::array<size_t, 10> results =
-    co_await spawn_many<10>(iter_adapter(
+    co_await spawn_many<10>(tmc::iter_adapter(
                               0ULL,
-                              [=](size_t idx) -> task<size_t> {
+                              [=](size_t idx) -> tmc::task<size_t> {
                                 return skynet_one<depth_max>(
                                   base_num + depth_offset * idx, local_depth + 1
                                 );
@@ -40,7 +39,7 @@ static task<size_t> skynet_one(size_t base_num, size_t local_depth) {
   co_return count;
 }
 
-template <size_t depth_max> static task<void> skynet() {
+template <size_t depth_max> static tmc::task<void> skynet() {
   size_t count = co_await skynet_one<depth_max>(0, 0);
   if (count != 499999500000) {
     std::printf("%" PRIu64 "\n", count);
@@ -51,7 +50,7 @@ template <size_t depth_max> static task<void> skynet() {
 template <size_t depth = 6> static void run_skynet() {
   done.store(false);
   static_assert(depth <= 6);
-  ex_cpu executor;
+  tmc::ex_cpu executor;
   executor.set_priority_count(depth + 1).init();
   auto start_time = std::chrono::high_resolution_clock::now();
   auto future = post_waitable(executor, skynet<depth>(), 0);
@@ -75,7 +74,7 @@ namespace prio_desc {
 std::atomic_bool done;
 // child tasks are spawned with descending priority number (higher priority)
 template <size_t depth_max>
-static task<size_t> skynet_one(size_t base_num, size_t local_depth) {
+static tmc::task<size_t> skynet_one(size_t base_num, size_t local_depth) {
   if (local_depth == depth_max) {
     co_return base_num;
   }
@@ -85,9 +84,9 @@ static task<size_t> skynet_one(size_t base_num, size_t local_depth) {
     depth_offset *= 10;
   }
   std::array<size_t, 10> results =
-    co_await spawn_many<10>(iter_adapter(
+    co_await spawn_many<10>(tmc::iter_adapter(
                               0ULL,
-                              [=](size_t idx) -> task<size_t> {
+                              [=](size_t idx) -> tmc::task<size_t> {
                                 return skynet_one<depth_max>(
                                   base_num + depth_offset * idx, local_depth + 1
                                 );
@@ -100,7 +99,7 @@ static task<size_t> skynet_one(size_t base_num, size_t local_depth) {
   co_return count;
 }
 
-template <size_t depth_max> static task<void> skynet() {
+template <size_t depth_max> static tmc::task<void> skynet() {
   size_t count = co_await skynet_one<depth_max>(0, 0);
   if (count != 499999500000) {
     std::printf("%" PRIu64 "\n", count);
@@ -110,7 +109,7 @@ template <size_t depth_max> static task<void> skynet() {
 template <size_t depth = 6> static void run_skynet() {
   done.store(false);
   static_assert(depth <= 6);
-  ex_cpu executor;
+  tmc::ex_cpu executor;
   executor.set_priority_count(depth + 1).init();
   auto start_time = std::chrono::high_resolution_clock::now();
   auto future = post_waitable(executor, skynet<depth>(), depth);
@@ -135,7 +134,7 @@ namespace prio_asc {
 std::atomic_bool done;
 // child tasks are spawned with ascending priority number (lower priority)
 template <size_t depth_max>
-static task<size_t> skynet_one(size_t base_num, size_t local_depth) {
+static tmc::task<size_t> skynet_one(size_t base_num, size_t local_depth) {
   if (local_depth == depth_max) {
     co_return base_num;
   }
@@ -154,7 +153,7 @@ static task<size_t> skynet_one(size_t base_num, size_t local_depth) {
   co_return count;
 }
 
-template <size_t depth_max> static task<void> skynet() {
+template <size_t depth_max> static tmc::task<void> skynet() {
   size_t count = co_await skynet_one<depth_max>(0, 0);
   if (count != 499999500000) {
     std::printf("%" PRIu64 "\n", count);
@@ -165,7 +164,7 @@ template <size_t depth_max> static task<void> skynet() {
 template <size_t depth> static void run_skynet() {
   done.store(false);
   static_assert(depth <= 6);
-  ex_cpu executor;
+  tmc::ex_cpu executor;
   executor.set_priority_count(depth + 1).init();
   auto start_time = std::chrono::high_resolution_clock::now();
   auto future = post_waitable(executor, skynet<depth>(), 0);
@@ -189,7 +188,7 @@ namespace prio_desc {
 std::atomic_bool done;
 // child tasks are spawned with descending priority number (higher priority)
 template <size_t depth_max>
-static task<size_t> skynet_one(size_t base_num, size_t local_depth) {
+static tmc::task<size_t> skynet_one(size_t base_num, size_t local_depth) {
   if (local_depth == depth_max) {
     co_return base_num;
   }
@@ -208,7 +207,7 @@ static task<size_t> skynet_one(size_t base_num, size_t local_depth) {
   co_return count;
 }
 
-template <size_t depth_max> static task<void> skynet() {
+template <size_t depth_max> static tmc::task<void> skynet() {
   size_t count = co_await skynet_one<depth_max>(0, 0);
   if (count != 499999500000) {
     std::printf("%" PRIu64 "\n", count);
@@ -219,7 +218,7 @@ template <size_t depth_max> static task<void> skynet() {
 template <size_t depth> static void run_skynet() {
   done.store(false);
   static_assert(depth <= 6);
-  ex_cpu executor;
+  tmc::ex_cpu executor;
   executor.set_priority_count(depth + 1).init();
   auto start_time = std::chrono::high_resolution_clock::now();
   auto future = post_waitable(executor, skynet<depth>(), depth);

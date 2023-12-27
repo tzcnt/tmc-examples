@@ -14,15 +14,13 @@
 #include <iostream>
 #include <thread>
 
-using namespace tmc;
-
 namespace skynet {
 namespace braids {
 namespace single {
 static std::atomic_bool done;
 // all tasks are spawned at the same priority
 template <size_t depth_max>
-task<size_t> skynet_one(size_t base_num, size_t depth) {
+tmc::task<size_t> skynet_one(size_t base_num, size_t depth) {
   if (depth == depth_max) {
     co_return base_num;
   }
@@ -39,7 +37,7 @@ task<size_t> skynet_one(size_t base_num, size_t depth) {
   co_return count;
 }
 
-template <size_t depth_max> task<void> skynet() {
+template <size_t depth_max> tmc::task<void> skynet() {
   size_t count = co_await skynet_one<depth_max>(0, 0);
   if (count != 499999500000) {
     std::printf("%" PRIu64 "\n", count);
@@ -49,9 +47,9 @@ template <size_t depth_max> task<void> skynet() {
 
 template <size_t depth = 6> void run_skynet() {
   done.store(false);
-  ex_cpu executor;
+  tmc::ex_cpu executor;
   executor.init();
-  ex_braid br(executor);
+  tmc::ex_braid br(executor);
   auto start_time = std::chrono::high_resolution_clock::now();
   auto future = post_waitable(br, skynet<depth>(), 0);
   future.wait();
@@ -74,7 +72,7 @@ namespace bulk {
 static std::atomic_bool done;
 // all tasks are spawned at the same priority
 template <size_t depth_max>
-task<size_t> skynet_one(size_t base_num, size_t depth) {
+tmc::task<size_t> skynet_one(size_t base_num, size_t depth) {
   if (depth == depth_max) {
     co_return base_num;
   }
@@ -83,7 +81,7 @@ task<size_t> skynet_one(size_t base_num, size_t depth) {
   for (size_t i = 0; i < depth_max - depth - 1; ++i) {
     depth_offset *= 10;
   }
-  std::array<task<size_t>, 10> children;
+  std::array<tmc::task<size_t>, 10> children;
   for (size_t idx = 0; idx < 10; ++idx) {
     children[idx] =
       skynet_one<depth_max>(base_num + depth_offset * idx, depth + 1);
@@ -94,12 +92,12 @@ task<size_t> skynet_one(size_t base_num, size_t depth) {
   }
   co_return count;
 }
-template <size_t depth_max> task<void> skynet() {
-  ex_braid br;
+template <size_t depth_max> tmc::task<void> skynet() {
+  tmc::ex_braid br;
   // TODO implement spawn with executor parameter so we don't have to do this
   // also need eager execution / delayed await since each task goes on a diff
   // exec
-  size_t count = co_await [](ex_braid* braid_ptr) -> task<size_t> {
+  size_t count = co_await [](tmc::ex_braid* braid_ptr) -> tmc::task<size_t> {
     co_await tmc::enter(braid_ptr);
     co_return co_await skynet_one<depth_max>(0, 0);
   }(&br);
@@ -111,7 +109,7 @@ template <size_t depth_max> task<void> skynet() {
 
 template <size_t depth = 6> void run_skynet() {
   done.store(false);
-  ex_cpu executor;
+  tmc::ex_cpu executor;
   executor.init();
   auto start_time = std::chrono::high_resolution_clock::now();
   auto future = post_waitable(executor, skynet<depth>(), 0);
@@ -135,7 +133,7 @@ namespace fork {
 static std::atomic_bool done;
 // all tasks are spawned at the same priority
 template <size_t depth_max>
-task<size_t> skynet_one(size_t base_num, size_t depth) {
+tmc::task<size_t> skynet_one(size_t base_num, size_t depth) {
   if (depth == depth_max) {
     co_return base_num;
   }
@@ -144,7 +142,7 @@ task<size_t> skynet_one(size_t base_num, size_t depth) {
   for (size_t i = 0; i < depth_max - depth - 1; ++i) {
     depth_offset *= 10;
   }
-  std::array<task<size_t>, 10> children;
+  std::array<tmc::task<size_t>, 10> children;
   for (size_t idx = 0; idx < 10; ++idx) {
     children[idx] =
       skynet_one<depth_max>(base_num + depth_offset * idx, depth + 1);
@@ -155,14 +153,15 @@ task<size_t> skynet_one(size_t base_num, size_t depth) {
   }
   co_return count;
 }
-template <size_t depth_max> task<void> skynet() {
-  std::array<task<size_t>, 10> children;
-  std::array<ex_braid, 10> braids;
+template <size_t depth_max> tmc::task<void> skynet() {
+  std::array<tmc::task<size_t>, 10> children;
+  std::array<tmc::ex_braid, 10> braids;
   for (size_t i = 0; i < 10; ++i) {
     // TODO implement spawn with executor parameter so we don't have to do
     // this also need eager execution / delayed await since each task goes on a
     // diff exec
-    children[i] = [](size_t i_in, ex_braid* braid_ptr) -> task<size_t> {
+    children[i] =
+      [](size_t i_in, tmc::ex_braid* braid_ptr) -> tmc::task<size_t> {
       co_await tmc::enter(braid_ptr);
       co_return co_await skynet_one<depth_max>(100000 * i_in, 1);
     }(i, &braids[i]);
@@ -180,7 +179,7 @@ template <size_t depth_max> task<void> skynet() {
 
 template <size_t depth = 6> void run_skynet() {
   done.store(false);
-  ex_cpu executor;
+  tmc::ex_cpu executor;
   executor.init();
   auto start_time = std::chrono::high_resolution_clock::now();
   auto future = post_waitable(executor, skynet<depth>(), 0);

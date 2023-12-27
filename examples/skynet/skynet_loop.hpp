@@ -8,7 +8,7 @@
 #include "tmc/task.hpp"
 #include <cinttypes>
 
-template <size_t depth = 6> task<void> loop_skynet() {
+template <size_t depth = 6> tmc::task<void> loop_skynet() {
   static_assert(depth <= 6);
   const size_t iter_count = 1000;
   for (size_t j = 0; j < 5; ++j) {

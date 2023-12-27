@@ -22,18 +22,18 @@
 int main() {
   tmc::cpu_executor().init();
   return async_main([]() -> tmc::task<int> {
-    std::printf("sizeof(work_item): %" PRIu64 "\n", sizeof(work_item));
+    std::printf("sizeof(work_item): %" PRIu64 "\n", sizeof(tmc::work_item));
     co_await loop_skynet<DEPTH>();
     co_return 0;
   }());
 
   // These each create their own standalone executors
-  tmc::cpu_executor().teardown();
-  skynet::direct::run_skynet<DEPTH>();
-  skynet::func::single::run_skynet<DEPTH>();
-  skynet::coro::single::run_skynet<DEPTH>();
-  skynet::coro::bulk::run_skynet<DEPTH>();
-  skynet::braids::single::run_skynet<DEPTH>();
-  skynet::braids::bulk::run_skynet<DEPTH>();
-  skynet::braids::fork::run_skynet<DEPTH>();
+  // tmc::cpu_executor().teardown();
+  // skynet::direct::run_skynet<DEPTH>();
+  // skynet::func::single::run_skynet<DEPTH>();
+  // skynet::coro::single::run_skynet<DEPTH>();
+  // skynet::coro::bulk::run_skynet<DEPTH>();
+  // skynet::braids::single::run_skynet<DEPTH>();
+  // skynet::braids::bulk::run_skynet<DEPTH>();
+  // skynet::braids::fork::run_skynet<DEPTH>();
 }

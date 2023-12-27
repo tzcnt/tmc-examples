@@ -7,15 +7,13 @@
 #include <iostream>
 #include <thread>
 
-using namespace tmc;
-
 namespace skynet {
 namespace coro {
 namespace bulk {
 static std::atomic_bool done;
 // all tasks are spawned at the same priority
 template <size_t depth_max>
-task<size_t> skynet_one(size_t base_num, size_t depth) {
+tmc::task<size_t> skynet_one(size_t base_num, size_t depth) {
   if (depth == depth_max) {
     co_return base_num;
   }
@@ -26,7 +24,7 @@ task<size_t> skynet_one(size_t base_num, size_t depth) {
   }
 
   /// Simplest way to spawn subtasks
-  // std::array<task<size_t>, 10> children;
+  // std::array<tmc::task<size_t>, 10> children;
   // for (size_t idx = 0; idx < 10; ++idx) {
   //   children[idx] = skynet_one<depth_max>(base_num + depth_offset * idx,
   //   depth + 1);
@@ -35,17 +33,19 @@ task<size_t> skynet_one(size_t base_num, size_t depth) {
   // spawn_many<10>(children.data());
 
   /// Concise and slightly faster way to run subtasks
-  std::array<size_t, 10> results =
-    co_await spawn_many<10>(iter_adapter(0ULL, [=](size_t idx) -> task<size_t> {
+  std::array<size_t, 10> results = co_await spawn_many<10>(tmc::iter_adapter(
+    0ULL,
+    [=](size_t idx) -> tmc::task<size_t> {
       return skynet_one<depth_max>(base_num + depth_offset * idx, depth + 1);
-    }));
+    }
+  ));
 
   for (size_t idx = 0; idx < 10; ++idx) {
     count += results[idx];
   }
   co_return count;
 }
-template <size_t depth_max> task<void> skynet() {
+template <size_t depth_max> tmc::task<void> skynet() {
   size_t count = co_await skynet_one<depth_max>(0, 0);
   if (count != 499999500000) {
     std::printf("%" PRIu64 "\n", count);
@@ -55,7 +55,7 @@ template <size_t depth_max> task<void> skynet() {
 
 template <size_t depth = 6> void run_skynet() {
   done.store(false);
-  ex_cpu executor;
+  tmc::ex_cpu executor;
   executor.init();
   auto start_time = std::chrono::high_resolution_clock::now();
   auto future = post_waitable(executor, skynet<depth>(), 0);

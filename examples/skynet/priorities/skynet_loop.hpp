@@ -8,7 +8,7 @@
 #include "tmc/ex_cpu.hpp"
 #include "tmc/task.hpp"
 
-template <size_t depth = 6> task<void> loop_skynet() {
+template <size_t depth = 6> tmc::task<void> loop_skynet() {
   static_assert(depth <= 6);
   const size_t iter_count = 1000;
   for (size_t j = 0; j < 5; ++j) {
@@ -39,7 +39,7 @@ template <size_t depth = 6> task<void> loop_skynet() {
 }
 
 // These tests use additional priorities at different depths of the tree
-template <size_t depth = 6> task<void> loop_skynet_prio() {
+template <size_t depth = 6> tmc::task<void> loop_skynet_prio() {
   static_assert(depth <= 6);
   const size_t iter_count = 10;
   for (size_t j = 0; j < 5; ++j) {
