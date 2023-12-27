@@ -13,12 +13,19 @@ set(CMAKE_CXX_STANDARD 20)
 add_definitions(
     "-march=native"
     "-Weverything"
+
+    # these warnings are part of the design of the library
     "-Wno-c++98-compat"
     "-Wno-c++98-compat-pedantic"
     "-Wno-padded"
     "-Wno-unsafe-buffer-usage"
     "-Wno-global-constructors"
     "-Wno-exit-time-destructors"
+
+    # these warnings are part of the example code, it's a bit quick and dirty
+    "-Wno-sign-conversion"
+    "-Wno-missing-prototypes"
+    "-Wmissing-variable-declarations"
 
     "-DTMC_WORK_ITEM=CORO" # one of: CORO, FUNC, FUNCORO, FUNCORO32
 

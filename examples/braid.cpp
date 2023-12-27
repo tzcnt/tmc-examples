@@ -61,7 +61,7 @@ template <size_t COUNT> tmc::task<void> braid_lock() {
       data.data(),
       [&br, &value](auto* data_ptr) -> task<void> {
         return [](
-                 auto* data_ptr, ex_braid* braid_lock, uint64_t* value_ptr
+                 auto* task_data, ex_braid* braid_lock, uint64_t* value_ptr
                ) -> task<void> {
           int a = 0;
           int b = 1;
@@ -72,7 +72,7 @@ template <size_t COUNT> tmc::task<void> braid_lock() {
             }
           }
 
-          *data_ptr = b;
+          *task_data = b;
           co_await tmc::enter(braid_lock);
           *value_ptr = *value_ptr + b;
           //  for example, but not necessary since the task ends

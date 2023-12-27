@@ -183,7 +183,7 @@ void prio_reversal_test() {
       results[slot] = post_waitable(
         executor,
         // this workaround works with lazy pool + eager coro only
-        [](size_t* data, size_t prio) -> task<void> {
+        [](size_t* data_ptr, size_t prio) -> task<void> {
           int a = 0;
           int b = 1;
           for (int i = 0; i < 1000; ++i) {
@@ -197,7 +197,7 @@ void prio_reversal_test() {
             }
           }
 
-          *data = b;
+          *data_ptr = b;
           // std::printf("co %"PRIu64"\t", prio);
         }(data.data() + slot, prio),
         prio
@@ -279,14 +279,14 @@ template <size_t COUNT, size_t nthreads> void spawn_test() {
         co_await spawn(std::function([slot]() {
           std::printf("%" PRIu64 ": co_awaited spawn\n", slot);
         }));
-        co_await spawn([](size_t slot) -> task<void> {
-          std::printf("%" PRIu64 ": pre inner\n", slot);
+        co_await spawn([](size_t Slot) -> task<void> {
+          std::printf("%" PRIu64 ": pre inner\n", Slot);
           co_await yield();
-          std::printf("%" PRIu64 ": resume inner 1\n", slot);
+          std::printf("%" PRIu64 ": resume inner 1\n", Slot);
           co_await yield();
-          std::printf("%" PRIu64 ": resume inner 2\n", slot);
+          std::printf("%" PRIu64 ": resume inner 2\n", Slot);
           co_await yield();
-          std::printf("%" PRIu64 ": post inner\n", slot);
+          std::printf("%" PRIu64 ": post inner\n", Slot);
           co_return;
         }(slot));
         std::printf("%" PRIu64 ": post outer\n", slot);
@@ -295,14 +295,14 @@ template <size_t COUNT, size_t nthreads> void spawn_test() {
         //  required
         // TODO handle functions returning task<> specially?
         co_await co_await spawn(std::function([slot]() -> task<void> {
-          return [](size_t slot) -> task<void> {
-            std::printf("%" PRIu64 ": pre inner\n", slot);
+          return [](size_t Slot) -> task<void> {
+            std::printf("%" PRIu64 ": pre inner\n", Slot);
             co_await yield();
-            std::printf("%" PRIu64 ": resume inner 1\n", slot);
+            std::printf("%" PRIu64 ": resume inner 1\n", Slot);
             co_await yield();
-            std::printf("%" PRIu64 ": resume inner 2\n", slot);
+            std::printf("%" PRIu64 ": resume inner 2\n", Slot);
             co_await yield();
-            std::printf("%" PRIu64 ": post inner\n", slot);
+            std::printf("%" PRIu64 ": post inner\n", Slot);
             co_return;
           }(slot);
         }));
@@ -337,45 +337,45 @@ template <size_t COUNT, size_t nthreads> void spawn_value_test() {
     iter_adapter(
       0,
       [](size_t slot) -> task<void> {
-        return [](size_t slot) -> task<void> {
-          auto slot_start = slot;
+        return [](size_t Slot) -> task<void> {
+          auto slot_start = Slot;
           //  TODO make spawn take an invokable
           //  instead of constructing std::function here
-          std::printf("%" PRIu64 ": pre outer\n", slot);
-          slot = co_await [slot]() -> task<size_t> {
+          std::printf("%" PRIu64 ": pre outer\n", Slot);
+          Slot = co_await [Slot]() -> task<size_t> {
             std::printf("func 0\t");
-            co_return slot + 1;
+            co_return Slot + 1;
           }();
-          slot = co_await spawn(std::function([slot]() -> size_t {
+          Slot = co_await spawn(std::function([Slot]() -> size_t {
             std::printf("func 1\t");
-            return slot + 1;
+            return Slot + 1;
           }));
-          auto t = [](size_t slot) -> task<size_t> {
+          auto t = [](size_t InnerSlot) -> task<size_t> {
             co_await yield();
             co_await yield();
             std::printf("func 2\t");
-            co_return slot + 1;
-          }(slot);
-          slot = co_await spawn(t);
+            co_return InnerSlot + 1;
+          }(Slot);
+          Slot = co_await spawn(t);
           //  this doesn't have the desired effect - the spawn'd
           //  function returns immediately, and a 2nd co_await is
           //  required
           // TODO handle functions returning task<> specially?
-          slot =
-            co_await co_await spawn(std::function([slot]() -> task<size_t> {
-              return [](size_t slot) -> task<size_t> {
+          Slot =
+            co_await co_await spawn(std::function([Slot]() -> task<size_t> {
+              return [](size_t InnerSlot) -> task<size_t> {
                 co_await yield();
                 co_await yield();
                 std::printf("func 3\t");
-                co_return slot + 1;
-              }(slot);
+                co_return InnerSlot + 1;
+              }(Slot);
             }));
-          if (slot != slot_start + 4) {
+          if (Slot != slot_start + 4) {
             printf(
-              "expected %" PRIu64 " but got %" PRIu64 "\n", slot_start + 4, slot
+              "expected %" PRIu64 " but got %" PRIu64 "\n", slot_start + 4, Slot
             );
           }
-          std::printf("%" PRIu64 ": post outer\n", slot);
+          std::printf("%" PRIu64 ": post outer\n", Slot);
           co_return;
         }(slot);
       }
@@ -417,25 +417,25 @@ template <size_t COUNT, size_t nthreads> void spawn_many_test() {
         //  instead of constructing std::function
         //  here
         std::printf("%" PRIu64 ": pre outer\n", slot);
-        auto t = [](size_t slot) -> task<size_t> {
+        auto t = [](size_t Slot) -> task<size_t> {
           co_await yield();
           co_await yield();
-          std::printf("func %" PRIu64 "\n", slot);
-          co_return slot + 1;
+          std::printf("func %" PRIu64 "\n", Slot);
+          co_return Slot + 1;
         }(slot);
         auto result = co_await spawn_many<1>(&t);
         slot = result[0];
-        auto t2 = [](size_t slot) -> task<void> {
+        auto t2 = [](size_t Slot) -> task<void> {
           co_await yield();
           co_await yield();
-          std::printf("func %" PRIu64 "\n", slot);
+          std::printf("func %" PRIu64 "\n", Slot);
         }(slot);
         co_await spawn_many<1>(&t2);
         slot++;
-        auto t3 = [](size_t slot) -> task<void> {
+        auto t3 = [](size_t Slot) -> task<void> {
           co_await yield();
           co_await yield();
-          std::printf("func %" PRIu64 "\n", slot);
+          std::printf("func %" PRIu64 "\n", Slot);
         }(slot);
         spawn_many<1>(&t3);
         std::printf("%" PRIu64 ": post outer\n", slot);

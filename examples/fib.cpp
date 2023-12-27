@@ -55,11 +55,11 @@ int main(int argc, char* argv[]) {
     exit(0);
   }
 
-  int n = atoi(argv[1]);
-  tmc::async_main([](int n) -> tmc::task<int> {
+  int runCount = atoi(argv[1]);
+  tmc::async_main([](int RunCount) -> tmc::task<int> {
     auto start_time = std::chrono::high_resolution_clock::now();
     for (size_t i = 0; i < NRUNS; ++i) {
-      co_await top_fib(n);
+      co_await top_fib(RunCount);
     }
 
     auto end_time = std::chrono::high_resolution_clock::now();
@@ -68,5 +68,5 @@ int main(int argc, char* argv[]) {
     );
     std::printf("%" PRIu64 " us\n", total_time_us.count() / NRUNS);
     co_return 0;
-  }(n));
+  }(runCount));
 }
