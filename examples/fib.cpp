@@ -3,14 +3,11 @@
 // but a test of the runtime's fork/join efficiency.
 
 #define TMC_IMPL
-
 #include "tmc/all_headers.hpp"
-#include <atomic>
+
 #include <chrono>
 #include <cinttypes>
-#include <coroutine>
-#include <iostream>
-#include <thread>
+#include <cstdio>
 
 using namespace tmc;
 
@@ -55,18 +52,18 @@ int main(int argc, char* argv[]) {
     exit(0);
   }
 
-  int n = atoi(argv[1]);
-  tmc::async_main([](int n) -> tmc::task<int> {
-    auto start_time = std::chrono::high_resolution_clock::now();
+  int runCount = atoi(argv[1]);
+  tmc::async_main([](int RunCount) -> tmc::task<int> {
+    auto startTime = std::chrono::high_resolution_clock::now();
     for (size_t i = 0; i < NRUNS; ++i) {
-      co_await top_fib(n);
+      co_await top_fib(RunCount);
     }
 
-    auto end_time = std::chrono::high_resolution_clock::now();
-    auto total_time_us = std::chrono::duration_cast<std::chrono::microseconds>(
-      end_time - start_time
+    auto endTime = std::chrono::high_resolution_clock::now();
+    auto totalTimeUs = std::chrono::duration_cast<std::chrono::microseconds>(
+      endTime - startTime
     );
-    std::printf("%" PRIu64 " us\n", total_time_us.count() / NRUNS);
+    std::printf("%" PRIu64 " us\n", totalTimeUs.count() / NRUNS);
     co_return 0;
-  }(n));
+  }(runCount));
 }

@@ -13,7 +13,7 @@ set(CMAKE_CXX_STANDARD 20)
 add_definitions(
     "-march=native"
 
-    # "-DTMC_WORK_ITEM=CORO" # one of: CORO, FUNC, FUNCORO, FUNCORO32
+    "-DTMC_WORK_ITEM=CORO" # one of: CORO, FUNC, FUNCORO, FUNCORO32
 
     # "-DTMC_PRIORITY_COUNT=2" # unsigned integer >= 1
     # "-DTMC_USE_BOOST_ASIO"
@@ -41,13 +41,13 @@ else()
     CPMAddPackage(
         NAME TooManyCooks
         GIT_REPOSITORY https://github.com/tzcnt/TooManyCooks.git
-        GIT_TAG 087b5708a5881054b1be87ed9bc6c51e5bd2f9dd
+        GIT_TAG 1cc39082cdd3bce4da72bc5de09016eaac609ccf
         DOWNLOAD_ONLY)
 
     CPMAddPackage(
         NAME tmc_asio
         GIT_REPOSITORY https://github.com/tzcnt/tmc-asio.git
-        GIT_TAG 927bdf8e84138a5e512b566bbc55a59718f39763
+        GIT_TAG de808d6a136441b92fe364dae172c9e3e71c1728
         DOWNLOAD_ONLY)
 
     include_directories(
@@ -62,7 +62,9 @@ CPMAddPackage(
     VERSION 1.28.1
     GIT_TAG asio-1-28-1
     DOWNLOAD_ONLY)
-include_directories(
+
+# mark Asio headers as SYSTEM to ignore warnings
+include_directories(SYSTEM
     ${asio_SOURCE_DIR}/asio/include
 )
 
@@ -131,6 +133,28 @@ else()
 endif()
 
 link_libraries(${MALLOC_LIB})
+
+option(TMC_CHECK_WARNINGS_CLANG "exhaustive warning checks with clang's -Weverything" OFF)
+
+if(TMC_CHECK_WARNINGS_CLANG)
+    add_definitions(
+        "-Weverything"
+
+        # Ignore these (from the library)
+        "-Wno-c++98-compat"
+        "-Wno-c++98-compat-pedantic"
+        "-Wno-c++20-compat"
+        "-Wno-padded"
+        "-Wno-unsafe-buffer-usage"
+        "-Wno-global-constructors"
+        "-Wno-exit-time-destructors"
+
+        # Ignore these (from some quick and dirty examples)
+        "-Wno-sign-conversion"
+        "-Wno-missing-prototypes"
+        "-Wno-missing-variable-declarations"
+    )
+endif()
 
 add_executable(alignment
     examples/alignment.cpp

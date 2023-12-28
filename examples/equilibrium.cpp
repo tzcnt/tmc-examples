@@ -2,14 +2,11 @@
 // from 1 to 32 threads. Find the point of diminishing returns.
 
 #define TMC_IMPL
-
 #include "tmc/all_headers.hpp"
-#include <atomic>
+
 #include <chrono>
 #include <cinttypes>
-#include <coroutine>
-#include <iostream>
-#include <thread>
+#include <cstdio>
 
 using namespace tmc;
 
@@ -23,7 +20,7 @@ struct bench_result {
   std::chrono::duration<long, std::ratio<1, 1000000000>> dur_ns;
 };
 
-task<void> make_task(uint64_t* out_ptr) {
+task<void> make_task(uint64_t* DataSlot) {
   int a = 0;
   int b = 1;
 #pragma unroll 1
@@ -35,11 +32,11 @@ task<void> make_task(uint64_t* out_ptr) {
     }
   }
 
-  *out_ptr = b;
+  *DataSlot = b;
   co_return;
 }
 
-task<void> get_task(size_t slot, uint64_t* data) {
+task<void> get_task(size_t Slot, uint64_t* Data) {
   int a = 0;
   int b = 1;
 #pragma unroll 1
@@ -51,15 +48,15 @@ task<void> get_task(size_t slot, uint64_t* data) {
     }
   }
 
-  data[slot] = b;
+  Data[Slot] = b;
   co_return;
 }
 
-bench_result find_equilibrium(size_t count, size_t nthreads) {
+bench_result find_equilibrium(size_t Count, size_t ThreadCount) {
   auto& executor = tmc::cpu_executor();
-  executor.set_thread_count(nthreads).init();
-  auto data = new uint64_t[count];
-  for (size_t i = 0; i < count; ++i) {
+  executor.set_thread_count(ThreadCount).init();
+  auto data = new uint64_t[Count];
+  for (size_t i = 0; i < Count; ++i) {
     data[i] = 0;
   }
   std::future<void> future;
@@ -67,12 +64,12 @@ bench_result find_equilibrium(size_t count, size_t nthreads) {
   // this is around 100ns slower per-task :(
   for (size_t i = 0; i < WARMUP_COUNT; ++i) {
     future =
-      post_bulk_waitable(executor, iter_adapter(data, make_task), 0, count);
+      post_bulk_waitable(executor, iter_adapter(data, make_task), 0, Count);
     future.wait();
   }
-  auto pre = std::chrono::high_resolution_clock::now();
+  auto beforePostTime = std::chrono::high_resolution_clock::now();
   future =
-    post_bulk_waitable(executor, iter_adapter(data, make_task), 0, count);
+    post_bulk_waitable(executor, iter_adapter(data, make_task), 0, Count);
 #else
   auto tasks = new task<void>[count];
   for (size_t i = 0; i < WARMUP_COUNT; ++i) {
@@ -89,21 +86,23 @@ bench_result find_equilibrium(size_t count, size_t nthreads) {
   future = post_bulk_waitable(executor, tasks, 0, count);
 #endif
 
-  auto post_done = std::chrono::high_resolution_clock::now();
+  auto afterPostTime = std::chrono::high_resolution_clock::now();
   future.wait();
-  auto done = std::chrono::high_resolution_clock::now();
+  auto doneTime = std::chrono::high_resolution_clock::now();
 
-  auto post_dur =
-    std::chrono::duration_cast<std::chrono::nanoseconds>(post_done - pre);
-  auto total_dur =
-    std::chrono::duration_cast<std::chrono::nanoseconds>(done - pre);
+  auto postDur = std::chrono::duration_cast<std::chrono::nanoseconds>(
+    afterPostTime - beforePostTime
+  );
+  auto totalDur = std::chrono::duration_cast<std::chrono::nanoseconds>(
+    doneTime - beforePostTime
+  );
 
   tmc::cpu_executor().teardown();
   delete[] data;
 #ifndef USE_TRANSFORMER
   delete[] tasks;
 #endif
-  return bench_result{nthreads, count, post_dur, total_dur};
+  return bench_result{ThreadCount, Count, postDur, totalDur};
 }
 
 int main() {
@@ -115,14 +114,14 @@ int main() {
 
   std::printf("%" PRIu64 " tasks\n", count);
   for (size_t i = 0; i < results.size(); ++i) {
-    auto bench_result = results[i];
+    auto benchResult = results[i];
     std::printf(
       "%" PRIu64 " thr, %ld post ns, %ld tot ns: %" PRIu64
       " ns/task (wall), %" PRIu64 " "
       "thread-ns/task\n",
-      bench_result.thread_count, bench_result.post_dur_ns.count(),
-      bench_result.dur_ns.count(), bench_result.dur_ns.count() / count,
-      (bench_result.thread_count) * bench_result.dur_ns.count() / count
+      benchResult.thread_count, benchResult.post_dur_ns.count(),
+      benchResult.dur_ns.count(), benchResult.dur_ns.count() / count,
+      (benchResult.thread_count) * benchResult.dur_ns.count() / count
     );
   }
   //}
