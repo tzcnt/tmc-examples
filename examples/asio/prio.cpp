@@ -6,6 +6,7 @@
 #include "tmc/asio/aw_asio.hpp"
 #include "tmc/asio/ex_asio.hpp"
 
+#include <asio/steady_timer.hpp>
 #include <cinttypes>
 #include <cstdio>
 #include <cstdlib>

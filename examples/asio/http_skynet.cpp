@@ -14,6 +14,7 @@
 #include <asio/io_context.hpp>
 #include <asio/ip/tcp.hpp>
 #include <asio/signal_set.hpp>
+#include <asio/streambuf.hpp>
 #include <asio/write.hpp>
 #include <sstream>
 #include <string>
