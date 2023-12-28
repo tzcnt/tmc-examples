@@ -38,14 +38,14 @@ template <size_t Count> tmc::task<void> large_task_spawn_bench_lazy_bulk() {
     .run_on(br);
   auto done = std::chrono::high_resolution_clock::now();
 
-  auto exec_dur =
+  auto execDur =
     std::chrono::duration_cast<std::chrono::nanoseconds>(done - pre);
   std::printf(
     "executed %" PRIu64 " tasks in %" PRIu64 " ns: %" PRIu64
     " ns/task (wall), %" PRIu64 " "
     "ns/task/thread\n",
-    Count, exec_dur.count(), exec_dur.count() / Count,
-    (16) * exec_dur.count() / Count
+    Count, execDur.count(), execDur.count() / Count,
+    (16) * execDur.count() / Count
   );
 }
 
@@ -61,24 +61,22 @@ template <size_t Count> tmc::task<void> braid_lock() {
     iter_adapter(
       data.data(),
       [&br, &value](auto* Data) -> task<void> {
-        return [](
-                 auto* task_data, ex_braid* braid_lock, uint64_t* value_ptr
-               ) -> task<void> {
-          int a = 0;
-          int b = 1;
-          for (int i = 0; i < 1000; ++i) {
-            for (int j = 0; j < 500; ++j) {
-              a = a + b;
-              b = b + a;
+        return
+          [](auto* TaskData, ex_braid* Braid, uint64_t* Value) -> task<void> {
+            int a = 0;
+            int b = 1;
+            for (int i = 0; i < 1000; ++i) {
+              for (int j = 0; j < 500; ++j) {
+                a = a + b;
+                b = b + a;
+              }
             }
-          }
 
-          *task_data = b;
-          co_await tmc::enter(braid_lock);
-          *value_ptr = *value_ptr + b;
-          //  for example, but not necessary since the task ends
-          //  here co_await braid_lock->exit();
-        }(Data, &br, &value);
+            *TaskData = b;
+            co_await tmc::enter(Braid);
+            *Value = *Value + b;
+            // not necessary to exit the braid scope, since the task has ended
+          }(Data, &br, &value);
       }
     ),
     Count
@@ -90,14 +88,14 @@ template <size_t Count> tmc::task<void> braid_lock() {
       "FAIL: expected %" PRIu64 " but got %" PRIu64 "\n", data[0] * Count, value
     );
   }
-  auto exec_dur =
+  auto execDur =
     std::chrono::duration_cast<std::chrono::nanoseconds>(done - pre);
   std::printf(
     "executed %" PRIu64 " tasks in %" PRIu64 " ns: %" PRIu64
     " ns/task (wall), %" PRIu64 " "
     "ns/task/thread\n",
-    Count, exec_dur.count(), exec_dur.count() / Count,
-    (16) * exec_dur.count() / Count
+    Count, execDur.count(), execDur.count() / Count,
+    (16) * execDur.count() / Count
   );
 }
 
@@ -108,15 +106,15 @@ template <size_t Count> tmc::task<void> braid_lock_middle() {
     data[i] = 0;
   }
   uint64_t value = 0;
-  uint64_t mid_locks = 0;
+  uint64_t lockCount = 0;
   auto pre = std::chrono::high_resolution_clock::now();
   std::vector<tmc::task<void>> tasks;
   tasks.resize(Count);
   {
     for (uint64_t slot = 0; slot < Count; ++slot) {
       tasks[slot] = [](
-                      auto* Data, ex_braid* braid_lock, uint64_t* value_ptr,
-                      uint64_t* lock_count_ptr
+                      auto* Data, ex_braid* Braid, uint64_t* Value,
+                      uint64_t* LockCount
                     ) -> task<void> {
         int a = 0;
         int b = 1;
@@ -128,9 +126,9 @@ template <size_t Count> tmc::task<void> braid_lock_middle() {
         }
         a = a + b;
         b = b + a;
-        auto braid_scope = co_await tmc::enter(braid_lock);
-        (*lock_count_ptr)++;
-        co_await braid_scope.exit();
+        auto braidScope = co_await tmc::enter(Braid);
+        (*LockCount)++;
+        co_await braidScope.exit();
         for (int i = 0; i < 500; ++i) {
           for (int j = 0; j < 500; ++j) {
             a = a + b;
@@ -139,11 +137,10 @@ template <size_t Count> tmc::task<void> braid_lock_middle() {
         }
 
         *Data = b;
-        co_await tmc::enter(braid_lock);
-        *value_ptr = *value_ptr + b;
-        // for example, but not necessary since the task ends here
-        // co_await braid_lock->exit();
-      }(&data[slot], &br, &value, &mid_locks);
+        co_await tmc::enter(Braid);
+        *Value = *Value + b;
+        // not necessary to exit the braid scope, since the task has ended
+      }(&data[slot], &br, &value, &lockCount);
     }
   }
   co_await spawn_many(tasks.data(), Count);
@@ -154,20 +151,20 @@ template <size_t Count> tmc::task<void> braid_lock_middle() {
       "FAIL: expected %" PRIu64 " but got %" PRIu64 "\n", data[0] * Count, value
     );
   }
-  if (mid_locks != Count) {
+  if (lockCount != Count) {
     std::printf(
       "FAIL: expected %" PRIu64 " but got %" PRIu64 "\n", data[0] * Count, value
     );
   }
 
-  auto exec_dur =
+  auto execDur =
     std::chrono::duration_cast<std::chrono::nanoseconds>(done - pre);
   std::printf(
     "executed %" PRIu64 " tasks in %" PRIu64 " ns: %" PRIu64
     " ns/task (wall), %" PRIu64 " "
     "ns/task/thread\n",
-    Count, exec_dur.count(), exec_dur.count() / Count,
-    (16) * exec_dur.count() / Count
+    Count, execDur.count(), execDur.count() / Count,
+    (16) * execDur.count() / Count
   );
 }
 
@@ -178,15 +175,15 @@ template <size_t Count> tmc::task<void> braid_lock_middle_resume_on() {
     data[i] = 0;
   }
   uint64_t value = 0;
-  uint64_t mid_locks = 0;
+  uint64_t lockCount = 0;
   auto pre = std::chrono::high_resolution_clock::now();
   std::vector<tmc::task<void>> tasks;
   tasks.resize(Count);
   {
     for (uint64_t slot = 0; slot < Count; ++slot) {
       tasks[slot] = [](
-                      auto* Data, ex_braid* braid_lock, uint64_t* value_ptr,
-                      uint64_t* lock_count_ptr
+                      auto* Data, ex_braid* Braid, uint64_t* Value,
+                      uint64_t* LockCount
                     ) -> task<void> {
         int a = 0;
         int b = 1;
@@ -198,8 +195,8 @@ template <size_t Count> tmc::task<void> braid_lock_middle_resume_on() {
         }
         a = a + b;
         b = b + a;
-        co_await resume_on(braid_lock);
-        (*lock_count_ptr)++;
+        co_await resume_on(Braid);
+        (*LockCount)++;
         co_await resume_on(tmc::cpu_executor());
         for (int i = 0; i < 500; ++i) {
           for (int j = 0; j < 500; ++j) {
@@ -209,9 +206,9 @@ template <size_t Count> tmc::task<void> braid_lock_middle_resume_on() {
         }
 
         *Data = b;
-        co_await resume_on(braid_lock);
-        *value_ptr = *value_ptr + b;
-      }(&data[slot], &br, &value, &mid_locks);
+        co_await resume_on(Braid);
+        *Value = *Value + b;
+      }(&data[slot], &br, &value, &lockCount);
     }
   }
   co_await spawn_many(tasks.data(), Count);
@@ -222,19 +219,19 @@ template <size_t Count> tmc::task<void> braid_lock_middle_resume_on() {
       "FAIL: expected %" PRIu64 " but got %" PRIu64 "\n", data[0] * Count, value
     );
   }
-  if (mid_locks != Count) {
+  if (lockCount != Count) {
     std::printf(
       "FAIL: expected %" PRIu64 " but got %" PRIu64 "\n", data[0] * Count, value
     );
   }
-  auto exec_dur =
+  auto execDur =
     std::chrono::duration_cast<std::chrono::nanoseconds>(done - pre);
   std::printf(
     "executed %" PRIu64 " tasks in %" PRIu64 " ns: %" PRIu64
     " ns/task (wall), %" PRIu64 " "
     "ns/task/thread\n",
-    Count, exec_dur.count(), exec_dur.count() / Count,
-    (16) * exec_dur.count() / Count
+    Count, execDur.count(), execDur.count() / Count,
+    (16) * execDur.count() / Count
   );
 }
 

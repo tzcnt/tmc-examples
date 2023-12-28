@@ -58,12 +58,12 @@ template <size_t depth = 6> static void run_skynet() {
     std::printf("skynet_coro_bulk_asc did not finish!\n");
   }
 
-  auto exec_dur =
+  auto execDur =
     std::chrono::duration_cast<std::chrono::nanoseconds>(end_time - start_time);
   std::printf(
     "executed skynet in %" PRIu64 " ns: %" PRIu64 " thread-ns\n",
-    exec_dur.count(),
-    executor.thread_count() * static_cast<size_t>(exec_dur.count())
+    execDur.count(),
+    executor.thread_count() * static_cast<size_t>(execDur.count())
   );
 }
 } // namespace prio_asc
@@ -117,12 +117,12 @@ template <size_t depth = 6> static void run_skynet() {
     std::printf("skynet_coro_bulk_desc did not finish!\n");
   }
 
-  auto exec_dur =
+  auto execDur =
     std::chrono::duration_cast<std::chrono::nanoseconds>(end_time - start_time);
   std::printf(
     "executed skynet in %" PRIu64 " ns: %" PRIu64 " thread-ns\n",
-    exec_dur.count(),
-    executor.thread_count() * static_cast<size_t>(exec_dur.count())
+    execDur.count(),
+    executor.thread_count() * static_cast<size_t>(execDur.count())
   );
 }
 } // namespace prio_desc
@@ -172,12 +172,12 @@ template <size_t depth> static void run_skynet() {
     std::printf("skynet_coro_single_asc did not finish!\n");
   }
 
-  auto exec_dur =
+  auto execDur =
     std::chrono::duration_cast<std::chrono::nanoseconds>(end_time - start_time);
   std::printf(
     "executed skynet in %" PRIu64 " ns: %" PRIu64 " thread-ns\n",
-    exec_dur.count(),
-    executor.thread_count() * static_cast<size_t>(exec_dur.count())
+    execDur.count(),
+    executor.thread_count() * static_cast<size_t>(execDur.count())
   );
 }
 } // namespace prio_asc
@@ -226,12 +226,12 @@ template <size_t depth> static void run_skynet() {
     std::printf("skynet_coro_single_desc did not finish!\n");
   }
 
-  auto exec_dur =
+  auto execDur =
     std::chrono::duration_cast<std::chrono::nanoseconds>(end_time - start_time);
   std::printf(
     "executed skynet in %" PRIu64 " ns: %" PRIu64 " thread-ns\n",
-    exec_dur.count(),
-    executor.thread_count() * static_cast<size_t>(exec_dur.count())
+    execDur.count(),
+    executor.thread_count() * static_cast<size_t>(execDur.count())
   );
 }
 } // namespace prio_desc

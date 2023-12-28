@@ -52,10 +52,10 @@ template <size_t depth_max> tmc::task<std::string> skynet() {
   if (count != 499999500000) {
     output << "got wrong result: " << count << "\n";
   }
-  auto exec_dur = std::chrono::duration_cast<std::chrono::microseconds>(
+  auto execDur = std::chrono::duration_cast<std::chrono::microseconds>(
     end_time - start_time
   );
-  output << "executed skynet in " << exec_dur.count() << " us\n";
+  output << "executed skynet in " << execDur.count() << " us\n";
   co_return std::string(output.str());
 }
 

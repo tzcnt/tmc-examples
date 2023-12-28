@@ -67,7 +67,7 @@ bench_result find_equilibrium(size_t count, size_t nthreads) {
       post_bulk_waitable(executor, iter_adapter(data, make_task), 0, count);
     future.wait();
   }
-  auto pre = std::chrono::high_resolution_clock::now();
+  auto beforePostTime = std::chrono::high_resolution_clock::now();
   future =
     post_bulk_waitable(executor, iter_adapter(data, make_task), 0, count);
 #else
@@ -86,21 +86,23 @@ bench_result find_equilibrium(size_t count, size_t nthreads) {
   future = post_bulk_waitable(executor, tasks, 0, count);
 #endif
 
-  auto post_done = std::chrono::high_resolution_clock::now();
+  auto afterPostTime = std::chrono::high_resolution_clock::now();
   future.wait();
-  auto done = std::chrono::high_resolution_clock::now();
+  auto doneTime = std::chrono::high_resolution_clock::now();
 
-  auto post_dur =
-    std::chrono::duration_cast<std::chrono::nanoseconds>(post_done - pre);
-  auto total_dur =
-    std::chrono::duration_cast<std::chrono::nanoseconds>(done - pre);
+  auto postDur = std::chrono::duration_cast<std::chrono::nanoseconds>(
+    afterPostTime - beforePostTime
+  );
+  auto totalDur = std::chrono::duration_cast<std::chrono::nanoseconds>(
+    doneTime - beforePostTime
+  );
 
   tmc::cpu_executor().teardown();
   delete[] data;
 #ifndef USE_TRANSFORMER
   delete[] tasks;
 #endif
-  return bench_result{nthreads, count, post_dur, total_dur};
+  return bench_result{nthreads, count, postDur, totalDur};
 }
 
 int main() {
@@ -112,14 +114,14 @@ int main() {
 
   std::printf("%" PRIu64 " tasks\n", count);
   for (size_t i = 0; i < results.size(); ++i) {
-    auto bench_result = results[i];
+    auto benchResult = results[i];
     std::printf(
       "%" PRIu64 " thr, %ld post ns, %ld tot ns: %" PRIu64
       " ns/task (wall), %" PRIu64 " "
       "thread-ns/task\n",
-      bench_result.thread_count, bench_result.post_dur_ns.count(),
-      bench_result.dur_ns.count(), bench_result.dur_ns.count() / count,
-      (bench_result.thread_count) * bench_result.dur_ns.count() / count
+      benchResult.thread_count, benchResult.post_dur_ns.count(),
+      benchResult.dur_ns.count(), benchResult.dur_ns.count() / count,
+      (benchResult.thread_count) * benchResult.dur_ns.count() / count
     );
   }
   //}

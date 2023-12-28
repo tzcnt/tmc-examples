@@ -29,14 +29,14 @@ template <size_t depth = 6> tmc::task<void> loop_skynet() {
     }
 
     auto end_time = std::chrono::high_resolution_clock::now();
-    auto exec_dur = std::chrono::duration_cast<std::chrono::microseconds>(
+    auto execDur = std::chrono::duration_cast<std::chrono::microseconds>(
       end_time - start_time
     );
     std::printf(
       "%" PRIu64 " skynet iterations in %" PRIu64 " us: %" PRIu64
       " thread-us\n",
-      iter_count, exec_dur.count(),
-      tmc::cpu_executor().thread_count() * static_cast<size_t>(exec_dur.count())
+      iter_count, execDur.count(),
+      tmc::cpu_executor().thread_count() * static_cast<size_t>(execDur.count())
     );
   }
 }
