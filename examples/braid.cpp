@@ -20,7 +20,7 @@ template <size_t Count> tmc::task<void> large_task_spawn_bench_lazy_bulk() {
   co_await spawn_many(
     iter_adapter(
       data.data(),
-      [](auto* Data) -> task<void> {
+      [](auto* DataSlot) -> task<void> {
         int a = 0;
         int b = 1;
         for (int i = 0; i < 1000; ++i) {
@@ -29,7 +29,7 @@ template <size_t Count> tmc::task<void> large_task_spawn_bench_lazy_bulk() {
             b = b + a;
           }
         }
-        *Data = b;
+        *DataSlot = b;
         co_return;
       }
     ),
@@ -113,7 +113,7 @@ template <size_t Count> tmc::task<void> braid_lock_middle() {
   {
     for (uint64_t slot = 0; slot < Count; ++slot) {
       tasks[slot] = [](
-                      auto* Data, ex_braid* Braid, uint64_t* Value,
+                      auto* DataSlot, ex_braid* Braid, uint64_t* Value,
                       uint64_t* LockCount
                     ) -> task<void> {
         int a = 0;
@@ -136,7 +136,7 @@ template <size_t Count> tmc::task<void> braid_lock_middle() {
           }
         }
 
-        *Data = b;
+        *DataSlot = b;
         co_await tmc::enter(Braid);
         *Value = *Value + b;
         // not necessary to exit the braid scope, since the task has ended
@@ -182,7 +182,7 @@ template <size_t Count> tmc::task<void> braid_lock_middle_resume_on() {
   {
     for (uint64_t slot = 0; slot < Count; ++slot) {
       tasks[slot] = [](
-                      auto* Data, ex_braid* Braid, uint64_t* Value,
+                      auto* DataSlot, ex_braid* Braid, uint64_t* Value,
                       uint64_t* LockCount
                     ) -> task<void> {
         int a = 0;
@@ -205,7 +205,7 @@ template <size_t Count> tmc::task<void> braid_lock_middle_resume_on() {
           }
         }
 
-        *Data = b;
+        *DataSlot = b;
         co_await resume_on(Braid);
         *Value = *Value + b;
       }(&data[slot], &br, &value, &lockCount);

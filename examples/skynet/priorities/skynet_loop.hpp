@@ -11,10 +11,10 @@
 
 template <size_t Depth = 6> tmc::task<void> loop_skynet() {
   static_assert(Depth <= 6);
-  const size_t iter_count = 1000;
+  const size_t IterCount = 1000;
   for (size_t j = 0; j < 5; ++j) {
     auto startTime = std::chrono::high_resolution_clock::now();
-    for (size_t i = 0; i < iter_count; ++i) {
+    for (size_t i = 0; i < IterCount; ++i) {
       // co_await skynet::direct::skynet<Depth>();
       // co_await skynet::func::single::skynet<Depth>();
       // co_await skynet::coro::single::skynet<Depth>();
@@ -33,7 +33,7 @@ template <size_t Depth = 6> tmc::task<void> loop_skynet() {
     std::printf(
       "%" PRIu64 " skynet iterations in %" PRIu64 " us: %" PRIu64
       " thread-us\n",
-      iter_count, execDur.count(),
+      IterCount, execDur.count(),
       tmc::cpu_executor().thread_count() * execDur.count()
     );
   }
@@ -42,10 +42,10 @@ template <size_t Depth = 6> tmc::task<void> loop_skynet() {
 // These tests use additional priorities at different depths of the tree
 template <size_t Depth = 6> tmc::task<void> loop_skynet_prio() {
   static_assert(Depth <= 6);
-  const size_t iter_count = 10;
+  const size_t IterCount = 10;
   for (size_t j = 0; j < 5; ++j) {
     auto startTime = std::chrono::high_resolution_clock::now();
-    for (size_t i = 0; i < iter_count; ++i) {
+    for (size_t i = 0; i < IterCount; ++i) {
       // co_await skynet::coro::single::prio_asc::skynet<Depth>();
 
       // co_await spawn(skynet::coro::single::prio_desc::skynet<Depth>(),
@@ -62,7 +62,7 @@ template <size_t Depth = 6> tmc::task<void> loop_skynet_prio() {
     std::printf(
       "%" PRIu64 " skynet iterations in %" PRIu64 " us: %" PRIu64
       " thread-us\n",
-      iter_count, execDur.count(),
+      IterCount, execDur.count(),
       tmc::cpu_executor().thread_count() * execDur.count()
     );
   }

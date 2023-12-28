@@ -72,7 +72,7 @@ template <size_t Count, size_t nthreads> void large_task_spawn_bench_lazy() {
     // variables must be passed as parameters instead
     results[slot] = post_waitable(
       executor,
-      [](uint64_t* Data) -> task<void> {
+      [](uint64_t* DataSlot) -> task<void> {
         int a = 0;
         int b = 1;
         for (int i = 0; i < 1000; ++i) {
@@ -82,7 +82,7 @@ template <size_t Count, size_t nthreads> void large_task_spawn_bench_lazy() {
           }
           co_await yield_if_requested();
         }
-        *Data = b;
+        *DataSlot = b;
       }(&data[slot]),
       0
     );
@@ -125,7 +125,7 @@ void large_task_spawn_bench_lazy_bulk() {
     executor,
     iter_adapter(
       data.data(),
-      [](uint64_t* Data) -> task<void> {
+      [](uint64_t* DataSlot) -> task<void> {
         int a = 0;
         int b = 1;
         for (int i = 0; i < 1000; ++i) {
@@ -135,7 +135,7 @@ void large_task_spawn_bench_lazy_bulk() {
           }
           co_await yield_if_requested();
         }
-        *Data = b;
+        *DataSlot = b;
       }
     ),
     0, Count
@@ -179,7 +179,7 @@ void prio_reversal_test() {
     for (uint64_t prio = npriorities - 1; prio != -1ULL; --prio) {
       results[slot] = post_waitable(
         executor,
-        [](size_t* Data, size_t Priority) -> task<void> {
+        [](size_t* DataSlot, size_t Priority) -> task<void> {
           int a = 0;
           int b = 1;
           for (int i = 0; i < 1000; ++i) {
@@ -193,9 +193,9 @@ void prio_reversal_test() {
             }
           }
 
-          *Data = b;
+          *DataSlot = b;
           // std::printf("co %"PRIu64"\t", prio);
-        }(data.data() + slot, prio),
+        }(&data[slot], prio),
         prio
       );
       slot++;

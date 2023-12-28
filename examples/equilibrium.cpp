@@ -20,7 +20,7 @@ struct bench_result {
   std::chrono::duration<long, std::ratio<1, 1000000000>> dur_ns;
 };
 
-task<void> make_task(uint64_t* out_ptr) {
+task<void> make_task(uint64_t* DataSlot) {
   int a = 0;
   int b = 1;
 #pragma unroll 1
@@ -32,11 +32,11 @@ task<void> make_task(uint64_t* out_ptr) {
     }
   }
 
-  *out_ptr = b;
+  *DataSlot = b;
   co_return;
 }
 
-task<void> get_task(size_t slot, uint64_t* data) {
+task<void> get_task(size_t Slot, uint64_t* Data) {
   int a = 0;
   int b = 1;
 #pragma unroll 1
@@ -48,15 +48,15 @@ task<void> get_task(size_t slot, uint64_t* data) {
     }
   }
 
-  data[slot] = b;
+  Data[Slot] = b;
   co_return;
 }
 
-bench_result find_equilibrium(size_t count, size_t nthreads) {
+bench_result find_equilibrium(size_t Count, size_t ThreadCount) {
   auto& executor = tmc::cpu_executor();
-  executor.set_thread_count(nthreads).init();
-  auto data = new uint64_t[count];
-  for (size_t i = 0; i < count; ++i) {
+  executor.set_thread_count(ThreadCount).init();
+  auto data = new uint64_t[Count];
+  for (size_t i = 0; i < Count; ++i) {
     data[i] = 0;
   }
   std::future<void> future;
@@ -64,12 +64,12 @@ bench_result find_equilibrium(size_t count, size_t nthreads) {
   // this is around 100ns slower per-task :(
   for (size_t i = 0; i < WARMUP_COUNT; ++i) {
     future =
-      post_bulk_waitable(executor, iter_adapter(data, make_task), 0, count);
+      post_bulk_waitable(executor, iter_adapter(data, make_task), 0, Count);
     future.wait();
   }
   auto beforePostTime = std::chrono::high_resolution_clock::now();
   future =
-    post_bulk_waitable(executor, iter_adapter(data, make_task), 0, count);
+    post_bulk_waitable(executor, iter_adapter(data, make_task), 0, Count);
 #else
   auto tasks = new task<void>[count];
   for (size_t i = 0; i < WARMUP_COUNT; ++i) {
@@ -102,7 +102,7 @@ bench_result find_equilibrium(size_t count, size_t nthreads) {
 #ifndef USE_TRANSFORMER
   delete[] tasks;
 #endif
-  return bench_result{nthreads, count, postDur, totalDur};
+  return bench_result{ThreadCount, Count, postDur, totalDur};
 }
 
 int main() {
