@@ -10,9 +10,10 @@
 // This test repros in Debug or Release
 
 #define TMC_IMPL
-
 #include "tmc/all_headers.hpp"
+
 #include <cinttypes>
+#include <cstdio>
 #include <iostream>
 
 using namespace tmc;

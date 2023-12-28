@@ -7,6 +7,7 @@
 #include "tmc/ex_cpu.hpp"
 #include "tmc/task.hpp"
 #include <cinttypes>
+#include <cstdio>
 
 template <size_t depth = 6> tmc::task<void> loop_skynet() {
   static_assert(depth <= 6);
@@ -17,15 +18,15 @@ template <size_t depth = 6> tmc::task<void> loop_skynet() {
       // Different implementations of skynet below. The most efficient
       // implementation, coro::bulk, is the default.
 
-      // co_await skynet::direct::skynet<depth>();
-      // co_await skynet::func::single::skynet<depth>();
-      // co_await skynet::coro::single::skynet<depth>();
+      co_await skynet::direct::skynet<depth>();
+      co_await skynet::func::single::skynet<depth>();
+      co_await skynet::coro::single::skynet<depth>();
       co_await skynet::coro::bulk::skynet<depth>();
-      // co_await skynet::braids::single::skynet<depth>();
+      co_await skynet::braids::single::skynet<depth>();
 
-      // co_await skynet::braids::fork::skynet<depth>();
+      co_await skynet::braids::fork::skynet<depth>();
 
-      // co_await skynet::braids::bulk::skynet<depth>();
+      co_await skynet::braids::bulk::skynet<depth>();
     }
 
     auto end_time = std::chrono::high_resolution_clock::now();

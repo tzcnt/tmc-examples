@@ -7,6 +7,7 @@
 #include "skynet_func.hpp"
 #include "tmc/ex_cpu.hpp"
 #include "tmc/task.hpp"
+#include <cstdio>
 
 template <size_t depth = 6> tmc::task<void> loop_skynet() {
   static_assert(depth <= 6);

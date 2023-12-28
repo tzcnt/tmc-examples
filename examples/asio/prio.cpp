@@ -2,17 +2,13 @@
 // enter() / exit() functions, the priority should be restored on the original
 // executor.
 #define TMC_IMPL
-
 #include "tmc/all_headers.hpp"
 #include "tmc/asio/aw_asio.hpp"
 #include "tmc/asio/ex_asio.hpp"
-#include "tmc/detail/concepts.hpp"
-#include "tmc/detail/thread_locals.hpp"
-#include "tmc/ex_cpu.hpp"
-#include <atomic>
+
 #include <cinttypes>
+#include <cstdio>
 #include <cstdlib>
-#include <iostream>
 
 // Confirm that the current task is running on the expected
 // executor and with the expected priority.

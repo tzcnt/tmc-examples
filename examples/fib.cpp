@@ -3,14 +3,11 @@
 // but a test of the runtime's fork/join efficiency.
 
 #define TMC_IMPL
-
 #include "tmc/all_headers.hpp"
-#include <atomic>
+
 #include <chrono>
 #include <cinttypes>
-#include <coroutine>
-#include <iostream>
-#include <thread>
+#include <cstdio>
 
 using namespace tmc;
 

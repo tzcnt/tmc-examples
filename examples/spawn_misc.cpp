@@ -1,14 +1,11 @@
 // Miscellaneous ways to spawn and await tasks
 
 #define TMC_IMPL
-
 #include "tmc/all_headers.hpp"
-#include <atomic>
+
 #include <chrono>
 #include <cinttypes>
-#include <coroutine>
-#include <iostream>
-#include <thread>
+#include <cstdio>
 
 using namespace tmc;
 

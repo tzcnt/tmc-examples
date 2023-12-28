@@ -3,9 +3,7 @@
 #include <atomic>
 #include <chrono>
 #include <cinttypes>
-#include <coroutine>
-#include <iostream>
-#include <thread>
+#include <cstdio>
 
 namespace skynet {
 namespace coro {
