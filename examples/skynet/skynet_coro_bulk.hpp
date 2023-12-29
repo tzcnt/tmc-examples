@@ -28,15 +28,16 @@ tmc::task<size_t> skynet_one(size_t BaseNum, size_t Depth) {
   //   Depth + 1);
   // }
   // std::array<size_t, 10> results = co_await
-  // spawn_many<10>(children.data());
+  // tmc::spawn_many<10>(children.data());
 
   /// Concise and slightly faster way to run subtasks
-  std::array<size_t, 10> results = co_await spawn_many<10>(tmc::iter_adapter(
-    0ULL,
-    [=](size_t idx) -> tmc::task<size_t> {
-      return skynet_one<DepthMax>(BaseNum + depthOffset * idx, Depth + 1);
-    }
-  ));
+  std::array<size_t, 10> results =
+    co_await tmc::spawn_many<10>(tmc::iter_adapter(
+      0ULL,
+      [=](size_t idx) -> tmc::task<size_t> {
+        return skynet_one<DepthMax>(BaseNum + depthOffset * idx, Depth + 1);
+      }
+    ));
 
   for (size_t idx = 0; idx < 10; ++idx) {
     count += results[idx];
@@ -56,7 +57,7 @@ template <size_t Depth = 6> void run_skynet() {
   tmc::ex_cpu executor;
   executor.init();
   auto startTime = std::chrono::high_resolution_clock::now();
-  auto future = post_waitable(executor, skynet<Depth>(), 0);
+  auto future = tmc::post_waitable(executor, skynet<Depth>(), 0);
   future.wait();
   auto endTime = std::chrono::high_resolution_clock::now();
   if (!done.load()) {

@@ -32,7 +32,7 @@ void check_exec_prio(E& ExpectedExecutor, size_t ExpectedPriority) {
 int main() {
   tmc::asio_executor().init();
   tmc::cpu_executor().set_thread_count(1).set_priority_count(64).init();
-  return async_main([]() -> tmc::task<int> {
+  return tmc::async_main([]() -> tmc::task<int> {
     tmc::ex_braid cpuBraid(tmc::cpu_executor());
     tmc::ex_braid asioBraid(tmc::asio_executor());
     std::vector<tmc::aw_run_early<void, void>> runningTasks;

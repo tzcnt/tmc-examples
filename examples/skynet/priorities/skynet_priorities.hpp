@@ -22,7 +22,7 @@ static tmc::task<size_t> skynet_one(size_t BaseNum, size_t Depth) {
     depthOffset *= 10;
   }
   std::array<size_t, 10> results =
-    co_await spawn_many<10>(
+    co_await tmc::spawn_many<10>(
       tmc::iter_adapter(
         0ULL,
         [=](size_t idx) -> tmc::task<size_t> {
@@ -50,7 +50,7 @@ template <size_t Depth = 6> static void run_skynet() {
   tmc::ex_cpu executor;
   executor.set_priority_count(Depth + 1).init();
   auto startTime = std::chrono::high_resolution_clock::now();
-  auto future = post_waitable(executor, skynet<Depth>(), 0);
+  auto future = tmc::post_waitable(executor, skynet<Depth>(), 0);
   future.wait();
   auto endTime = std::chrono::high_resolution_clock::now();
   if (!done.load()) {
@@ -81,7 +81,7 @@ static tmc::task<size_t> skynet_one(size_t BaseNum, size_t Depth) {
     depthOffset *= 10;
   }
   std::array<size_t, 10> results =
-    co_await spawn_many<10>(
+    co_await tmc::spawn_many<10>(
       tmc::iter_adapter(
         0ULL,
         [=](size_t idx) -> tmc::task<size_t> {
@@ -108,7 +108,7 @@ template <size_t Depth = 6> static void run_skynet() {
   tmc::ex_cpu executor;
   executor.set_priority_count(Depth + 1).init();
   auto startTime = std::chrono::high_resolution_clock::now();
-  auto future = post_waitable(executor, skynet<Depth>(), Depth);
+  auto future = tmc::post_waitable(executor, skynet<Depth>(), Depth);
   future.wait();
   auto endTime = std::chrono::high_resolution_clock::now();
   if (!done.load()) {
@@ -140,7 +140,7 @@ static tmc::task<size_t> skynet_one(size_t BaseNum, size_t Depth) {
     depthOffset *= 10;
   }
   for (size_t idx = 0; idx < 10; ++idx) {
-    count += co_await spawn(
+    count += co_await tmc::spawn(
                skynet_one<DepthMax>(BaseNum + depthOffset * idx, Depth + 1)
     )
                .with_priority(Depth + 1);
@@ -162,7 +162,7 @@ template <size_t Depth> static void run_skynet() {
   tmc::ex_cpu executor;
   executor.set_priority_count(Depth + 1).init();
   auto startTime = std::chrono::high_resolution_clock::now();
-  auto future = post_waitable(executor, skynet<Depth>(), 0);
+  auto future = tmc::post_waitable(executor, skynet<Depth>(), 0);
   future.wait();
   auto endTime = std::chrono::high_resolution_clock::now();
   if (!done.load()) {
@@ -193,7 +193,7 @@ static tmc::task<size_t> skynet_one(size_t BaseNum, size_t Depth) {
     depthOffset *= 10;
   }
   for (size_t idx = 0; idx < 10; ++idx) {
-    count += co_await spawn(
+    count += co_await tmc::spawn(
                skynet_one<DepthMax>(BaseNum + depthOffset * idx, Depth + 1)
     )
                .with_priority(DepthMax - Depth - 1);
@@ -215,7 +215,7 @@ template <size_t Depth> static void run_skynet() {
   tmc::ex_cpu executor;
   executor.set_priority_count(Depth + 1).init();
   auto startTime = std::chrono::high_resolution_clock::now();
-  auto future = post_waitable(executor, skynet<Depth>(), Depth);
+  auto future = tmc::post_waitable(executor, skynet<Depth>(), Depth);
   future.wait();
   auto endTime = std::chrono::high_resolution_clock::now();
   if (!done.load()) {

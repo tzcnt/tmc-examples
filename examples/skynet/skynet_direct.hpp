@@ -39,7 +39,7 @@ template <size_t Depth = 6> void run_skynet() {
   tmc::ex_cpu executor;
   executor.init();
   auto startTime = std::chrono::high_resolution_clock::now();
-  auto future = post_waitable(executor, skynet<Depth>(), 0);
+  auto future = tmc::post_waitable(executor, skynet<Depth>(), 0);
   future.wait();
   auto endTime = std::chrono::high_resolution_clock::now();
   if (!done.load()) {

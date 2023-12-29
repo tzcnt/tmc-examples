@@ -12,7 +12,7 @@
 
 int main() {
   tmc::cpu_executor().set_priority_count(DEPTH + 1);
-  async_main([]() -> tmc::task<int> {
+  tmc::async_main([]() -> tmc::task<int> {
     co_await loop_skynet_prio<DEPTH>();
     co_return 0;
   }());

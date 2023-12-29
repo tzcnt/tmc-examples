@@ -48,12 +48,12 @@ template <size_t Depth = 6> tmc::task<void> loop_skynet_prio() {
     for (size_t i = 0; i < IterCount; ++i) {
       // co_await skynet::coro::single::prio_asc::skynet<Depth>();
 
-      // co_await spawn(skynet::coro::single::prio_desc::skynet<Depth>(),
+      // co_await tmc::spawn(skynet::coro::single::prio_desc::skynet<Depth>(),
       // Depth);
 
       co_await skynet::coro::bulk::prio_asc::skynet<Depth>();
 
-      // co_await spawn(skynet::coro::bulk::prio_desc::skynet<Depth>(), Depth);
+      // co_await tmc::spawn(skynet::coro::bulk::prio_desc::skynet<Depth>(), Depth);
     }
 
     auto endTime = std::chrono::high_resolution_clock::now();

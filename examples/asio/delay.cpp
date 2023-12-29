@@ -12,7 +12,7 @@
 
 int main() {
   tmc::asio_executor().init();
-  return async_main([]() -> tmc::task<int> {
+  return tmc::async_main([]() -> tmc::task<int> {
     // Uncomment this to spawn 1000000 tasks and observe the RAM usage
     // co_await tmc::spawn_many(
     //   tmc::iter_adapter(
@@ -56,7 +56,6 @@ int main() {
       std::cout << tmc::detail::this_thread::thread_name << std::endl;
       std::cout.flush();
     }
-    co_await resume_on(tmc::cpu_executor());
     co_return 0;
   }());
 }

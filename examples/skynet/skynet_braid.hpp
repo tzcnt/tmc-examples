@@ -21,7 +21,7 @@ tmc::task<size_t> skynet_one(size_t BaseNum, size_t Depth) {
     depthOffset *= 10;
   }
   for (size_t idx = 0; idx < 10; ++idx) {
-    count += co_await spawn(
+    count += co_await tmc::spawn(
       skynet_one<DepthMax>(BaseNum + depthOffset * idx, Depth + 1)
     );
   }
@@ -42,7 +42,7 @@ template <size_t Depth = 6> void run_skynet() {
   executor.init();
   tmc::ex_braid br(executor);
   auto startTime = std::chrono::high_resolution_clock::now();
-  auto future = post_waitable(br, skynet<Depth>(), 0);
+  auto future = tmc::post_waitable(br, skynet<Depth>(), 0);
   future.wait();
   auto endTime = std::chrono::high_resolution_clock::now();
   if (!done.load()) {
@@ -77,7 +77,8 @@ tmc::task<size_t> skynet_one(size_t BaseNum, size_t Depth) {
     children[idx] =
       skynet_one<DepthMax>(BaseNum + depthOffset * idx, Depth + 1);
   }
-  std::array<size_t, 10> results = co_await spawn_many<10>(children.data());
+  std::array<size_t, 10> results =
+    co_await tmc::spawn_many<10>(children.data());
   for (size_t idx = 0; idx < 10; ++idx) {
     count += results[idx];
   }
@@ -103,7 +104,7 @@ template <size_t Depth = 6> void run_skynet() {
   tmc::ex_cpu executor;
   executor.init();
   auto startTime = std::chrono::high_resolution_clock::now();
-  auto future = post_waitable(executor, skynet<Depth>(), 0);
+  auto future = tmc::post_waitable(executor, skynet<Depth>(), 0);
   future.wait();
   auto endTime = std::chrono::high_resolution_clock::now();
   if (!done.load()) {
@@ -138,7 +139,8 @@ tmc::task<size_t> skynet_one(size_t BaseNum, size_t Depth) {
     children[idx] =
       skynet_one<DepthMax>(BaseNum + depthOffset * idx, Depth + 1);
   }
-  std::array<size_t, 10> results = co_await spawn_many<10>(children.data());
+  std::array<size_t, 10> results =
+    co_await tmc::spawn_many<10>(children.data());
   for (size_t idx = 0; idx < 10; ++idx) {
     count += results[idx];
   }
@@ -157,7 +159,8 @@ template <size_t DepthMax> tmc::task<void> skynet() {
       co_return co_await skynet_one<DepthMax>(100000 * i_in, 1);
     }(i, &braids[i]);
   }
-  std::array<size_t, 10> results = co_await spawn_many<10>(children.data());
+  std::array<size_t, 10> results =
+    co_await tmc::spawn_many<10>(children.data());
   size_t count = 0;
   for (size_t idx = 0; idx < 10; ++idx) {
     count += results[idx];
@@ -173,7 +176,7 @@ template <size_t Depth = 6> void run_skynet() {
   tmc::ex_cpu executor;
   executor.init();
   auto startTime = std::chrono::high_resolution_clock::now();
-  auto future = post_waitable(executor, skynet<Depth>(), 0);
+  auto future = tmc::post_waitable(executor, skynet<Depth>(), 0);
   future.wait();
   auto endTime = std::chrono::high_resolution_clock::now();
   if (!done.load()) {
