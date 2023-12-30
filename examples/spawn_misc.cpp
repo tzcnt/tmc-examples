@@ -288,10 +288,8 @@ template <size_t Count, size_t nthreads> void spawn_test() {
           co_return;
         }(slot));
         std::printf("%" PRIu64 ": post outer\n", slot);
-        //  this doesn't have the desired effect - the spawn'd
-        //  function returns immediately, and a 2nd co_await is
-        //  required
-        // TODO handle functions returning task<> specially?
+        // in this case, the spawned function returns immediately,
+        // and a 2nd co_await is required
         co_await co_await spawn(std::function([slot]() -> task<void> {
           return [](size_t Slot) -> task<void> {
             std::printf("%" PRIu64 ": pre inner\n", Slot);
@@ -362,10 +360,8 @@ template <size_t Count, size_t nthreads> void spawn_value_test() {
             co_return InnerSlot + 1;
           }(Slot);
           Slot = co_await spawn(t);
-          //  this doesn't have the desired effect - the spawn'd
-          //  function returns immediately, and a 2nd co_await is
-          //  required
-          // TODO handle functions returning task<> specially?
+          // in this case, the spawned function returns immediately,
+          // and a 2nd co_await is required
           Slot =
             co_await co_await spawn(std::function([Slot]() -> task<size_t> {
               return [](size_t InnerSlot) -> task<size_t> {

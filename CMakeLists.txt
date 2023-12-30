@@ -41,7 +41,7 @@ else()
     CPMAddPackage(
         NAME TooManyCooks
         GIT_REPOSITORY https://github.com/tzcnt/TooManyCooks.git
-        GIT_TAG e25718c18860ae2b4a411c6628323bbe7e9ba42e
+        GIT_TAG d963c79c5dc3d52b0663911d44a3110b33e3bb12
         DOWNLOAD_ONLY)
 
     CPMAddPackage(
@@ -188,6 +188,10 @@ target_include_directories(skynet_prio PRIVATE examples/skynet)
 
 add_executable(fib
     examples/fib.cpp
+)
+
+add_executable(sync
+    examples/sync.cpp
 )
 
 add_executable(prio
