@@ -71,19 +71,19 @@ bench_result find_equilibrium(size_t Count, size_t ThreadCount) {
   future =
     post_bulk_waitable(executor, iter_adapter(data, make_task), 0, Count);
 #else
-  auto tasks = new task<void>[count];
+  auto tasks = new task<void>[Count];
   for (size_t i = 0; i < WARMUP_COUNT; ++i) {
-    for (size_t taskidx = 0; taskidx < count; ++taskidx) {
+    for (size_t taskidx = 0; taskidx < Count; ++taskidx) {
       tasks[taskidx] = get_task(taskidx, data);
     }
-    future = post_bulk_waitable(executor, tasks, 0, count);
+    future = post_bulk_waitable(executor, tasks, 0, Count);
     future.wait();
   }
-  auto pre = std::chrono::high_resolution_clock::now();
-  for (size_t taskidx = 0; taskidx < count; ++taskidx) {
+  auto beforePostTime = std::chrono::high_resolution_clock::now();
+  for (size_t taskidx = 0; taskidx < Count; ++taskidx) {
     tasks[taskidx] = get_task(taskidx, data);
   }
-  future = post_bulk_waitable(executor, tasks, 0, count);
+  future = post_bulk_waitable(executor, tasks, 0, Count);
 #endif
 
   auto afterPostTime = std::chrono::high_resolution_clock::now();
