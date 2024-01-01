@@ -27,7 +27,7 @@ int main() {
     //   1000000
     // );
 
-    std::cout << tmc::detail::this_thread::thread_name << std::endl;
+    std::cout << tmc::detail::this_thread::tls.thread_name << std::endl;
     std::cout.flush();
     for (size_t i = 0; i < 8; ++i) {
       auto [error] =
@@ -40,7 +40,7 @@ int main() {
         std::printf("error: %s\n", error.message().c_str());
         co_return -1;
       }
-      std::cout << tmc::detail::this_thread::thread_name << std::endl;
+      std::cout << tmc::detail::this_thread::tls.thread_name << std::endl;
       std::cout.flush();
       // co_await tmc::delay(std::chrono::milliseconds(250));
       auto [error2] =
@@ -53,7 +53,7 @@ int main() {
         std::printf("error2: %s\n", error.message().c_str());
         co_return -1;
       }
-      std::cout << tmc::detail::this_thread::thread_name << std::endl;
+      std::cout << tmc::detail::this_thread::tls.thread_name << std::endl;
       std::cout.flush();
     }
     co_return 0;
