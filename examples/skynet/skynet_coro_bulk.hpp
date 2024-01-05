@@ -31,7 +31,7 @@ static std::atomic_bool done;
 // all tasks are spawned at the same priority
 template <size_t DepthMax>
 tmc::task<size_t>
-skynet_one(size_t BaseNum, size_t Depth, std::pmr::polymorphic_allocator<>&) {
+skynet_one(size_t BaseNum, size_t Depth, std::pmr::polymorphic_allocator<std::byte>&) {
   if (Depth == DepthMax) {
     co_return BaseNum;
   }
