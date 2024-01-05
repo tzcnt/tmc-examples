@@ -14,12 +14,14 @@ public:
   using allocator_type = std::pmr::polymorphic_allocator<value_type>;
 
   constexpr scoped_buffer() noexcept
-      : _buffer(), _mbr(_buffer.data(), _buffer.size()), _pa(&_mbr) {}
+      : _buffer(new T[Size]), _mbr(_buffer, Size), _pa(&_mbr) {}
 
   constexpr allocator_type& allocator() noexcept { return _pa; }
 
+  ~scoped_buffer() noexcept { delete[] _buffer; }
+
 private:
-  std::array<value_type, Size> _buffer;
+  value_type* _buffer;
   std::pmr::monotonic_buffer_resource _mbr;
   allocator_type _pa;
 };
