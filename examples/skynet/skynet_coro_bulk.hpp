@@ -8,32 +8,13 @@
 #include <memory_resource>
 #include <vector>
 
-template <std::size_t Size, typename T = std::byte> class scoped_buffer {
-public:
-  using value_type = T;
-  using allocator_type = std::pmr::polymorphic_allocator<value_type>;
-
-  constexpr scoped_buffer() noexcept
-      : _buffer(new T[Size]), _mbr(_buffer, Size), _pa(&_mbr) {}
-
-  constexpr allocator_type& allocator() noexcept { return _pa; }
-
-  ~scoped_buffer() noexcept { delete[] _buffer; }
-
-private:
-  value_type* _buffer;
-  std::pmr::monotonic_buffer_resource _mbr;
-  allocator_type _pa;
-};
-
 namespace skynet {
 namespace coro {
 namespace bulk {
 static std::atomic_bool done;
 // all tasks are spawned at the same priority
 template <size_t DepthMax>
-tmc::task<size_t>
-skynet_one(size_t BaseNum, size_t Depth, std::pmr::polymorphic_allocator<std::byte>&) {
+tmc::task<size_t> skynet_one(size_t BaseNum, size_t Depth) {
   if (Depth == DepthMax) {
     co_return BaseNum;
   }
@@ -52,15 +33,12 @@ skynet_one(size_t BaseNum, size_t Depth, std::pmr::polymorphic_allocator<std::by
   // std::array<size_t, 10> results = co_await
   // tmc::spawn_many<10>(children.data());
 
-  auto buffer = scoped_buffer<4096>{};
   /// Concise and slightly faster way to run subtasks
   std::array<size_t, 10> results =
     co_await tmc::spawn_many<10>(tmc::iter_adapter(
       0ULL,
-      [=, &buffer](size_t idx) -> tmc::task<size_t> {
-        return skynet_one<DepthMax>(
-          BaseNum + depthOffset * idx, Depth + 1, buffer.allocator()
-        );
+      [=](size_t idx) -> tmc::task<size_t> {
+        return skynet_one<DepthMax>(BaseNum + depthOffset * idx, Depth + 1);
       }
     ));
 
@@ -70,8 +48,7 @@ skynet_one(size_t BaseNum, size_t Depth, std::pmr::polymorphic_allocator<std::by
   co_return count;
 }
 template <size_t DepthMax> tmc::task<void> skynet() {
-  auto buffer = scoped_buffer<4096>{};
-  size_t count = co_await skynet_one<DepthMax>(0, 0, buffer.allocator());
+  size_t count = co_await skynet_one<DepthMax>(0, 0);
   if (count != 499999500000) {
     std::printf("%" PRIu64 "\n", count);
   }
