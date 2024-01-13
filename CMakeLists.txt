@@ -41,7 +41,7 @@ else()
     CPMAddPackage(
         NAME TooManyCooks
         GIT_REPOSITORY https://github.com/tzcnt/TooManyCooks.git
-        GIT_TAG 1752500ad83fc2868184801a8eef5d9ce5195d06
+        GIT_TAG 6ba2bb4d8e59eea1ea0436340abf2889f1346ec7
         DOWNLOAD_ONLY)
 
     CPMAddPackage(
@@ -106,13 +106,13 @@ endif()
 
 # Since each new coroutine requires an allocation,
 # they are sensitive to allocator performance.
-# All of jemalloc, mimalloc, and tcmalloc provide
+# Any of tcmalloc, mimalloc, or jemalloc provide
 # greatly superior performance to the default glibc malloc.
 # Try to find any of these 3 before falling back to default.
-find_package(libjemalloc)
+find_package(libtcmalloc)
 
-if(LIBJEMALLOC_FOUND)
-    set(MALLOC_LIB "${LIBJEMALLOC_LIBRARY}")
+if(LIBTCMALLOC_FOUND)
+    set(MALLOC_LIB "${LIBTCMALLOC_LIBRARY}")
     message(STATUS "Using malloc: ${MALLOC_LIB}")
 else()
     find_package(libmimalloc)
@@ -121,10 +121,10 @@ else()
         set(MALLOC_LIB "${LIBMIMALLOC_LIBRARY}")
         message(STATUS "Using malloc: ${MALLOC_LIB}")
     else()
-        find_package(libtcmalloc)
+        find_package(libjemalloc)
 
-        if(LIBTCMALLOC_FOUND)
-            set(MALLOC_LIB "${LIBTCMALLOC_LIBRARY}")
+        if(LIBJEMALLOC_FOUND)
+            set(MALLOC_LIB "${LIBJEMALLOC_LIBRARY}")
             message(STATUS "Using malloc: ${MALLOC_LIB}")
         else()
             message(STATUS "Using malloc: default")
