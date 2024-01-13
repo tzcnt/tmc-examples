@@ -25,11 +25,11 @@ task<size_t> fib(size_t n) {
   // std::array<task<size_t>, 2> tasks;
   // tasks[0] = fib(n - 2);
   // tasks[1] = fib(n - 1);
-  // auto results = co_await spawn_many<2>(tasks.data(), 0);
+  // auto results = co_await spawn_many<2>(tasks.data());
   // co_return results[0] + results[1];
 
   /* Iterator adapter function to generate tasks, bulk spawn */
-  // auto results = co_await spawn_many<2>(iter_adapter(n - 2, fib), 0);
+  // auto results = co_await spawn_many<2>(iter_adapter(n - 2, fib));
   // co_return results[0] + results[1];
 
   /* Spawn one, then serially execute the other, then await the first */
@@ -52,11 +52,11 @@ int main(int argc, char* argv[]) {
     exit(0);
   }
 
-  int runCount = atoi(argv[1]);
-  tmc::async_main([](int RunCount) -> tmc::task<int> {
+  int n = atoi(argv[1]);
+  tmc::async_main([](int N) -> tmc::task<int> {
     auto startTime = std::chrono::high_resolution_clock::now();
     for (size_t i = 0; i < NRUNS; ++i) {
-      co_await top_fib(RunCount);
+      co_await top_fib(N);
     }
 
     auto endTime = std::chrono::high_resolution_clock::now();
@@ -65,5 +65,5 @@ int main(int argc, char* argv[]) {
     );
     std::printf("%" PRIu64 " us\n", totalTimeUs.count() / NRUNS);
     co_return 0;
-  }(runCount));
+  }(n));
 }
