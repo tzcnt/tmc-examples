@@ -11,13 +11,14 @@
 #include <coroutine>
 #include <iostream>
 #include <thread>
+#include <utility>
 
 #define TMC_IMPL
+#include "external_executor.hpp"
 #include "tmc/all_headers.hpp"
 
 template <typename Result> class external_awaitable {
   Result result;
-  std::jthread thread;
   std::coroutine_handle<> outer;
 
 public:
@@ -26,7 +27,7 @@ public:
 
   void await_suspend(std::coroutine_handle<> Outer) noexcept {
     outer = Outer;
-    thread = std::jthread([this]() {
+    external_executor().post([this]() {
       std::this_thread::sleep_for(std::chrono::seconds(1));
       result = 42;
       outer.resume();
@@ -38,10 +39,10 @@ public:
 };
 
 tmc::task<int> coro(external_awaitable<int>& Awaitable) {
-  std::cout << "started on thread " << std::this_thread::get_id() << std::endl;
+  std::cout << "started on " << this_thread_id() << std::endl;
   std::cout << "co_awaiting..." << std::endl;
   auto result = co_await Awaitable;
-  std::cout << "resumed on thread " << std::this_thread::get_id() << std::endl;
+  std::cout << "resumed on " << this_thread_id() << std::endl;
   if (result != 42) {
     std::printf("wrong result from external_awaitable\n");
   }
