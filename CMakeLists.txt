@@ -172,6 +172,10 @@ add_executable(equilibrium
     examples/equilibrium.cpp
 )
 
+add_executable(external_coro
+    examples/external_coro.cpp
+)
+
 add_executable(external_awaitable
     examples/external_awaitable.cpp
 )
