@@ -176,6 +176,10 @@ add_executable(external_coro
     examples/external_coro.cpp
 )
 
+add_executable(external_executor
+    examples/external_executor.cpp
+)
+
 add_executable(external_awaitable
     examples/external_awaitable.cpp
 )
