@@ -33,8 +33,9 @@ public:
   // to construct a type_erased_executor.
   template <typename Functor> void post(Functor&& Func, size_t Priority) {
     std::thread([this, Func] {
-      tmc::detail::this_thread::executor = &type_erased_this;
-      tmc::detail::this_thread::thread_name = "external thread";
+      // Thread locals must be setup for each new executor thread
+      tmc::detail::this_thread::executor = &type_erased_this;    // mandatory
+      tmc::detail::this_thread::thread_name = "external thread"; // optional
       Func();
     }).detach();
   }
@@ -43,8 +44,9 @@ public:
   void post_bulk(FunctorIterator FuncIter, size_t Priority, size_t Count) {
     for (size_t i = 0; i < Count; ++i) {
       std::thread([this, Func = *FuncIter] {
-        tmc::detail::this_thread::executor = &type_erased_this;
-        tmc::detail::this_thread::thread_name = "external thread";
+        // Thread locals must be setup for each new executor thread
+        tmc::detail::this_thread::executor = &type_erased_this;    // mandatory
+        tmc::detail::this_thread::thread_name = "external thread"; // optional
         Func();
       }).detach();
       ++FuncIter;
