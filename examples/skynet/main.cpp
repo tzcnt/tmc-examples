@@ -14,7 +14,9 @@
 #include "skynet_direct.hpp"
 #include "skynet_func.hpp"
 #include "skynet_loop.hpp"
+#include "tmc/detail/test.hpp"
 #include "tmc/ex_cpu.hpp"
+#include "tmc/sync.hpp"
 
 #include <cstdio>
 
@@ -22,11 +24,7 @@
 
 int main() {
   tmc::cpu_executor().init();
-  return tmc::async_main([]() -> tmc::task<int> {
-    std::printf("sizeof(work_item): %" PRIu64 "\n", sizeof(tmc::work_item));
-    co_await loop_skynet<DEPTH>();
-    co_return 0;
-  }());
+  loop_skynet<DEPTH>();
 
   // These each create their own standalone executors
   // tmc::cpu_executor().teardown();
