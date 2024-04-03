@@ -1,5 +1,6 @@
 // Miscellaneous ways to spawn and await tasks
 
+#include "tmc/utils.hpp"
 #define TMC_IMPL
 #include "tmc/all_headers.hpp"
 
@@ -359,7 +360,7 @@ template <size_t Count, size_t nthreads> void spawn_value_test() {
             std::printf("func 2\t");
             co_return InnerSlot + 1;
           }(Slot);
-          Slot = co_await spawn(t);
+          Slot = co_await spawn(std::move(t));
           // in this case, the spawned function returns immediately,
           // and a 2nd co_await is required
           Slot =
@@ -419,7 +420,7 @@ template <size_t Count, size_t nthreads> void spawn_many_test() {
         //  instead of constructing std::function
         //  here
         std::printf("%" PRIu64 ": pre outer\n", slot);
-        auto t = [](size_t Slot) -> task<size_t> {
+        task<size_t> t = [](size_t Slot) -> task<size_t> {
           co_await yield();
           co_await yield();
           std::printf("func %" PRIu64 "\n", Slot);
@@ -467,6 +468,43 @@ template <size_t Count, size_t nthreads> void spawn_many_test() {
     nthreads * execDur.count() / Count
   );
 }
+
+// Coerce a task into a coroutine_handle to erase its promise type
+// This simulates an external coro type that TMC doesn't understand
+std::coroutine_handle<> external_coro_test_task(int i) {
+  return [](int i) -> task<void> {
+    std::printf("external_coro_test_task(%d)...\n", i);
+    co_return;
+  }(i);
+}
+
+void external_coro_test() {
+  std::printf("external_coro_test()...\n");
+  ex_cpu executor;
+  executor.init();
+  tmc::post(executor, external_coro_test_task(1), 0);
+  tmc::post_bulk(executor, tmc::iter_adapter(2, external_coro_test_task), 0, 2);
+  tmc::post_waitable(
+    executor,
+    []() -> task<void> {
+      tmc::spawn(external_coro_test_task(7));
+      co_await tmc::spawn(external_coro_test_task(4));
+    }(),
+    0
+  )
+    .wait();
+  tmc::post_waitable(
+    executor,
+    []() -> task<void> {
+      tmc::spawn_many<2>(tmc::iter_adapter(8, external_coro_test_task));
+      co_await tmc::spawn_many<2>(tmc::iter_adapter(5, external_coro_test_task)
+      );
+    }(),
+    0
+  )
+    .wait();
+}
+
 int main() {
   small_func_spawn_bench_lazy<32000, 16>();
   large_task_spawn_bench_lazy<32000, 16>();
@@ -476,4 +514,5 @@ int main() {
   spawn_test<1, 16>();
   spawn_value_test<1, 16>();
   spawn_many_test<1, 16>();
+  external_coro_test();
 }
