@@ -30,12 +30,21 @@ int main() {
     std::cout << tmc::detail::this_thread::thread_name << std::endl;
     std::cout.flush();
     for (size_t i = 0; i < 8; ++i) {
+      asio::steady_timer tim{
+        tmc::asio_executor(), std::chrono::milliseconds(250)
+      };
+      // // this demonstrates early cancellation
+      // tmc::spawn([](asio::steady_timer& Tim) -> tmc::task<void> {
+      //   asio::steady_timer shortTim{
+      //     tmc::asio_executor(), std::chrono::milliseconds(100)
+      //   };
+      //   auto [error] = co_await shortTim.async_wait(tmc::aw_asio)
+      //                    .resume_on(tmc::asio_executor());
+      //   Tim.cancel();
+      // }(tim))
+      //   .detach();
       auto [error] =
-        co_await asio::steady_timer{
-          tmc::asio_executor(), std::chrono::milliseconds(250)
-        }
-          .async_wait(tmc::aw_asio)
-          .resume_on(tmc::asio_executor());
+        co_await tim.async_wait(tmc::aw_asio).resume_on(tmc::asio_executor());
       if (error) {
         std::printf("error: %s\n", error.message().c_str());
         co_return -1;
