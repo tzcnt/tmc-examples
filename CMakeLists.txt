@@ -18,6 +18,7 @@ add_definitions(
     # "-DTMC_PRIORITY_COUNT=2" # unsigned integer >= 1
     # "-DTMC_USE_BOOST_ASIO"
     # "-DTMC_QUEUE_PREFER_STEAL"
+    # "-DTMC_TRIVIAL_TASK"
 
     # Debug / testing options
     # "-DTMC_USE_MUTEXQ"
