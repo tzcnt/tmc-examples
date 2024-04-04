@@ -291,7 +291,7 @@ template <size_t Count, size_t nthreads> void spawn_test() {
         std::printf("%" PRIu64 ": post outer\n", slot);
         // in this case, the spawned function returns immediately,
         // and a 2nd co_await is required
-        co_await co_await spawn(std::function([slot]() -> task<void> {
+        co_await std::move(co_await spawn(std::function([slot]() -> task<void> {
           return [](size_t Slot) -> task<void> {
             std::printf("%" PRIu64 ": pre inner\n", Slot);
             co_await yield();
@@ -302,7 +302,7 @@ template <size_t Count, size_t nthreads> void spawn_test() {
             std::printf("%" PRIu64 ": post inner\n", Slot);
             co_return;
           }(slot);
-        }));
+        })));
         std::printf("%" PRIu64 ": post outer\n", slot);
         co_return;
       }
@@ -363,15 +363,16 @@ template <size_t Count, size_t nthreads> void spawn_value_test() {
           Slot = co_await spawn(std::move(t));
           // in this case, the spawned function returns immediately,
           // and a 2nd co_await is required
-          Slot =
-            co_await co_await spawn(std::function([Slot]() -> task<size_t> {
+          Slot = co_await std::move(
+            co_await spawn(std::function([Slot]() -> task<size_t> {
               return [](size_t InnerSlot) -> task<size_t> {
                 co_await yield();
                 co_await yield();
                 std::printf("func 3\t");
                 co_return InnerSlot + 1;
               }(Slot);
-            }));
+            }))
+          );
           if (Slot != slot_start + 4) {
             printf(
               "expected %" PRIu64 " but got %" PRIu64 "\n", slot_start + 4, Slot
