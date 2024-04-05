@@ -441,7 +441,7 @@ template <size_t Count, size_t nthreads> void spawn_many_test() {
           co_await yield();
           std::printf("func %" PRIu64 "\n", Slot);
         }(slot);
-        spawn_many<1>(&t3);
+        spawn_many<1>(&t3).detach();
         std::printf("%" PRIu64 ": post outer\n", slot);
         co_return;
       }
@@ -497,7 +497,8 @@ void external_coro_test() {
   tmc::post_waitable(
     executor,
     []() -> task<void> {
-      tmc::spawn_many<2>(tmc::iter_adapter(8, external_coro_test_task));
+      tmc::spawn_many<2>(tmc::iter_adapter(8, external_coro_test_task))
+        .detach();
       co_await tmc::spawn_many<2>(tmc::iter_adapter(5, external_coro_test_task)
       );
     }(),
