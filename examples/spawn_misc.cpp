@@ -273,8 +273,9 @@ template <size_t Count, size_t nthreads> void spawn_test() {
         //  TODO make spawn take an invokable
         //  instead of constructing std::function here
         spawn(std::function([slot]() {
-          std::printf("%" PRIu64 ": not co_awaited spawn\n", slot);
-        }));
+          std::printf("%" PRIu64 ": detached spawn\n", slot);
+        })
+        ).detach();
         co_await spawn(std::function([slot]() {
           std::printf("%" PRIu64 ": co_awaited spawn\n", slot);
         }));
@@ -488,7 +489,7 @@ void external_coro_test() {
   tmc::post_waitable(
     executor,
     []() -> task<void> {
-      tmc::spawn(external_coro_test_task(7));
+      tmc::spawn(external_coro_test_task(7)).detach();
       co_await tmc::spawn(external_coro_test_task(4));
     }(),
     0
