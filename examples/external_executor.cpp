@@ -2,7 +2,6 @@
 // For another example, see
 // https://github.com/tzcnt/tmc-asio/blob/main/include/tmc/asio/ex_asio.hpp
 
-#include <iostream>
 #include <sstream>
 #include <string>
 #include <thread>
@@ -10,6 +9,9 @@
 #define TMC_IMPL
 #include "tmc/all_headers.hpp"
 
+// This has been observed to produce the wrong results (always prints the same
+// thread name) on Clang 16, due to incorrectly caching thread_locals across
+// suspend points. The issue has been resolved in Clang 17.
 std::string this_thread_id() {
   std::string tmc_tid = tmc::detail::this_thread::thread_name;
   if (!tmc_tid.empty()) {
@@ -63,39 +65,37 @@ public:
 external_executor external;
 
 tmc::task<void> child_task() {
-  std::cout << "child task on " << this_thread_id() << "..." << std::endl;
+  std::printf("child task on %s...\n", this_thread_id().c_str());
   co_return;
 }
 
 int main() {
   tmc::cpu_executor().init();
 
-  std::cout << "tmc::ex_cpu -> external_executor -> tmc::ex_cpu" << std::endl;
+  std::printf("tmc::ex_cpu -> external_executor -> tmc::ex_cpu\n");
   tmc::post_waitable(
     tmc::cpu_executor(),
     []() -> tmc::task<void> {
-      std::cout << "coro started on " << this_thread_id() << std::endl;
-      std::cout << "co_awaiting..." << std::endl;
+      std::printf("coro started on %s\n", this_thread_id().c_str());
+      std::printf("co_awaiting...\n");
       // run child_task() on the other executor
       co_await tmc::spawn(child_task()).run_on(external);
-      std::cout << "coro resumed on " << this_thread_id() << std::endl;
+      std::printf("coro resumed on %s\n", this_thread_id().c_str());
       co_return;
     }(),
     0
   )
     .wait();
 
-  std::cout << std::endl
-            << "external_executor -> tmc::ex_cpu -> external_executor"
-            << std::endl;
+  std::printf("\nexternal_executor -> tmc::ex_cpu -> external_executor\n");
   tmc::post_waitable(
     external,
     []() -> tmc::task<void> {
-      std::cout << "coro started on " << this_thread_id() << std::endl;
-      std::cout << "co_awaiting..." << std::endl;
+      std::printf("coro started on %s\n", this_thread_id().c_str());
+      std::printf("co_awaiting...\n");
       // run child_task() on the other executor
       co_await tmc::spawn(child_task()).run_on(tmc::cpu_executor());
-      std::cout << "coro resumed on " << this_thread_id() << std::endl;
+      std::printf("coro resumed on %s\n", this_thread_id().c_str());
       co_return;
     }(),
     0

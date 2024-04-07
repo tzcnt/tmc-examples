@@ -1,6 +1,4 @@
-#include <coroutine>
-#include <iostream>
-#include <thread>
+#include <cstdio>
 
 #define TMC_IMPL
 #include "external_coro.hpp"

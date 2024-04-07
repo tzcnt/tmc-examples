@@ -9,7 +9,6 @@
 // https://github.com/tzcnt/tmc-asio/blob/main/include/tmc/asio/aw_asio.hpp
 
 #include <coroutine>
-#include <iostream>
 #include <sstream>
 #include <string>
 #include <thread>
@@ -18,6 +17,9 @@
 #define TMC_IMPL
 #include "tmc/all_headers.hpp"
 
+// This has been observed to produce the wrong results (always prints the same
+// thread name) on Clang 16, due to incorrectly caching thread_locals across
+// suspend points. The issue has been resolved in Clang 17.
 std::string this_thread_id() {
   std::string tmc_tid = tmc::detail::this_thread::thread_name;
   if (!tmc_tid.empty()) {
@@ -52,10 +54,10 @@ public:
 };
 
 tmc::task<int> coro() {
-  std::cout << "started on " << this_thread_id() << std::endl;
-  std::cout << "co_awaiting..." << std::endl;
+  std::printf("started on %s\n", this_thread_id().c_str());
+  std::printf("co_awaiting...\n");
   auto result = co_await external_awaitable<int>{};
-  std::cout << "resumed on " << this_thread_id() << std::endl;
+  std::printf("resumed on %s\n", this_thread_id().c_str());
   if (result != 42) {
     std::printf("wrong result from external_awaitable\n");
   }

@@ -8,7 +8,14 @@
 #include "tmc/asio/ex_asio.hpp"
 
 #include <asio/steady_timer.hpp>
-#include <iostream>
+#include <cstdio>
+
+// This has been observed to produce the wrong results (always prints the same
+// thread name) on Clang 16, due to incorrectly caching thread_locals across
+// suspend points. The issue has been resolved in Clang 17.
+void print_thread_name() {
+  std::printf("%s\n", tmc::detail::this_thread::thread_name.c_str());
+}
 
 int main() {
   tmc::asio_executor().init();
@@ -27,8 +34,7 @@ int main() {
     //   1000000
     // );
 
-    std::cout << tmc::detail::this_thread::thread_name << std::endl;
-    std::cout.flush();
+    print_thread_name();
     for (size_t i = 0; i < 8; ++i) {
       asio::steady_timer tim{
         tmc::asio_executor(), std::chrono::milliseconds(250)
@@ -49,8 +55,7 @@ int main() {
         std::printf("error: %s\n", error.message().c_str());
         co_return -1;
       }
-      std::cout << tmc::detail::this_thread::thread_name << std::endl;
-      std::cout.flush();
+      print_thread_name();
       // co_await tmc::delay(std::chrono::milliseconds(250));
       auto [error2] =
         co_await asio::steady_timer{
@@ -62,8 +67,7 @@ int main() {
         std::printf("error2: %s\n", error.message().c_str());
         co_return -1;
       }
-      std::cout << tmc::detail::this_thread::thread_name << std::endl;
-      std::cout.flush();
+      print_thread_name();
     }
     co_return 0;
   }());
