@@ -7,17 +7,13 @@
 #include "tmc/asio/aw_asio.hpp"
 #include "tmc/asio/ex_asio.hpp"
 
+#include "asio_thread_name.hpp"
 #include <asio/steady_timer.hpp>
 #include <cstdio>
 
-// This has been observed to produce the wrong results (always prints the same
-// thread name) on Clang 16, due to incorrectly caching thread_locals across
-// suspend points. The issue has been resolved in Clang 17.
-void print_thread_name() {
-  std::printf("%s\n", tmc::detail::this_thread::thread_name.c_str());
-}
-
 int main() {
+  hook_init_ex_cpu_thread_name(tmc::cpu_executor());
+  hook_init_ex_asio_thread_name(tmc::asio_executor());
   tmc::asio_executor().init();
   return tmc::async_main([]() -> tmc::task<int> {
     // Uncomment this to spawn 1000000 tasks and observe the RAM usage

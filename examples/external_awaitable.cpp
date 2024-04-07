@@ -9,27 +9,13 @@
 // https://github.com/tzcnt/tmc-asio/blob/main/include/tmc/asio/aw_asio.hpp
 
 #include <coroutine>
-#include <sstream>
-#include <string>
 #include <thread>
 #include <utility>
 
 #define TMC_IMPL
 #include "tmc/all_headers.hpp"
 
-// This has been observed to produce the wrong results (always prints the same
-// thread name) on Clang 16, due to incorrectly caching thread_locals across
-// suspend points. The issue has been resolved in Clang 17.
-std::string this_thread_id() {
-  std::string tmc_tid = tmc::detail::this_thread::thread_name;
-  if (!tmc_tid.empty()) {
-    return tmc_tid;
-  } else {
-    static std::ostringstream id;
-    id << std::this_thread::get_id();
-    return "external thread " + id.str();
-  }
-}
+#include "util/thread_name.hpp"
 
 template <typename Result> class external_awaitable {
   Result result;
@@ -54,10 +40,10 @@ public:
 };
 
 tmc::task<int> coro() {
-  std::printf("started on %s\n", this_thread_id().c_str());
+  std::printf("started on %s\n", get_thread_name().c_str());
   std::printf("co_awaiting...\n");
   auto result = co_await external_awaitable<int>{};
-  std::printf("resumed on %s\n", this_thread_id().c_str());
+  std::printf("resumed on %s\n", get_thread_name().c_str());
   if (result != 42) {
     std::printf("wrong result from external_awaitable\n");
   }
@@ -65,6 +51,7 @@ tmc::task<int> coro() {
 }
 
 int main() {
+  hook_init_ex_cpu_thread_name(tmc::cpu_executor());
   tmc::cpu_executor().init();
   std::future<int> result_future =
     tmc::post_waitable(tmc::cpu_executor(), coro(), 0);
