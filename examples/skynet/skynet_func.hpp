@@ -1,6 +1,7 @@
 #pragma once
 #include "tmc/ex_cpu.hpp"
 #include "tmc/spawn_func.hpp"
+#include "tmc/sync.hpp"
 
 #include <atomic>
 #include <chrono>

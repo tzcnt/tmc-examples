@@ -7,8 +7,6 @@
 #include "tmc/ex_cpu.hpp"
 #include "tmc/utils.hpp"
 
-#include <chrono>
-#include <cinttypes>
 #include <cstdio>
 
 using namespace tmc;
