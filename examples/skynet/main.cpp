@@ -8,6 +8,7 @@
 // task tree. This does not enhance performance.
 
 #define TMC_IMPL
+
 #include "skynet_braid.hpp"
 #include "skynet_coro_bulk.hpp"
 #include "skynet_coro_single.hpp"

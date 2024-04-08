@@ -2,9 +2,12 @@
 // enter() / exit() functions, the priority should be restored on the original
 // executor.
 #define TMC_IMPL
-#include "tmc/all_headers.hpp"
+
 #include "tmc/asio/aw_asio.hpp"
 #include "tmc/asio/ex_asio.hpp"
+#include "tmc/ex_braid.hpp"
+#include "tmc/ex_cpu.hpp"
+#include "tmc/spawn_task.hpp"
 
 #include <asio/steady_timer.hpp>
 #include <cinttypes>

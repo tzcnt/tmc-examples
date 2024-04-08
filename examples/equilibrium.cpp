@@ -2,11 +2,15 @@
 // from 1 to 32 threads. Find the point of diminishing returns.
 
 #define TMC_IMPL
-#include "tmc/all_headers.hpp"
+
+#include "tmc/ex_cpu.hpp"
+#include "tmc/sync.hpp"
+#include "tmc/utils.hpp"
 
 #include <chrono>
 #include <cinttypes>
 #include <cstdio>
+#include <future>
 
 using namespace tmc;
 

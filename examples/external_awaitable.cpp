@@ -8,14 +8,16 @@
 // tmc::aw_asio_base::callback::operator() in
 // https://github.com/tzcnt/tmc-asio/blob/main/include/tmc/asio/aw_asio.hpp
 
+#define TMC_IMPL
+
+#include "tmc/ex_cpu.hpp"
+#include "tmc/sync.hpp"
+#include "util/thread_name.hpp"
+
 #include <coroutine>
+#include <future>
 #include <thread>
 #include <utility>
-
-#define TMC_IMPL
-#include "tmc/all_headers.hpp"
-
-#include "util/thread_name.hpp"
 
 template <typename Result> class external_awaitable {
   Result result;

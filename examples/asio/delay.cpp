@@ -3,9 +3,10 @@
 // between asio_executor() and cpu_executor()
 
 #define TMC_IMPL
-#include "tmc/all_headers.hpp"
+
 #include "tmc/asio/aw_asio.hpp"
 #include "tmc/asio/ex_asio.hpp"
+#include "tmc/ex_cpu.hpp"
 
 #include "asio_thread_name.hpp"
 #include <asio/steady_timer.hpp>

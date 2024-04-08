@@ -2,13 +2,15 @@
 // For another example, see
 // https://github.com/tzcnt/tmc-asio/blob/main/include/tmc/asio/ex_asio.hpp
 
+#define TMC_IMPL
+
+#include "tmc/ex_cpu.hpp"
+#include "tmc/spawn_task.hpp"
+#include "tmc/sync.hpp"
+#include "util/thread_name.hpp"
+
 #include <string>
 #include <thread>
-
-#define TMC_IMPL
-#include "tmc/all_headers.hpp"
-
-#include "util/thread_name.hpp"
 
 // A terrible executor that runs everything on a new thread.
 // Implements the tmc::detail::TypeErasableExecutor concept.

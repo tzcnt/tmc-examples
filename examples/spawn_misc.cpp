@@ -1,12 +1,19 @@
 // Miscellaneous ways to spawn and await tasks
 
-#include "tmc/utils.hpp"
 #define TMC_IMPL
-#include "tmc/all_headers.hpp"
+
+#include "tmc/aw_yield.hpp"
+#include "tmc/ex_cpu.hpp"
+#include "tmc/spawn_func.hpp"
+#include "tmc/spawn_task.hpp"
+#include "tmc/spawn_task_many.hpp"
+#include "tmc/sync.hpp"
+#include "tmc/utils.hpp"
 
 #include <chrono>
 #include <cinttypes>
 #include <cstdio>
+#include <future>
 
 using namespace tmc;
 

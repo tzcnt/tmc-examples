@@ -1,5 +1,7 @@
 #pragma once
-#include "tmc/all_headers.hpp"
+#include "tmc/ex_cpu.hpp"
+#include "tmc/sync.hpp"
+
 #include <atomic>
 #include <chrono>
 #include <cinttypes>
