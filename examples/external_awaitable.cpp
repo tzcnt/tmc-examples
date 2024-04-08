@@ -37,8 +37,8 @@ public:
     }).detach();
   }
 
-  Result await_resume() & noexcept { return result; }
-  Result await_resume() && noexcept { return std::move(result); }
+  constexpr Result& await_resume() & noexcept { return result; }
+  constexpr Result&& await_resume() && noexcept { return std::move(result); }
 };
 
 tmc::task<int> coro() {
