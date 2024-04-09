@@ -31,8 +31,8 @@ template <size_t Depth = 6> void loop_skynet() {
         .get();
       auto endTime = std::chrono::high_resolution_clock::now();
       execDur += (endTime - startTime);
-      // waited_count +=
-      //   tmc::test::wait_for_all_threads_to_sleep(tmc::cpu_executor());
+      waited_count +=
+        tmc::test::wait_for_all_threads_to_sleep(tmc::cpu_executor());
 
       // co_await skynet::braids::single::skynet<Depth>();
       // co_await skynet::braids::fork::skynet<Depth>();
