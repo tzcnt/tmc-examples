@@ -15,7 +15,6 @@
 #include "skynet_direct.hpp"
 #include "skynet_func.hpp"
 #include "skynet_loop.hpp"
-#include "tmc/detail/test.hpp"
 #include "tmc/ex_cpu.hpp"
 #include "tmc/sync.hpp"
 

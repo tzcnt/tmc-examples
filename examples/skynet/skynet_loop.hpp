@@ -7,6 +7,7 @@
 #include "tmc/detail/test.hpp"
 #include "tmc/ex_cpu.hpp"
 #include "tmc/task.hpp"
+#include <chrono>
 #include <cinttypes>
 #include <cstdio>
 
