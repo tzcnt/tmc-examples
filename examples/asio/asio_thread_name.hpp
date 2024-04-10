@@ -1,5 +1,6 @@
 #pragma once
 #include "../util/thread_name.hpp"
+
 #include "tmc/asio/ex_asio.hpp"
 
 void hook_init_ex_asio_thread_name(tmc::ex_asio& Executor) {

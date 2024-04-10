@@ -4,10 +4,11 @@
 
 #define TMC_IMPL
 
+#include "util/thread_name.hpp"
+
 #include "tmc/ex_cpu.hpp"
 #include "tmc/spawn_task.hpp"
 #include "tmc/sync.hpp"
-#include "util/thread_name.hpp"
 
 #include <string>
 #include <thread>

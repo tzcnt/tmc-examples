@@ -7,6 +7,7 @@
 #include "skynet_direct.hpp"
 #include "skynet_func.hpp"
 #include "skynet_loop.hpp"
+
 #include "tmc/ex_cpu.hpp"
 
 #define DEPTH 6
