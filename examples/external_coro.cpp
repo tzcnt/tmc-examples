@@ -8,10 +8,10 @@
 #include <cstdio>
 #include <future>
 
-external_coro<int> external(int Count, int Max);
+static external_coro<int> external(int Count, int Max);
 
 // A TMC coro that awaits an external coro.
-tmc::task<int> internal(int Count, int Max) {
+static tmc::task<int> internal(int Count, int Max) {
   ++Count;
   if (Count == Max) {
     co_return Count;
@@ -21,7 +21,7 @@ tmc::task<int> internal(int Count, int Max) {
 }
 
 // An external coro that awaits a TMC coro.
-external_coro<int> external(int Count, int Max) {
+static external_coro<int> external(int Count, int Max) {
   ++Count;
   if (Count == Max) {
     co_return Count;
@@ -30,7 +30,7 @@ external_coro<int> external(int Count, int Max) {
   co_return result;
 }
 
-void run_internal_first(int max) {
+static void run_internal_first(int max) {
   std::future<int> result_future =
     tmc::post_waitable(tmc::cpu_executor(), internal(0, max), 0);
   int result = result_future.get();
@@ -54,7 +54,7 @@ void run_internal_first(int max) {
 
 /// Another option to get a result from an external coroutine type is to
 /// manually capture a promise
-external_coro<void>
+static external_coro<void>
 external_result_by_promise(int Count, int Max, std::promise<int>&& promise) {
   ++Count;
   if (Count == Max) {
@@ -66,7 +66,7 @@ external_result_by_promise(int Count, int Max, std::promise<int>&& promise) {
   co_return;
 }
 
-void run_external_first_by_promise(int max) {
+static void run_external_first_by_promise(int max) {
   std::promise<int> result_promise;
   std::future<int> result_future = result_promise.get_future();
   // post_waitable doesn't work, as we have no way to deduce the result type of

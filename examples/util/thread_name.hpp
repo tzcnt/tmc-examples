@@ -14,7 +14,7 @@ inline thread_local std::string thread_name{};
 } // namespace this_thread
 
 /// This must be called before calling init() on the executor.
-void hook_init_ex_cpu_thread_name(tmc::ex_cpu& Executor) {
+inline void hook_init_ex_cpu_thread_name(tmc::ex_cpu& Executor) {
   Executor.set_thread_init_hook([](size_t Slot) {
     this_thread::thread_name =
       std::string("cpu thread ") + std::to_string(Slot);
@@ -24,7 +24,7 @@ void hook_init_ex_cpu_thread_name(tmc::ex_cpu& Executor) {
 // This has been observed to produce the wrong results (always prints the same
 // thread name) on Clang 16, due to incorrectly caching thread_locals across
 // suspend points. The issue has been resolved in Clang 17.
-std::string get_thread_name() {
+inline std::string get_thread_name() {
   std::string tmc_tid = this_thread::thread_name;
   if (!tmc_tid.empty()) {
     return tmc_tid;
@@ -35,4 +35,6 @@ std::string get_thread_name() {
   }
 }
 
-void print_thread_name() { std::printf("%s\n", get_thread_name().c_str()); }
+inline void print_thread_name() {
+  std::printf("%s\n", get_thread_name().c_str());
+}

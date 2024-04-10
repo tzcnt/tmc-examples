@@ -241,7 +241,7 @@ template <size_t Count> tmc::task<void> braid_lock_middle_resume_on() {
   );
 }
 
-tmc::task<int> async_main() {
+static tmc::task<int> async_main() {
   co_await large_task_spawn_bench_lazy_bulk<32000>();
   co_await braid_lock<32000>();
   co_await braid_lock_middle<32000>();

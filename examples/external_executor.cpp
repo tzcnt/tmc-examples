@@ -13,7 +13,7 @@
 #include <string>
 #include <thread>
 
-// A terrible executor that runs everything on a new thread.
+// A terrible executor that creates a new thread for every task.
 // Implements the tmc::detail::TypeErasableExecutor concept.
 class external_executor {
   tmc::detail::type_erased_executor type_erased_this;
@@ -53,9 +53,9 @@ public:
   tmc::detail::type_erased_executor* type_erased() { return &type_erased_this; }
 };
 
-external_executor external;
+static external_executor external{};
 
-tmc::task<void> child_task() {
+static tmc::task<void> child_task() {
   std::printf("child task on %s...\n", get_thread_name().c_str());
   co_return;
 }

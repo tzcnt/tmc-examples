@@ -43,7 +43,7 @@ public:
   Result&& await_resume() && noexcept { return std::move(result); }
 };
 
-tmc::task<int> coro() {
+static tmc::task<int> coro() {
   std::printf("started on %s\n", get_thread_name().c_str());
   std::printf("co_awaiting...\n");
   auto result = co_await external_awaitable<int>{};

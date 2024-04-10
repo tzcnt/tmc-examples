@@ -24,7 +24,7 @@ struct bench_result {
   std::chrono::duration<long, std::ratio<1, 1000000000>> dur_ns;
 };
 
-task<void> make_task(uint64_t* DataSlot) {
+static task<void> make_task(uint64_t* DataSlot) {
   int a = 0;
   int b = 1;
 #pragma unroll 1
@@ -40,7 +40,7 @@ task<void> make_task(uint64_t* DataSlot) {
   co_return;
 }
 
-task<void> get_task(size_t Slot, uint64_t* Data) {
+[[maybe_unused]] static task<void> get_task(size_t Slot, uint64_t* Data) {
   int a = 0;
   int b = 1;
 #pragma unroll 1
@@ -56,7 +56,7 @@ task<void> get_task(size_t Slot, uint64_t* Data) {
   co_return;
 }
 
-bench_result find_equilibrium(size_t Count, size_t ThreadCount) {
+static bench_result find_equilibrium(size_t Count, size_t ThreadCount) {
   auto& executor = tmc::cpu_executor();
   executor.set_thread_count(ThreadCount).init();
   auto data = new uint64_t[Count];

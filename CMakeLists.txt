@@ -23,6 +23,18 @@ add_definitions(
     # Debug / testing options
     # "-DTMC_USE_MUTEXQ"
     # "-DTMC_QUEUE_NO_LIFO"
+
+    # To clean warnings
+    # "-Weverything"
+    # "-Wno-c++98-compat"
+    # "-Wno-c++98-compat-pedantic"
+    # "-Wno-c++20-compat"
+    # "-Wno-padded"
+    # "-Wno-unsafe-buffer-usage"
+    # "-Wno-global-constructors"
+    # "-Wno-exit-time-destructors"
+    # "-Wno-sign-conversion"
+    # "-Wno-deprecated-declarations"
 )
 
 include(cmake/CPM.cmake)
@@ -42,7 +54,7 @@ else()
     CPMAddPackage(
         NAME TooManyCooks
         GIT_REPOSITORY https://github.com/tzcnt/TooManyCooks.git
-        GIT_TAG c408e02cf91caee4f89803531748b87c7a340c15
+        GIT_TAG a7701592639db80383e6cd264648d2be7bec6e69
         DOWNLOAD_ONLY)
 
     CPMAddPackage(

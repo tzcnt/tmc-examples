@@ -47,7 +47,7 @@ tmc::task<void> handler(auto Socket) {
   Socket.close();
 }
 
-tmc::task<void> accept(uint16_t Port) {
+static tmc::task<void> accept(uint16_t Port) {
   std::printf("serving on http://localhost:%d/\n", Port);
   tcp::acceptor acceptor(tmc::asio_executor(), {tcp::v4(), Port});
   while (true) {

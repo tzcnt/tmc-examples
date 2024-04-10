@@ -30,9 +30,7 @@ template <size_t Count, size_t ThreadCount> void small_func_spawn_bench_lazy() {
   for (uint64_t i = 0; i < Count; ++i) {
     // because this is a functor and not a coroutine,
     // it is OK to capture the loop variables
-    results[i] = post_waitable(
-      executor, [i, &data]() { data[i] = i; }, 0
-    );
+    results[i] = post_waitable(executor, [i, &data]() { data[i] = i; }, 0);
   }
   auto postTime = std::chrono::high_resolution_clock::now();
   for (auto& f : results) {
@@ -187,7 +185,7 @@ void prio_reversal_test() {
     for (uint64_t prio = npriorities - 1; prio != -1ULL; --prio) {
       results[slot] = post_waitable(
         executor,
-        [](size_t* DataSlot, size_t Priority) -> task<void> {
+        [](size_t* DataSlot, [[maybe_unused]] size_t Priority) -> task<void> {
           int a = 0;
           int b = 1;
           for (int i = 0; i < 1000; ++i) {
@@ -480,14 +478,14 @@ template <size_t Count, size_t nthreads> void spawn_many_test() {
 
 // Coerce a task into a coroutine_handle to erase its promise type
 // This simulates an external coro type that TMC doesn't understand
-std::coroutine_handle<> external_coro_test_task(int I) {
+static std::coroutine_handle<> external_coro_test_task(int I) {
   return [](int i) -> task<void> {
     std::printf("external_coro_test_task(%d)...\n", i);
     co_return;
   }(I);
 }
 
-void external_coro_test() {
+static void external_coro_test() {
   std::printf("external_coro_test()...\n");
   ex_cpu executor;
   executor.init();
