@@ -7,8 +7,9 @@
 #include <string>
 
 namespace this_thread {
-// this constinit compiles now but it didn't before? is it fixed in gcc 13.2.1?
-inline constinit std::string thread_name{};
+// I'd like to make this constinit, but it doesn't work on current version of
+// libstdc++. Works fine with libc++ though.
+inline thread_local std::string thread_name{};
 } // namespace this_thread
 
 /// This must be called before calling init() on the executor.
