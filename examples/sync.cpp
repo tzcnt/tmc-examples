@@ -52,8 +52,8 @@ void wait_one_coro_value() {
 
 void wait_many_func_void() {
   auto fut = tmc::post_bulk_waitable(
-    tmc::cpu_executor(), tmc::iter_adapter(0, [](int i) { return func_void; }),
-    0, 10
+    tmc::cpu_executor(), tmc::iter_adapter(0, [](int) { return func_void; }), 0,
+    10
   );
   fut.get();
 }

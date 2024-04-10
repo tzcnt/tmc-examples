@@ -23,7 +23,8 @@ public:
 
   // post() and post_bulk() are the only methods that need to be implemented
   // to construct a type_erased_executor.
-  template <typename Functor> void post(Functor&& Func, size_t Priority) {
+  template <typename Functor>
+  void post(Functor&& Func, [[maybe_unused]] size_t Priority) {
     std::thread([this, Func] {
       // Thread locals must be setup for each new executor thread
       tmc::detail::this_thread::executor = &type_erased_this; // mandatory
@@ -32,7 +33,9 @@ public:
   }
 
   template <typename FunctorIterator>
-  void post_bulk(FunctorIterator FuncIter, size_t Priority, size_t Count) {
+  void post_bulk(
+    FunctorIterator FuncIter, [[maybe_unused]] size_t Priority, size_t Count
+  ) {
     for (size_t i = 0; i < Count; ++i) {
       std::thread([this, Func = *FuncIter] {
         // Thread locals must be setup for each new executor thread

@@ -480,11 +480,11 @@ template <size_t Count, size_t nthreads> void spawn_many_test() {
 
 // Coerce a task into a coroutine_handle to erase its promise type
 // This simulates an external coro type that TMC doesn't understand
-std::coroutine_handle<> external_coro_test_task(int i) {
+std::coroutine_handle<> external_coro_test_task(int I) {
   return [](int i) -> task<void> {
     std::printf("external_coro_test_task(%d)...\n", i);
     co_return;
-  }(i);
+  }(I);
 }
 
 void external_coro_test() {
