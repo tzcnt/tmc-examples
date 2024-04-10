@@ -11,7 +11,7 @@
 #include <cinttypes>
 #include <cstdio>
 
-template <size_t Depth = 6> void loop_skynet() {
+template <size_t Depth = 6> tmc::task<int> loop_skynet() {
   static_assert(Depth <= 6);
   const size_t iter_count = 1000;
   for (size_t j = 0; j < 5; ++j) {
@@ -25,10 +25,7 @@ template <size_t Depth = 6> void loop_skynet() {
       // co_await skynet::func::single::skynet<Depth>();
       // co_await skynet::coro::single::skynet<Depth>();
       auto startTime = std::chrono::high_resolution_clock::now();
-      tmc::post_waitable(
-        tmc::cpu_executor(), skynet::coro::bulk::skynet<Depth>(), 0
-      )
-        .get();
+      co_await skynet::coro::bulk::skynet<Depth>();
       auto endTime = std::chrono::high_resolution_clock::now();
       execDur += (endTime - startTime);
       waited_count +=
@@ -49,4 +46,5 @@ template <size_t Depth = 6> void loop_skynet() {
     );
     std::printf("waited %" PRIu64 " times\n", waited_count);
   }
+  co_return 0;
 }
