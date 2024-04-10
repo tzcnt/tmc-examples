@@ -24,7 +24,10 @@
 
 int main() {
   tmc::cpu_executor().init();
-  tmc::async_main(loop_skynet<DEPTH>());
+  return tmc::async_main([]() -> tmc::task<int> {
+    co_await loop_skynet<DEPTH>();
+    co_return 0;
+  }());
 
   // These each create their own standalone executors
   // tmc::cpu_executor().teardown();
