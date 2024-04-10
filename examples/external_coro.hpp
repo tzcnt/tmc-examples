@@ -23,7 +23,8 @@ template <typename Result> class aw_external_coro_final_suspend {
 
 public:
   bool await_ready() const noexcept { return false; }
-  std::coroutine_handle<> await_suspend(std::coroutine_handle<> ending
+  std::coroutine_handle<>
+  await_suspend([[maybe_unused]] std::coroutine_handle<> ending
   ) const noexcept {
     return handle;
   }
@@ -54,7 +55,7 @@ template <> struct external_coro_promise<void> {
   external_coro<void> get_return_object() noexcept {
     return {external_coro<void>::from_promise(*this)};
   }
-  void unhandled_exception() { throw; }
+  [[noreturn]] void unhandled_exception() { throw; }
   void return_void() {}
   std::coroutine_handle<> continuation;
 };

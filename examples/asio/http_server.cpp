@@ -2,6 +2,7 @@
 // Listens on http://localhost:55550/
 
 #define TMC_IMPL
+
 #include "tmc/asio/aw_asio.hpp"
 #include "tmc/asio/ex_asio.hpp"
 #include "tmc/ex_cpu.hpp"
@@ -54,7 +55,7 @@ tmc::task<void> accept(uint16_t Port) {
     if (error) {
       break;
     }
-    tmc::spawn(handler(std::move(sock)));
+    tmc::spawn(handler(std::move(sock))).detach();
   }
 }
 
@@ -66,7 +67,8 @@ int main() {
     // coroutine back on tmc::cpu_executor(). This incurs additional overhead,
     // but enables unfettered access to the CPU executor without any risk of
     // accidentally blocking the I/O thread.
-    tmc::spawn(accept(55550));
+    tmc::spawn(accept(55550))
+      .detach(); // TODO with_priority doesn't warn (nodiscard) without detach
 
     // This customization runs both the I/O calls and the continuations inline
     // on the single-threaded tmc::asio_executor(). Although this yields higher

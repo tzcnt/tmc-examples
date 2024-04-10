@@ -1,10 +1,12 @@
-#include <coroutine>
-#include <iostream>
-#include <thread>
-
 #define TMC_IMPL
+
 #include "external_coro.hpp"
-#include "tmc/all_headers.hpp"
+
+#include "tmc/ex_cpu.hpp"
+#include "tmc/sync.hpp"
+
+#include <cstdio>
+#include <future>
 
 external_coro<int> external(int Count, int Max);
 

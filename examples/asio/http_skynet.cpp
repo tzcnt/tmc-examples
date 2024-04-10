@@ -4,9 +4,13 @@
 // Try load testing both sockets at the same time and observe
 
 #define TMC_IMPL
-#include "tmc/all_headers.hpp"
+
 #include "tmc/asio/aw_asio.hpp"
 #include "tmc/asio/ex_asio.hpp"
+#include "tmc/ex_cpu.hpp"
+#include "tmc/spawn_task.hpp"
+#include "tmc/spawn_task_many.hpp"
+#include "tmc/utils.hpp"
 
 #include <array>
 #include <asio/buffer.hpp>
@@ -16,6 +20,7 @@
 #include <asio/signal_set.hpp>
 #include <asio/streambuf.hpp>
 #include <asio/write.hpp>
+#include <chrono>
 #include <sstream>
 #include <string>
 
@@ -99,7 +104,7 @@ tmc::task<void> accept(uint16_t Port) {
     if (error) {
       break;
     }
-    tmc::spawn(handler(std::move(sock)));
+    tmc::spawn(handler(std::move(sock))).detach();
   }
 }
 
@@ -108,7 +113,9 @@ int main() {
   tmc::asio_executor().init();
   return tmc::async_main([]() -> tmc::task<int> {
     std::printf("serving low priority on http://localhost::55551/\n");
-    tmc::spawn(accept(55551)).with_priority(1);
+    tmc::spawn(accept(55551))
+      .with_priority(1)
+      .detach(); // TODO with_priority doesn't warn (nodiscard) without detach
     std::printf("serving high priority on http://localhost::55550/\n");
     co_await accept(55550);
     co_return 0;

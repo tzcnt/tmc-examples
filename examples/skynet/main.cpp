@@ -8,13 +8,16 @@
 // task tree. This does not enhance performance.
 
 #define TMC_IMPL
+
 #include "skynet_braid.hpp"
 #include "skynet_coro_bulk.hpp"
 #include "skynet_coro_single.hpp"
 #include "skynet_direct.hpp"
 #include "skynet_func.hpp"
 #include "skynet_loop.hpp"
+
 #include "tmc/ex_cpu.hpp"
+#include "tmc/sync.hpp"
 
 #include <cstdio>
 
@@ -23,7 +26,6 @@
 int main() {
   tmc::cpu_executor().init();
   return tmc::async_main([]() -> tmc::task<int> {
-    std::printf("sizeof(work_item): %" PRIu64 "\n", sizeof(tmc::work_item));
     co_await loop_skynet<DEPTH>();
     co_return 0;
   }());

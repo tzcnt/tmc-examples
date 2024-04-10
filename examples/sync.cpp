@@ -1,12 +1,12 @@
 // Demonstrates all the ways you can block synchronously on tasks from external
 // code
 
-#include "tmc/utils.hpp"
 #define TMC_IMPL
-#include "tmc/all_headers.hpp"
 
-#include <chrono>
-#include <cinttypes>
+#include "tmc/sync.hpp"
+#include "tmc/ex_cpu.hpp"
+#include "tmc/utils.hpp"
+
 #include <cstdio>
 
 using namespace tmc;
@@ -52,8 +52,8 @@ void wait_one_coro_value() {
 
 void wait_many_func_void() {
   auto fut = tmc::post_bulk_waitable(
-    tmc::cpu_executor(), tmc::iter_adapter(0, [](int i) { return func_void; }),
-    0, 10
+    tmc::cpu_executor(), tmc::iter_adapter(0, [](int) { return func_void; }), 0,
+    10
   );
   fut.get();
 }

@@ -2,24 +2,16 @@
 // For another example, see
 // https://github.com/tzcnt/tmc-asio/blob/main/include/tmc/asio/ex_asio.hpp
 
-#include <iostream>
-#include <sstream>
+#define TMC_IMPL
+
+#include "util/thread_name.hpp"
+
+#include "tmc/ex_cpu.hpp"
+#include "tmc/spawn_task.hpp"
+#include "tmc/sync.hpp"
+
 #include <string>
 #include <thread>
-
-#define TMC_IMPL
-#include "tmc/all_headers.hpp"
-
-std::string this_thread_id() {
-  std::string tmc_tid = tmc::detail::this_thread::thread_name;
-  if (!tmc_tid.empty()) {
-    return tmc_tid;
-  } else {
-    static std::ostringstream id;
-    id << std::this_thread::get_id();
-    return "external thread " + id.str();
-  }
-}
 
 // A terrible executor that runs everything on a new thread.
 // Implements the tmc::detail::TypeErasableExecutor concept.
@@ -31,22 +23,23 @@ public:
 
   // post() and post_bulk() are the only methods that need to be implemented
   // to construct a type_erased_executor.
-  template <typename Functor> void post(Functor&& Func, size_t Priority) {
+  template <typename Functor>
+  void post(Functor&& Func, [[maybe_unused]] size_t Priority) {
     std::thread([this, Func] {
       // Thread locals must be setup for each new executor thread
-      tmc::detail::this_thread::executor = &type_erased_this;    // mandatory
-      tmc::detail::this_thread::thread_name = "external thread"; // optional
+      tmc::detail::this_thread::executor = &type_erased_this; // mandatory
       Func();
     }).detach();
   }
 
   template <typename FunctorIterator>
-  void post_bulk(FunctorIterator FuncIter, size_t Priority, size_t Count) {
+  void post_bulk(
+    FunctorIterator FuncIter, [[maybe_unused]] size_t Priority, size_t Count
+  ) {
     for (size_t i = 0; i < Count; ++i) {
       std::thread([this, Func = *FuncIter] {
         // Thread locals must be setup for each new executor thread
-        tmc::detail::this_thread::executor = &type_erased_this;    // mandatory
-        tmc::detail::this_thread::thread_name = "external thread"; // optional
+        tmc::detail::this_thread::executor = &type_erased_this; // mandatory
         Func();
       }).detach();
       ++FuncIter;
@@ -63,39 +56,38 @@ public:
 external_executor external;
 
 tmc::task<void> child_task() {
-  std::cout << "child task on " << this_thread_id() << "..." << std::endl;
+  std::printf("child task on %s...\n", get_thread_name().c_str());
   co_return;
 }
 
 int main() {
+  hook_init_ex_cpu_thread_name(tmc::cpu_executor());
   tmc::cpu_executor().init();
 
-  std::cout << "tmc::ex_cpu -> external_executor -> tmc::ex_cpu" << std::endl;
+  std::printf("tmc::ex_cpu -> external_executor -> tmc::ex_cpu\n");
   tmc::post_waitable(
     tmc::cpu_executor(),
     []() -> tmc::task<void> {
-      std::cout << "coro started on " << this_thread_id() << std::endl;
-      std::cout << "co_awaiting..." << std::endl;
+      std::printf("coro started on %s\n", get_thread_name().c_str());
+      std::printf("co_awaiting...\n");
       // run child_task() on the other executor
       co_await tmc::spawn(child_task()).run_on(external);
-      std::cout << "coro resumed on " << this_thread_id() << std::endl;
+      std::printf("coro resumed on %s\n", get_thread_name().c_str());
       co_return;
     }(),
     0
   )
     .wait();
 
-  std::cout << std::endl
-            << "external_executor -> tmc::ex_cpu -> external_executor"
-            << std::endl;
+  std::printf("\nexternal_executor -> tmc::ex_cpu -> external_executor\n");
   tmc::post_waitable(
     external,
     []() -> tmc::task<void> {
-      std::cout << "coro started on " << this_thread_id() << std::endl;
-      std::cout << "co_awaiting..." << std::endl;
+      std::printf("coro started on %s\n", get_thread_name().c_str());
+      std::printf("co_awaiting...\n");
       // run child_task() on the other executor
       co_await tmc::spawn(child_task()).run_on(tmc::cpu_executor());
-      std::cout << "coro resumed on " << this_thread_id() << std::endl;
+      std::printf("coro resumed on %s\n", get_thread_name().c_str());
       co_return;
     }(),
     0

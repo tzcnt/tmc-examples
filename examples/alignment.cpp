@@ -10,11 +10,14 @@
 // This test repros in Debug or Release
 
 #define TMC_IMPL
-#include "tmc/all_headers.hpp"
+
+#include "tmc/aw_yield.hpp"
+#include "tmc/ex_cpu.hpp"
+#include "tmc/spawn_task_many.hpp"
+#include "tmc/utils.hpp"
 
 #include <cinttypes>
 #include <cstdio>
-#include <iostream>
 
 using namespace tmc;
 
@@ -34,7 +37,7 @@ static void check_alignment(void* ptr) {
       "FAIL: Expected align %" PRIu64 " but got align %" PRIu64 "\n", ALIGNMENT,
       low_bits
     );
-    std::cout.flush();
+    std::fflush(stdout);
   }
 }
 static task<void> run_one(int i, unaligned_struct* ur, aligned_struct* ar) {

@@ -1,5 +1,8 @@
 #pragma once
-#include "tmc/all_headers.hpp"
+#include "tmc/ex_cpu.hpp"
+#include "tmc/spawn_func.hpp"
+#include "tmc/sync.hpp"
+
 #include <atomic>
 #include <chrono>
 #include <cinttypes>
@@ -20,9 +23,9 @@ tmc::task<size_t> skynet_one(size_t BaseNum, size_t Depth) {
     depthOffset *= 10;
   }
   for (size_t idx = 0; idx < 10; ++idx) {
-    count += co_await co_await tmc::spawn(std::function([=]() {
+    count += co_await std::move(co_await tmc::spawn(std::function([=]() {
       return skynet_one<DepthMax>(BaseNum + depthOffset * idx, Depth + 1);
-    }));
+    })));
   }
   co_return count;
 }

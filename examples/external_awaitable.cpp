@@ -8,26 +8,18 @@
 // tmc::aw_asio_base::callback::operator() in
 // https://github.com/tzcnt/tmc-asio/blob/main/include/tmc/asio/aw_asio.hpp
 
+#define TMC_IMPL
+
+#include "util/thread_name.hpp"
+
+#include "tmc/ex_cpu.hpp"
+#include "tmc/sync.hpp"
+
+#include <chrono>
 #include <coroutine>
-#include <iostream>
-#include <sstream>
-#include <string>
+#include <future>
 #include <thread>
 #include <utility>
-
-#define TMC_IMPL
-#include "tmc/all_headers.hpp"
-
-std::string this_thread_id() {
-  std::string tmc_tid = tmc::detail::this_thread::thread_name;
-  if (!tmc_tid.empty()) {
-    return tmc_tid;
-  } else {
-    static std::ostringstream id;
-    id << std::this_thread::get_id();
-    return "external thread " + id.str();
-  }
-}
 
 template <typename Result> class external_awaitable {
   Result result;
@@ -47,15 +39,15 @@ public:
     }).detach();
   }
 
-  Result await_resume() & noexcept { return result; }
-  Result await_resume() && noexcept { return std::move(result); }
+  Result& await_resume() & noexcept { return result; }
+  Result&& await_resume() && noexcept { return std::move(result); }
 };
 
 tmc::task<int> coro() {
-  std::cout << "started on " << this_thread_id() << std::endl;
-  std::cout << "co_awaiting..." << std::endl;
+  std::printf("started on %s\n", get_thread_name().c_str());
+  std::printf("co_awaiting...\n");
   auto result = co_await external_awaitable<int>{};
-  std::cout << "resumed on " << this_thread_id() << std::endl;
+  std::printf("resumed on %s\n", get_thread_name().c_str());
   if (result != 42) {
     std::printf("wrong result from external_awaitable\n");
   }
@@ -63,6 +55,7 @@ tmc::task<int> coro() {
 }
 
 int main() {
+  hook_init_ex_cpu_thread_name(tmc::cpu_executor());
   tmc::cpu_executor().init();
   std::future<int> result_future =
     tmc::post_waitable(tmc::cpu_executor(), coro(), 0);
