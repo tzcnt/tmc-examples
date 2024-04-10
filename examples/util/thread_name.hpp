@@ -28,7 +28,7 @@ std::string get_thread_name() {
   if (!tmc_tid.empty()) {
     return tmc_tid;
   } else {
-    static std::ostringstream id;
+    std::ostringstream id;
     id << std::this_thread::get_id();
     return "external thread " + id.str();
   }
