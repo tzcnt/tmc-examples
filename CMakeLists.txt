@@ -14,9 +14,6 @@ add_definitions(
     "-march=native"
 
     "-DTMC_WORK_ITEM=CORO" # one of: CORO, FUNC, FUNCORO, FUNCORO32
-    "-Wall"
-    "-Weverything"
-    "-Wpedantic"
 
     # "-DTMC_PRIORITY_COUNT=2" # unsigned integer >= 1
     # "-DTMC_USE_BOOST_ASIO"
@@ -45,13 +42,13 @@ else()
     CPMAddPackage(
         NAME TooManyCooks
         GIT_REPOSITORY https://github.com/tzcnt/TooManyCooks.git
-        GIT_TAG ab3c824f7d093e72537c141b2c88a0f22773ca24
+        GIT_TAG c408e02cf91caee4f89803531748b87c7a340c15
         DOWNLOAD_ONLY)
 
     CPMAddPackage(
         NAME tmc_asio
         GIT_REPOSITORY https://github.com/tzcnt/tmc-asio.git
-        GIT_TAG de808d6a136441b92fe364dae172c9e3e71c1728
+        GIT_TAG 1dee184a81cab950fb9bfa43cc0784d27e09cffe
         DOWNLOAD_ONLY)
 
     include_directories(
