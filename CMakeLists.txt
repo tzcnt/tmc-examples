@@ -11,14 +11,15 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS "1")
 set(CMAKE_CXX_STANDARD 20)
 
 add_definitions(
+    # Performance tuning options
     "-march=native"
-
     "-DTMC_WORK_ITEM=CORO" # one of: CORO, FUNC, FUNCORO, FUNCORO32
+    # "-DTMC_TRIVIAL_TASK" # enabled in this repo for Release builds via CMakePresets.json
+    # "-DTMC_PRIORITY_COUNT=1" # unsigned integer between 1 and 63
 
-    # "-DTMC_PRIORITY_COUNT=2" # unsigned integer >= 1
+    # Other
     # "-DTMC_USE_BOOST_ASIO"
     # "-DTMC_QUEUE_PREFER_STEAL"
-    # "-DTMC_TRIVIAL_TASK"
 
     # Debug / testing options
     # "-DTMC_USE_MUTEXQ"

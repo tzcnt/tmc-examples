@@ -31,6 +31,7 @@
         "CMAKE_BUILD_TYPE": "Release",
         "CMAKE_C_COMPILER": "clang",
         "CMAKE_CXX_COMPILER": "clang++",
+        "CMAKE_CXX_FLAGS": "-DTMC_TRIVIAL_TASK",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
       },
       "condition": {
@@ -88,6 +89,7 @@
         "CMAKE_BUILD_TYPE": "Release",
         "CMAKE_C_COMPILER": "gcc",
         "CMAKE_CXX_COMPILER": "g++",
+        "CMAKE_CXX_FLAGS": "-DTMC_TRIVIAL_TASK",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
       },
       "condition": {
@@ -158,6 +160,7 @@
         "CMAKE_BUILD_TYPE": "Release",
         "CMAKE_C_COMPILER": "clang-cl.exe",
         "CMAKE_CXX_COMPILER": "clang-cl.exe",
+        "CMAKE_CXX_FLAGS": "/DTMC_TRIVIAL_TASK",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
       },
       "architecture": {
@@ -250,7 +253,7 @@
         "CMAKE_C_COMPILER": "cl.exe",
         "CMAKE_CXX_COMPILER": "cl.exe",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
-        "CMAKE_CXX_FLAGS": "/DWIN32 /D_WINDOWS /W3 /GR /EHsc /arch:AVX2",
+        "CMAKE_CXX_FLAGS": "/DTMC_TRIVIAL_TASK /DWIN32 /D_WINDOWS /W3 /GR /EHsc /arch:AVX2",
         "CMAKE_C_FLAGS": "/DWIN32 /D_WINDOWS /W3 /arch:AVX2"
       },
       "architecture": {
