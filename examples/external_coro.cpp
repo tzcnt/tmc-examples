@@ -1,3 +1,7 @@
+// Create an external coroutine that can await, and be awaited by, TMC
+// coroutines. This external coroutine type has no knowledge of executors and
+// only works by symmetric transfer.
+
 #define TMC_IMPL
 
 #include "external_coro.hpp"
