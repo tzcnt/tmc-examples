@@ -275,40 +275,26 @@ template <size_t Count, size_t nthreads> void spawn_test() {
       0,
       [](size_t slot) -> task<void> {
         std::printf("%" PRIu64 ": pre outer\n", slot);
-        //  TODO make spawn take an invokable
-        //  instead of constructing std::function here
-        spawn(std::function([slot]() {
-          std::printf("%" PRIu64 ": detached spawn\n", slot);
-        })
-        ).detach();
-        co_await spawn(std::function([slot]() {
+        co_await spawn([slot]() {
           std::printf("%" PRIu64 ": co_awaited spawn\n", slot);
-        }));
+        });
         co_await spawn([](size_t Slot) -> task<void> {
           std::printf("%" PRIu64 ": pre inner\n", Slot);
-          co_await yield();
-          std::printf("%" PRIu64 ": resume inner 1\n", Slot);
-          co_await yield();
-          std::printf("%" PRIu64 ": resume inner 2\n", Slot);
           co_await yield();
           std::printf("%" PRIu64 ": post inner\n", Slot);
           co_return;
         }(slot));
         std::printf("%" PRIu64 ": post outer\n", slot);
-        // in this case, the spawned function returns immediately,
+        // in this case, the spawned function returns a task,
         // and a 2nd co_await is required
-        co_await std::move(co_await spawn(std::function([slot]() -> task<void> {
+        co_await co_await spawn([slot]() -> task<void> {
           return [](size_t Slot) -> task<void> {
             std::printf("%" PRIu64 ": pre inner\n", Slot);
-            co_await yield();
-            std::printf("%" PRIu64 ": resume inner 1\n", Slot);
-            co_await yield();
-            std::printf("%" PRIu64 ": resume inner 2\n", Slot);
             co_await yield();
             std::printf("%" PRIu64 ": post inner\n", Slot);
             co_return;
           }(slot);
-        })));
+        });
         std::printf("%" PRIu64 ": post outer\n", slot);
         co_return;
       }
@@ -349,17 +335,16 @@ template <size_t Count, size_t nthreads> void spawn_value_test() {
       [](size_t slot) -> task<void> {
         return [](size_t Slot) -> task<void> {
           auto slot_start = Slot;
-          //  TODO make spawn take an invokable
-          //  instead of constructing std::function here
           std::printf("%" PRIu64 ": pre outer\n", Slot);
           Slot = co_await [Slot]() -> task<size_t> {
             std::printf("func 0\t");
             co_return Slot + 1;
           }();
-          Slot = co_await spawn(std::function([Slot]() -> size_t {
+          auto x = co_await spawn([]() -> tmc::task<size_t> {
             std::printf("func 1\t");
-            return Slot + 1;
-          }));
+            co_return 1;
+          }());
+
           auto t = [](size_t InnerSlot) -> task<size_t> {
             co_await yield();
             co_await yield();
@@ -367,21 +352,48 @@ template <size_t Count, size_t nthreads> void spawn_value_test() {
             co_return InnerSlot + 1;
           }(Slot);
           Slot = co_await spawn(std::move(t));
+
           // in this case, the spawned function returns immediately,
           // and a 2nd co_await is required
-          Slot = co_await std::move(
-            co_await spawn(std::function([Slot]() -> task<size_t> {
-              return [](size_t InnerSlot) -> task<size_t> {
-                co_await yield();
-                co_await yield();
-                std::printf("func 3\t");
-                co_return InnerSlot + 1;
-              }(Slot);
-            }))
-          );
-          if (Slot != slot_start + 4) {
+          Slot = co_await co_await spawn([Slot]() -> task<size_t> {
+            return [](size_t InnerSlot) -> task<size_t> {
+              co_await yield();
+              co_await yield();
+              std::printf("func 3\t");
+              co_return InnerSlot + 1;
+            }(Slot);
+          });
+
+          // You can capture an lvalue reference to the result of a named
+          // spawned task object. The result value exists inside of the
+          // aw_spawned_func.
+          auto spt = spawn([](size_t InnerSlot) -> tmc::task<size_t> {
+            std::printf("func 4\t");
+            co_return InnerSlot + 1;
+          }(Slot));
+          auto& sptr = co_await spt;
+          Slot = sptr;
+
+          // You can capture an lvalue reference to the result of a named
+          // spawned func object. The result value exists inside of the
+          // aw_spawned_task.
+          auto spf = spawn([Slot]() -> size_t {
+            std::printf("func 5\t");
+            return Slot + 1;
+          });
+          auto& spfr = co_await spf;
+          Slot = spfr;
+
+          // You cannot capture an lvalue reference to a temporary spawned task
+          // object, only an rvalue reference... or construct by rvalue.
+          // auto& doesnt_work = co_await spawn([Slot]() -> size_t {
+          //   std::printf("func 5\t");
+          //   return Slot + 1;
+          // });
+
+          if (Slot != slot_start + 6) {
             printf(
-              "expected %" PRIu64 " but got %" PRIu64 "\n", slot_start + 4, Slot
+              "expected %" PRIu64 " but got %" PRIu64 "\n", slot_start + 6, Slot
             );
           }
           std::printf("%" PRIu64 ": post outer\n", Slot);
@@ -423,9 +435,6 @@ template <size_t Count, size_t nthreads> void spawn_many_test() {
     iter_adapter(
       0,
       [](size_t slot) -> task<void> {
-        //  TODO make spawn take an invokable
-        //  instead of constructing std::function
-        //  here
         std::printf("%" PRIu64 ": pre outer\n", slot);
         task<size_t> t = [](size_t Slot) -> task<size_t> {
           co_await yield();
@@ -447,7 +456,7 @@ template <size_t Count, size_t nthreads> void spawn_many_test() {
           co_await yield();
           std::printf("func %" PRIu64 "\n", Slot);
         }(slot);
-        spawn_many<1>(&t3).detach();
+        co_await spawn_many<1>(&t3);
         std::printf("%" PRIu64 ": post outer\n", slot);
         co_return;
       }
@@ -493,18 +502,12 @@ static void external_coro_test() {
   tmc::post_bulk(executor, tmc::iter_adapter(2, external_coro_test_task), 0, 2);
   tmc::post_waitable(
     executor,
-    []() -> task<void> {
-      tmc::spawn(external_coro_test_task(7)).detach();
-      co_await tmc::spawn(external_coro_test_task(4));
-    }(),
-    0
+    []() -> task<void> { co_await tmc::spawn(external_coro_test_task(4)); }(), 0
   )
     .wait();
   tmc::post_waitable(
     executor,
     []() -> task<void> {
-      tmc::spawn_many<2>(tmc::iter_adapter(8, external_coro_test_task))
-        .detach();
       co_await tmc::spawn_many<2>(tmc::iter_adapter(5, external_coro_test_task)
       );
     }(),
@@ -514,10 +517,10 @@ static void external_coro_test() {
 }
 
 int main() {
-  small_func_spawn_bench_lazy<32000, 16>();
-  large_task_spawn_bench_lazy<32000, 16>();
-  large_task_spawn_bench_lazy_bulk<32000, 16>();
-  prio_reversal_test<320, 16, 63>();
+  small_func_spawn_bench_lazy<100, 16>();
+  large_task_spawn_bench_lazy<100, 16>();
+  large_task_spawn_bench_lazy_bulk<100, 16>();
+  prio_reversal_test<100, 16, 63>();
   co_await_eager_test<1, 16>();
   spawn_test<1, 16>();
   spawn_value_test<1, 16>();
