@@ -42,9 +42,10 @@ tmc::task<size_t> skynet_one(size_t BaseNum, size_t Depth) {
     }
   ));
 
-  for (auto& t : co_await spm) {
-    count +=
-      tmc::task<size_t>::from_address(t.address()).promise().result_ref();
+  auto iter = co_await spm;
+  for (size_t i = 0; i < 10; ++i) {
+    count += *iter;
+    ++iter;
   }
   co_return count;
 }
