@@ -35,16 +35,16 @@ tmc::task<size_t> skynet_one(size_t BaseNum, size_t Depth) {
   // tmc::spawn_many<10>(children.data());
 
   /// Concise and slightly faster way to run subtasks
-  std::array<size_t, 10> results =
-    co_await tmc::spawn_many<10>(tmc::iter_adapter(
-      0ULL,
-      [=](size_t idx) -> tmc::task<size_t> {
-        return skynet_one<DepthMax>(BaseNum + depthOffset * idx, Depth + 1);
-      }
-    ));
+  auto spm = tmc::spawn_many<10>(tmc::iter_adapter(
+    0ULL,
+    [=](size_t idx) -> tmc::task<size_t> {
+      return skynet_one<DepthMax>(BaseNum + depthOffset * idx, Depth + 1);
+    }
+  ));
 
-  for (size_t idx = 0; idx < 10; ++idx) {
-    count += results[idx];
+  for (auto& t : co_await spm) {
+    count +=
+      tmc::task<size_t>::from_address(t.address()).promise().result_ref();
   }
   co_return count;
 }
