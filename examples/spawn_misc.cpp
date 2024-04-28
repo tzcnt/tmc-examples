@@ -251,12 +251,6 @@ template <size_t Count, size_t nthreads> void co_await_eager_test() {
       auto rt2 = spawn([]() -> task<size_t> { co_return 2; }()).run_early();
       auto r2 = co_await rt2;
       std::printf("got %" PRIu64 "\n", r2);
-      // Awaiting the same task multiple times returns the same result without
-      // running it again. This may not be valid usage in the long term...
-      auto r3 = co_await rt2;
-      std::printf("got %" PRIu64 "\n", r3);
-      auto r4 = co_await rt2;
-      std::printf("got %" PRIu64 "\n", r4);
       co_return;
     }(),
     0
@@ -424,66 +418,67 @@ template <size_t Count, size_t nthreads> void spawn_value_test() {
     nthreads * execDur.count() / Count
   );
 }
+// TODO - to fix this, need to pass a move_iterator to spawn_many
+// template <size_t Count, size_t nthreads> void spawn_many_test() {
+//   std::printf("spawn_many_test()...\n");
+//   ex_cpu executor;
+//   executor.set_thread_count(nthreads).init();
+//   auto preTime = std::chrono::high_resolution_clock::now();
+//   auto future = post_bulk_waitable(
+//     executor,
+//     iter_adapter(
+//       0,
+//       [](size_t slot) -> task<void> {
+//         std::printf("%" PRIu64 ": pre outer\n", slot);
+//         task<size_t> t = [](size_t Slot) -> task<size_t> {
+//           co_await yield();
+//           co_await yield();
+//           std::printf("func %" PRIu64 "\n", Slot);
+//           co_return Slot + 1;
+//         }(slot);
+//         auto result = co_await spawn_many<1>(&t);
+//         slot = result[0];
+//         auto t2 = [](size_t Slot) -> task<void> {
+//           co_await yield();
+//           co_await yield();
+//           std::printf("func %" PRIu64 "\n", Slot);
+//         }(slot);
+//         co_await spawn_many<1>(&t2);
+//         slot++;
+//         auto t3 = [](size_t Slot) -> task<void> {
+//           co_await yield();
+//           co_await yield();
+//           std::printf("func %" PRIu64 "\n", Slot);
+//         }(slot);
+//         co_await spawn_many<1>(&t3);
+//         std::printf("%" PRIu64 ": post outer\n", slot);
+//         co_return;
+//       }
+//     ),
+//     0, Count
+//   );
+//   auto postTime = std::chrono::high_resolution_clock::now();
+//   future.wait();
+//   auto doneTime = std::chrono::high_resolution_clock::now();
 
-template <size_t Count, size_t nthreads> void spawn_many_test() {
-  std::printf("spawn_many_test()...\n");
-  ex_cpu executor;
-  executor.set_thread_count(nthreads).init();
-  auto preTime = std::chrono::high_resolution_clock::now();
-  auto future = post_bulk_waitable(
-    executor,
-    iter_adapter(
-      0,
-      [](size_t slot) -> task<void> {
-        std::printf("%" PRIu64 ": pre outer\n", slot);
-        task<size_t> t = [](size_t Slot) -> task<size_t> {
-          co_await yield();
-          co_await yield();
-          std::printf("func %" PRIu64 "\n", Slot);
-          co_return Slot + 1;
-        }(slot);
-        auto result = co_await spawn_many<1>(&t);
-        slot = result[0];
-        auto t2 = [](size_t Slot) -> task<void> {
-          co_await yield();
-          co_await yield();
-          std::printf("func %" PRIu64 "\n", Slot);
-        }(slot);
-        co_await spawn_many<1>(&t2);
-        slot++;
-        auto t3 = [](size_t Slot) -> task<void> {
-          co_await yield();
-          co_await yield();
-          std::printf("func %" PRIu64 "\n", Slot);
-        }(slot);
-        co_await spawn_many<1>(&t3);
-        std::printf("%" PRIu64 ": post outer\n", slot);
-        co_return;
-      }
-    ),
-    0, Count
-  );
-  auto postTime = std::chrono::high_resolution_clock::now();
-  future.wait();
-  auto doneTime = std::chrono::high_resolution_clock::now();
+//   auto spawnDur =
+//     std::chrono::duration_cast<std::chrono::nanoseconds>(postTime - preTime);
+//   std::printf(
+//     "spawned %" PRIu64 " tasks in %" PRIu64 " ns: %" PRIu64 " ns/task\n",
+//     Count, spawnDur.count(), spawnDur.count() / Count
+//   );
 
-  auto spawnDur =
-    std::chrono::duration_cast<std::chrono::nanoseconds>(postTime - preTime);
-  std::printf(
-    "spawned %" PRIu64 " tasks in %" PRIu64 " ns: %" PRIu64 " ns/task\n", Count,
-    spawnDur.count(), spawnDur.count() / Count
-  );
-
-  auto execDur =
-    std::chrono::duration_cast<std::chrono::nanoseconds>(doneTime - postTime);
-  std::printf(
-    "executed %" PRIu64 " tasks in %" PRIu64 " ns: %" PRIu64
-    " ns/task (wall), %" PRIu64 " "
-    "ns/task/thread\n",
-    Count, execDur.count(), execDur.count() / Count,
-    nthreads * execDur.count() / Count
-  );
-}
+//   auto execDur =
+//     std::chrono::duration_cast<std::chrono::nanoseconds>(doneTime -
+//     postTime);
+//   std::printf(
+//     "executed %" PRIu64 " tasks in %" PRIu64 " ns: %" PRIu64
+//     " ns/task (wall), %" PRIu64 " "
+//     "ns/task/thread\n",
+//     Count, execDur.count(), execDur.count() / Count,
+//     nthreads * execDur.count() / Count
+//   );
+// }
 
 // Coerce a task into a coroutine_handle to erase its promise type
 // This simulates an external coro type that TMC doesn't understand
@@ -524,6 +519,6 @@ int main() {
   co_await_eager_test<1, 16>();
   spawn_test<1, 16>();
   spawn_value_test<1, 16>();
-  spawn_many_test<1, 16>();
+  // spawn_many_test<1, 16>();
   external_coro_test();
 }
