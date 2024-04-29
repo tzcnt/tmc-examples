@@ -365,7 +365,7 @@ template <size_t Count, size_t nthreads> void spawn_value_test() {
             std::printf("func 4\t");
             co_return InnerSlot + 1;
           }(Slot));
-          auto&& sptr = co_await spt;
+          auto&& sptr = co_await std::move(spt);
           Slot = sptr;
 
           if (Slot != slot_start + 6) {
