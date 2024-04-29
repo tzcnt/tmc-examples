@@ -358,32 +358,15 @@ template <size_t Count, size_t nthreads> void spawn_value_test() {
             }(Slot);
           });
 
-          // You can capture an lvalue reference to the result of a named
-          // spawned task object. The result value exists inside of the
-          // aw_spawned_func.
+          // You can capture an rvalue reference, but not an lvalue reference,
+          // to the result of co_await spawn(). The result will be a temporary
+          // kept alive by lifetime extension.
           auto spt = spawn([](size_t InnerSlot) -> tmc::task<size_t> {
             std::printf("func 4\t");
             co_return InnerSlot + 1;
           }(Slot));
-          auto& sptr = co_await spt;
+          auto&& sptr = co_await spt;
           Slot = sptr;
-
-          // You can capture an lvalue reference to the result of a named
-          // spawned func object. The result value exists inside of the
-          // aw_spawned_task.
-          auto spf = spawn([Slot]() -> size_t {
-            std::printf("func 5\t");
-            return Slot + 1;
-          });
-          auto& spfr = co_await spf;
-          Slot = spfr;
-
-          // You cannot capture an lvalue reference to a temporary spawned task
-          // object, only an rvalue reference... or construct by rvalue.
-          // auto& doesnt_work = co_await spawn([Slot]() -> size_t {
-          //   std::printf("func 5\t");
-          //   return Slot + 1;
-          // });
 
           if (Slot != slot_start + 6) {
             printf(
