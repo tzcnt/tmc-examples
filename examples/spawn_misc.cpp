@@ -249,8 +249,10 @@ template <size_t Count, size_t nthreads> void co_await_eager_test() {
         co_await spawn([]() -> task<size_t> { co_return 1; }()).run_early();
       std::printf("got %" PRIu64 "\n", r1);
       auto rt2 = spawn([]() -> task<size_t> { co_return 2; }()).run_early();
-      auto r2 = co_await rt2;
+      auto r2 = co_await std::move(rt2);
       std::printf("got %" PRIu64 "\n", r2);
+      auto rt3 = spawn([]() -> task<void> { co_return; }()).run_early();
+      co_await std::move(rt3);
       co_return;
     }(),
     0
