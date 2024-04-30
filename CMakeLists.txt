@@ -11,14 +11,18 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS "1")
 set(CMAKE_CXX_STANDARD 20)
 
 add_definitions(
+
+    # Performance tuning options
     "-march=native"
-
     "-DTMC_WORK_ITEM=CORO" # one of: CORO, FUNC, FUNCORO, FUNCORO32
+    "-DTMC_CUSTOM_CORO_ALLOC"
 
-    # "-DTMC_PRIORITY_COUNT=2" # unsigned integer >= 1
+    # "-DTMC_TRIVIAL_TASK" # enabled in this repo for Release builds via CMakePresets.json
+    # "-DTMC_PRIORITY_COUNT=1" # unsigned integer between 1 and 63
+
+    # Other
     # "-DTMC_USE_BOOST_ASIO"
     # "-DTMC_QUEUE_PREFER_STEAL"
-    # "-DTMC_TRIVIAL_TASK"
 
     # Debug / testing options
     # "-DTMC_USE_MUTEXQ"
@@ -54,13 +58,13 @@ else()
     CPMAddPackage(
         NAME TooManyCooks
         GIT_REPOSITORY https://github.com/tzcnt/TooManyCooks.git
-        GIT_TAG df81ef9f493e88df6b7ac08f0490e968866fa10b
+        GIT_TAG 9ff91f74c08bac40384ed00024cc6ad2d4445f45
         DOWNLOAD_ONLY)
 
     CPMAddPackage(
         NAME tmc_asio
         GIT_REPOSITORY https://github.com/tzcnt/tmc-asio.git
-        GIT_TAG 1dee184a81cab950fb9bfa43cc0784d27e09cffe
+        GIT_TAG d30fb5b38618df913d8a1a7a2a0fa852d40a8ecd
         DOWNLOAD_ONLY)
 
     include_directories(

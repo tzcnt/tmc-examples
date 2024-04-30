@@ -39,7 +39,6 @@ int main() {
   return tmc::async_main([]() -> tmc::task<int> {
     tmc::ex_braid cpuBraid(tmc::cpu_executor());
     tmc::ex_braid asioBraid(tmc::asio_executor());
-    std::vector<tmc::aw_run_early<void, void>> runningTasks;
     for (size_t i = 0; i < 100; ++i) {
       size_t randomPrio = static_cast<size_t>(rand()) % 64;
       tmc::spawn(
