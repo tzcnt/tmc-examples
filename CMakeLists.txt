@@ -38,7 +38,7 @@ add_definitions(
     # "-Wno-global-constructors"
     # "-Wno-exit-time-destructors"
     # "-Wno-sign-conversion"
-    # "-Wno-deprecated-declarations"
+    "-Wno-deprecated-declarations"
 )
 
 include(cmake/CPM.cmake)
@@ -221,6 +221,10 @@ add_executable(fib
 
 add_executable(sync
     examples/sync.cpp
+)
+
+add_executable(spawn_iterator
+    examples/spawn_iterator.cpp
 )
 
 add_executable(prio
