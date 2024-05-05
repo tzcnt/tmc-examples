@@ -210,11 +210,6 @@ add_executable(skynet
 )
 target_include_directories(skynet PRIVATE examples/skynet)
 
-add_executable(skynet_prio
-    examples/skynet/priorities/main.cpp
-)
-target_include_directories(skynet_prio PRIVATE examples/skynet)
-
 add_executable(fib
     examples/fib.cpp
 )
@@ -273,12 +268,6 @@ add_custom_command(TARGET skynet POST_BUILD
     ${CMAKE_CURRENT_LIST_DIR}/build
 )
 
-add_custom_command(TARGET skynet_prio POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-    ${CMAKE_BINARY_DIR}/compile_commands.json
-    ${CMAKE_CURRENT_LIST_DIR}/build
-)
-
 add_custom_command(TARGET fib POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
     ${CMAKE_BINARY_DIR}/compile_commands.json
@@ -292,6 +281,12 @@ add_custom_command(TARGET braid POST_BUILD
 )
 
 add_custom_command(TARGET delay POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    ${CMAKE_BINARY_DIR}/compile_commands.json
+    ${CMAKE_CURRENT_LIST_DIR}/build
+)
+
+add_custom_command(TARGET spawn_iterator POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
     ${CMAKE_BINARY_DIR}/compile_commands.json
     ${CMAKE_CURRENT_LIST_DIR}/build
