@@ -2,12 +2,12 @@
 #include "tmc/ex_cpu.hpp"
 #include "tmc/spawn_task_many.hpp"
 #include "tmc/sync.hpp"
-#include "tmc/utils.hpp"
 
 #include <atomic>
 #include <chrono>
 #include <cinttypes>
 #include <cstdio>
+#include <ranges>
 
 namespace skynet {
 namespace coro {
@@ -34,14 +34,14 @@ tmc::task<size_t> skynet_one(size_t BaseNum, size_t Depth) {
   // std::array<size_t, 10> results = co_await
   // tmc::spawn_many<10>(children.data());
 
-  /// Concise and slightly faster way to run subtasks
+  /// Construction from a sized iterator has slightly better performance
+  auto iter =
+    std::ranges::views::iota(0UL, 10UL) |
+    std::ranges::views::transform([=](size_t idx) {
+      return skynet_one<DepthMax>(BaseNum + depthOffset * idx, Depth + 1);
+    });
   std::array<size_t, 10> results =
-    co_await tmc::spawn_many<10>(tmc::iter_adapter(
-      0ULL,
-      [=](size_t idx) -> tmc::task<size_t> {
-        return skynet_one<DepthMax>(BaseNum + depthOffset * idx, Depth + 1);
-      }
-    ));
+    co_await tmc::spawn_many<10>(iter.begin(), iter.end());
 
   for (size_t idx = 0; idx < 10; ++idx) {
     count += results[idx];

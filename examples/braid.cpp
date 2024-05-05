@@ -13,6 +13,7 @@
 #include <chrono>
 #include <cinttypes>
 #include <cstdio>
+#include <ranges>
 #include <vector>
 
 using namespace tmc;
@@ -24,10 +25,9 @@ template <size_t Count> tmc::task<void> large_task_spawn_bench_lazy_bulk() {
     data[i] = 0;
   }
   auto pre = std::chrono::high_resolution_clock::now();
-  co_await spawn_many(
-    iter_adapter(
-      data.data(),
-      [](auto* DataSlot) -> task<void> {
+  auto tasks =
+    std::ranges::views::transform(data, [](uint64_t& elem) -> task<void> {
+      return [](uint64_t* Elem) -> task<void> {
         int a = 0;
         int b = 1;
         for (int i = 0; i < 1000; ++i) {
@@ -36,13 +36,11 @@ template <size_t Count> tmc::task<void> large_task_spawn_bench_lazy_bulk() {
             b = b + a;
           }
         }
-        *DataSlot = b;
+        *Elem = b;
         co_return;
-      }
-    ),
-    Count
-  )
-    .run_on(br);
+      }(&elem);
+    });
+  co_await spawn_many<Count>(tasks.begin()).run_on(br);
   auto done = std::chrono::high_resolution_clock::now();
 
   auto execDur =
@@ -64,30 +62,27 @@ template <size_t Count> tmc::task<void> braid_lock() {
   }
   uint64_t value = 0;
   auto pre = std::chrono::high_resolution_clock::now();
-  co_await spawn_many(
-    iter_adapter(
-      data.data(),
-      [&br, &value](auto* Data) -> task<void> {
-        return
-          [](auto* TaskData, ex_braid* Braid, uint64_t* Value) -> task<void> {
-            int a = 0;
-            int b = 1;
-            for (int i = 0; i < 1000; ++i) {
-              for (int j = 0; j < 500; ++j) {
-                a = a + b;
-                b = b + a;
-              }
+  auto tasks = std::ranges::views::transform(
+    data,
+    [&br, &value](uint64_t& elem) -> task<void> {
+      return
+        [](uint64_t* Elem, ex_braid* Braid, uint64_t* Value) -> task<void> {
+          int a = 0;
+          int b = 1;
+          for (int i = 0; i < 1000; ++i) {
+            for (int j = 0; j < 500; ++j) {
+              a = a + b;
+              b = b + a;
             }
-
-            *TaskData = b;
-            co_await tmc::enter(Braid);
-            *Value = *Value + b;
-            // not necessary to exit the braid scope, since the task has ended
-          }(Data, &br, &value);
-      }
-    ),
-    Count
+          }
+          *Elem = b;
+          co_await tmc::enter(Braid);
+          *Value = *Value + b;
+          // not necessary to exit the braid scope, since the task has ended
+        }(&elem, &br, &value);
+    }
   );
+  co_await spawn_many<Count>(tasks.begin());
   auto done = std::chrono::high_resolution_clock::now();
 
   if (value != data[0] * Count) {

@@ -1,4 +1,7 @@
 // This example show how to spawn and await tasks produced by an iterator.
+// This example uses std::ranges, but they are not required. TooManyCooks
+// supports several kinds of iterator pairs: begin() / end(), begin() / count,
+// or C-style pointer / count
 
 #define TMC_IMPL
 
