@@ -20,7 +20,7 @@ int main() {
   tmc::asio_executor().init();
   return tmc::async_main([]() -> tmc::task<int> {
     // Uncomment this to spawn 1000000 tasks and observe the RAM usage
-    // also needs #include "tmc/spawn_task_many.hpp" and #include <ranges>
+    // also needs #include "tmc/spawn_many.hpp" and #include <ranges>
     // auto tasks = std::ranges::views::iota(0, 1000000) |
     //              std::ranges::views::transform([](int i) -> tmc::task<void> {
     //                co_await asio::steady_timer{
