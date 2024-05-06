@@ -38,7 +38,7 @@ add_definitions(
     # "-Wno-global-constructors"
     # "-Wno-exit-time-destructors"
     # "-Wno-sign-conversion"
-    "-Wno-deprecated-declarations"
+    # "-Wno-deprecated-declarations"
 )
 
 include(cmake/CPM.cmake)
