@@ -5,7 +5,6 @@
 
 #include "tmc/sync.hpp"
 #include "tmc/ex_cpu.hpp"
-#include "tmc/utils.hpp"
 
 #include <cstdio>
 #include <ranges>
