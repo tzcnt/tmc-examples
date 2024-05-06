@@ -22,13 +22,6 @@ template <int N> auto iter_of_static_size() {
   return std::ranges::views::iota(0, N) | std::ranges::views::transform(work);
 }
 
-// This iterator produces at most N tasks, but maybe less.
-template <int N> auto iter_of_static_bounded_size() {
-  return std::ranges::views::iota(0, N) |
-         std::ranges::views::filter(unpredictable_filter) |
-         std::ranges::views::transform(work);
-}
-
 // This iterator produces a dynamic number of tasks,
 // which can be calculated by the caller in O(1) time by
 // `return.end() - return.begin()`
@@ -66,28 +59,50 @@ template <int N> tmc::task<void> static_sized_iterator() {
 }
 
 template <int N> tmc::task<void> static_bounded_iterator() {
-  size_t taskCount = 0;
-  auto iter = iter_of_static_bounded_size<N>() |
-              std::ranges::views::transform([&taskCount](auto t) {
-                ++taskCount;
-                return t;
-              });
+  // In this example, we do not know the exact number of tasks that iter could
+  // produce. The template parameter N serves as an upper bound on the number
+  // of tasks that will be spawned. We also need to manually count the number
+  // of tasks spawned. There are 2 sub-examples.
+  {
+    // Sub-Example 1: Iterator produces less than N tasks.
+    size_t taskCount = 0;
+    auto iter = iter_of_dynamic_unknown_size<N>() |
+                std::ranges::views::transform([&taskCount](auto t) {
+                  ++taskCount;
+                  return t;
+                });
 
-  // Due to unpredictable_filter(), we cannot know the exact number of tasks,
-  // but we know that it will be at most N. Provide the template parameter
-  // N, so that tasks and results can be statically allocated in std::array.
-  std::array<int, N> results =
-    co_await tmc::spawn_many<N>(iter.begin(), iter.end());
+    std::array<int, N> results =
+      co_await tmc::spawn_many<N>(iter.begin(), iter.end());
 
-  // We will get taskCount results, but the array is of size N.
-  // Elements at results[taskCount..N-1] will be default-initialized.
+    // At this point, taskCount == 4 and N == 5.
+    // The last element of results will be left default-initialized.
+    assert(taskCount == N - 1);
 
-  // We also needed to keep track of the number of tasks spawned manually.
-  // This extra work yields a performance benefit, because we can still use
-  // std::array even with an unknown-sized iterator.
-  auto sum = std::accumulate(results.begin(), results.begin() + taskCount, 0);
-  assert(sum == (1 << N) - 1 - 8);
+    // This extra work yields a performance benefit, because we can still use
+    // std::array with an unknown-sized iterator that spawns "up to N" tasks.
+    auto sum = std::accumulate(results.begin(), results.begin() + taskCount, 0);
+    assert(sum == (1 << N) - 1 - 8);
+  }
+  {
+    // Sub-Example 2: Iterator could produce more than N tasks.
+    // Only the first N will be taken.
+    size_t taskCount = 0;
+    auto iter = iter_of_dynamic_unknown_size<N + 20>() |
+                std::ranges::views::transform([&taskCount](auto t) {
+                  ++taskCount;
+                  return t;
+                });
 
+    std::array<int, N> results =
+      co_await tmc::spawn_many<N>(iter.begin(), iter.end());
+
+    // At this point, taskCount == 5 and N == 5.
+    // We stopped consuming elements from the iterator after N tasks.
+    assert(taskCount == N);
+    auto sum = std::accumulate(results.begin(), results.begin() + taskCount, 0);
+    assert(sum == (1 << N) - 1 - 8 + (1 << N));
+  }
   co_return;
 }
 
@@ -99,13 +114,14 @@ template <int N> tmc::task<void> dynamic_known_sized_iterator() {
   // (internally calculated from tasks.end() - tasks.begin())
   std::vector<int> results = co_await tmc::spawn_many(iter.begin(), iter.end());
 
+  auto taskCount = iter.end() - iter.begin();
   // This will produce equivalent behavior:
-  // auto size = iter.end() - iter.begin();
-  // auto results = co_await tmc::spawn_many(iter.begin(), size);
+  // auto results = co_await tmc::spawn_many(iter.begin(), taskCount);
 
   auto sum = std::accumulate(results.begin(), results.end(), 0);
   assert(sum == (1 << N) - 1 - 8);
   // The results vector is right-sized
+  assert(results.size() == taskCount);
   assert(results.size() == results.capacity());
 
   co_return;
@@ -128,8 +144,59 @@ template <int N> tmc::task<void> dynamic_unknown_sized_iterator() {
 
   assert(sum == (1 << N) - 1 - 8);
   // The result vector is right-sized; only the internal task vector is not
-  assert(results.capacity() == results.size());
+  assert(results.size() == results.capacity());
 
+  co_return;
+}
+
+template <int N> tmc::task<void> dynamic_bounded_iterator() {
+  // In this example, we do not know the exact number of tasks that iter could
+  // produce. The 3rd parameter MaxTasks serves as an upper bound on the number
+  // of tasks that will be spawned. We also need to manually count the number of
+  // tasks spawned. There are 2 sub-examples.
+  size_t MaxTasks = N;
+  {
+    // Sub-Example 1: Iterator produces less than MaxTasks tasks.
+    size_t taskCount = 0;
+    auto iter = iter_of_dynamic_unknown_size<N>() |
+                std::ranges::views::transform([&taskCount](auto t) {
+                  ++taskCount;
+                  return t;
+                });
+
+    std::vector<int> results =
+      co_await tmc::spawn_many(iter.begin(), iter.end(), MaxTasks);
+
+    // At this point, taskCount == 4 and N == 5.
+    assert(taskCount == MaxTasks - 1);
+
+    auto sum = std::accumulate(results.begin(), results.begin() + taskCount, 0);
+    assert(sum == (1 << N) - 1 - 8);
+    // The results vector is still right-sized.
+    assert(results.size() == taskCount);
+    assert(results.size() == results.capacity());
+  }
+  {
+    // Sub-Example 2: Iterator could produce more than MaxTasks tasks.
+    // Only the first MaxTasks will be taken.
+    size_t taskCount = 0;
+    auto iter = iter_of_dynamic_unknown_size<N + 20>() |
+                std::ranges::views::transform([&taskCount](auto t) {
+                  ++taskCount;
+                  return t;
+                });
+
+    std::vector<int> results =
+      co_await tmc::spawn_many(iter.begin(), iter.end(), MaxTasks);
+
+    // At this point, taskCount == 5 and N == 5.
+    // We stopped consuming elements from the iterator after N tasks.
+    assert(taskCount == N);
+    auto sum = std::accumulate(results.begin(), results.begin() + taskCount, 0);
+    assert(sum == (1 << N) - 1 - 8 + (1 << N));
+    assert(results.size() == taskCount);
+    assert(results.size() == results.capacity());
+  }
   co_return;
 }
 
@@ -139,6 +206,7 @@ int main(int argc, char* argv[]) {
     co_await static_bounded_iterator<Count>();
     co_await dynamic_known_sized_iterator<Count>();
     co_await dynamic_unknown_sized_iterator<Count>();
+    co_await dynamic_bounded_iterator<Count>();
 
     co_return 0;
   }());

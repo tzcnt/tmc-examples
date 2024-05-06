@@ -1,7 +1,7 @@
+#pragma once
 /// Generate human-readable thread names for various executors. Used by examples
 /// that demonstrate switching tasks between executors.
 
-#pragma once
 #include "tmc/ex_cpu.hpp"
 
 #include <sstream>

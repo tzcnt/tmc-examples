@@ -35,7 +35,7 @@ static task<size_t> fib(size_t n) {
 
   /* You could also use std::ranges for this */
   /* requires #include <ranges> */
-  // auto results = co_await spawn_many<2>((std::ranges::views::iota(n - 2, n) |
+  // auto results = co_await spawn_many<2>((std::ranges::views::iota(n - 2) |
   //                                        std::ranges::views::transform(fib))
   //                                         .begin());
   // co_return results[0] + results[1];
