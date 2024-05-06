@@ -8,6 +8,7 @@
 #include "tmc/utils.hpp"
 
 #include <cstdio>
+#include <ranges>
 
 using namespace tmc;
 
@@ -52,15 +53,21 @@ static void wait_one_coro_value() {
 
 static void wait_many_func_void() {
   auto fut = tmc::post_bulk_waitable(
-    tmc::cpu_executor(), tmc::iter_adapter(0, [](int) { return func_void; }), 0,
-    10
+    tmc::cpu_executor(),
+    (std::ranges::views::iota(0) |
+     std::ranges::views::transform([](int) { return func_void; })
+    ).begin(),
+    0, 10
   );
   fut.get();
 }
 
 static void wait_many_coro_void() {
   auto fut = tmc::post_bulk_waitable(
-    tmc::cpu_executor(), tmc::iter_adapter(0, coro_void), 0, 10
+    tmc::cpu_executor(),
+    (std::ranges::views::iota(0) | std::ranges::views::transform(coro_void))
+      .begin(),
+    0, 10
   );
   fut.get();
 }

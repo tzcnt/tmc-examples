@@ -35,13 +35,13 @@ tmc::task<size_t> skynet_one(size_t BaseNum, size_t Depth) {
   // tmc::spawn_many<10>(children.data());
 
   /// Construction from a sized iterator has slightly better performance
-  auto iter =
-    std::ranges::views::iota(0UL, 10UL) |
-    std::ranges::views::transform([=](size_t idx) {
-      return skynet_one<DepthMax>(BaseNum + depthOffset * idx, Depth + 1);
-    });
-  std::array<size_t, 10> results =
-    co_await tmc::spawn_many<10>(iter.begin(), iter.end());
+  std::array<size_t, 10> results = co_await tmc::spawn_many<10>(
+    (std::ranges::views::iota(0UL) |
+     std::ranges::views::transform([=](size_t idx) {
+       return skynet_one<DepthMax>(BaseNum + depthOffset * idx, Depth + 1);
+     })
+    ).begin()
+  );
 
   for (size_t idx = 0; idx < 10; ++idx) {
     count += results[idx];
