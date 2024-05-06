@@ -4,8 +4,7 @@
 
 #define TMC_IMPL
 
-#include "tmc/ex_cpu.hpp"
-#include "tmc/spawn_task.hpp"
+#include "tmc/all_headers.hpp"
 
 #include <chrono>
 #include <cinttypes>
@@ -32,6 +31,13 @@ static task<size_t> fib(size_t n) {
 
   /* Iterator adapter function to generate tasks, bulk spawn */
   // auto results = co_await spawn_many<2>(iter_adapter(n - 2, fib));
+  // co_return results[0] + results[1];
+
+  /* You could also use std::ranges for this */
+  /* requires #include <ranges> */
+  // auto results = co_await spawn_many<2>((std::ranges::views::iota(n - 2) |
+  //                                        std::ranges::views::transform(fib))
+  //                                         .begin());
   // co_return results[0] + results[1];
 
   /* Spawn one, then serially execute the other, then await the first */

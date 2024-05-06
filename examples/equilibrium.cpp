@@ -5,16 +5,16 @@
 
 #include "tmc/ex_cpu.hpp"
 #include "tmc/sync.hpp"
-#include "tmc/utils.hpp"
 
 #include <chrono>
 #include <cinttypes>
 #include <cstdio>
 #include <future>
+#include <ranges>
 
 using namespace tmc;
 
-#define USE_TRANSFORMER
+#define USE_ITERATOR
 constexpr int WARMUP_COUNT = 10;
 
 struct bench_result {
@@ -24,7 +24,7 @@ struct bench_result {
   std::chrono::duration<long, std::ratio<1, 1000000000>> dur_ns;
 };
 
-static task<void> make_task(uint64_t* DataSlot) {
+[[maybe_unused]] static task<void> make_task(uint64_t& DataSlot) {
   int a = 0;
   int b = 1;
 #pragma unroll 1
@@ -36,58 +36,42 @@ static task<void> make_task(uint64_t* DataSlot) {
     }
   }
 
-  *DataSlot = b;
-  co_return;
-}
-
-[[maybe_unused]] static task<void> get_task(size_t Slot, uint64_t* Data) {
-  int a = 0;
-  int b = 1;
-#pragma unroll 1
-  for (int i = 0; i < 50; ++i) {
-#pragma unroll 1
-    for (int j = 0; j < 25; ++j) {
-      a = a + b;
-      b = b + a;
-    }
-  }
-
-  Data[Slot] = b;
+  DataSlot = b;
   co_return;
 }
 
 static bench_result find_equilibrium(size_t Count, size_t ThreadCount) {
   auto& executor = tmc::cpu_executor();
   executor.set_thread_count(ThreadCount).init();
-  auto data = new uint64_t[Count];
-  for (size_t i = 0; i < Count; ++i) {
-    data[i] = 0;
-  }
+  std::vector<uint64_t> data;
+  data.resize(Count);
   std::future<void> future;
-#ifdef USE_TRANSFORMER
-  // this is around 100ns slower per-task :(
+#ifdef USE_ITERATOR
   for (size_t i = 0; i < WARMUP_COUNT; ++i) {
-    future =
-      post_bulk_waitable(executor, iter_adapter(data, make_task), 0, Count);
+    future = post_bulk_waitable(
+      executor, std::ranges::views::transform(data, make_task).begin(), 0, Count
+    );
     future.wait();
   }
   auto beforePostTime = std::chrono::high_resolution_clock::now();
-  future =
-    post_bulk_waitable(executor, iter_adapter(data, make_task), 0, Count);
+  future = post_bulk_waitable(
+    executor, std::ranges::views::transform(data, make_task).begin(), 0, Count
+  );
 #else
-  auto tasks = new task<void>[Count];
+  std::vector<task<void>> tasks;
+  tasks.resize(Count);
   for (size_t i = 0; i < WARMUP_COUNT; ++i) {
     for (size_t taskidx = 0; taskidx < Count; ++taskidx) {
-      tasks[taskidx] = get_task(taskidx, data);
+      tasks[taskidx] = make_task(data[taskidx]);
     }
-    future = post_bulk_waitable(executor, tasks, 0, Count);
+    future = post_bulk_waitable(executor, tasks.begin(), 0, Count);
     future.wait();
   }
   auto beforePostTime = std::chrono::high_resolution_clock::now();
   for (size_t taskidx = 0; taskidx < Count; ++taskidx) {
-    tasks[taskidx] = get_task(taskidx, data);
+    tasks[taskidx] = make_task(data[taskidx]);
   }
-  future = post_bulk_waitable(executor, tasks, 0, Count);
+  future = post_bulk_waitable(executor, tasks.begin(), 0, Count);
 #endif
 
   auto afterPostTime = std::chrono::high_resolution_clock::now();
@@ -102,10 +86,6 @@ static bench_result find_equilibrium(size_t Count, size_t ThreadCount) {
   );
 
   tmc::cpu_executor().teardown();
-  delete[] data;
-#ifndef USE_TRANSFORMER
-  delete[] tasks;
-#endif
   return bench_result{ThreadCount, Count, postDur, totalDur};
 }
 

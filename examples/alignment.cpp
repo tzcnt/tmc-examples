@@ -13,11 +13,11 @@
 
 #include "tmc/aw_yield.hpp"
 #include "tmc/ex_cpu.hpp"
-#include "tmc/spawn_task_many.hpp"
-#include "tmc/utils.hpp"
+#include "tmc/spawn_many.hpp"
 
 #include <cinttypes>
 #include <cstdio>
+#include <ranges>
 
 using namespace tmc;
 
@@ -54,18 +54,17 @@ static task<void> run_one(int i, unaligned_struct* ur, aligned_struct* ar) {
   *ur = u;
   *ar = a;
 }
-template <size_t Count> tmc::task<void> run() {
+template <int Count> tmc::task<void> run() {
   std::vector<unaligned_struct> r1;
   std::vector<aligned_struct> r2;
   r1.resize(Count);
   r2.resize(Count);
-  co_await spawn_many(
-    iter_adapter(
-      0, [&](int idx) -> task<void> { return run_one(idx, &r1[idx], &r2[idx]); }
-    ),
-    Count
-  );
-  for (size_t i = 0; i < Count; ++i) {
+  auto tasks = std::ranges::views::iota(0, Count) |
+               std::ranges::views::transform([&](int idx) -> task<void> {
+                 return run_one(idx, &r1[idx], &r2[idx]);
+               });
+  co_await spawn_many(tasks.begin(), tasks.end());
+  for (int i = 0; i < Count; ++i) {
     if (r2[i].value == 0) {
       std::printf("fail");
     }
