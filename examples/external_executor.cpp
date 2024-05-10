@@ -34,7 +34,7 @@ public:
 
   template <typename FunctorIterator>
   void post_bulk(
-    FunctorIterator FuncIter, [[maybe_unused]] size_t Priority, size_t Count
+    FunctorIterator FuncIter, size_t Count, [[maybe_unused]] size_t Priority
   ) {
     for (size_t i = 0; i < Count; ++i) {
       std::thread([this, Func = *FuncIter] {
