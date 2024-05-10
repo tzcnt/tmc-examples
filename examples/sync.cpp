@@ -58,7 +58,7 @@ static void wait_many_func_void() {
     (std::ranges::views::iota(0) |
      std::ranges::views::transform([](int) { return func_void; })
     ).begin(),
-    0, 10
+    10, 0
   );
   fut.get();
 }
@@ -68,7 +68,7 @@ static void wait_many_coro_void() {
     tmc::cpu_executor(),
     (std::ranges::views::iota(0) | std::ranges::views::transform(coro_void))
       .begin(),
-    0, 10
+    10, 0
   );
   fut.get();
 }
@@ -78,7 +78,7 @@ static void nowait_many_coro_void() {
     tmc::cpu_executor(),
     (std::ranges::views::iota(0) | std::ranges::views::transform(coro_void))
       .begin(),
-    0, 10
+    10, 0
   );
 }
 
@@ -88,7 +88,7 @@ static void nowait_many_func_void() {
     (std::ranges::views::iota(0) |
      std::ranges::views::transform([](int) { return func_void; })
     ).begin(),
-    0, 10
+    10, 0
   );
 }
 
@@ -99,7 +99,7 @@ static void nowait_disallowed() {
   //   tmc::cpu_executor(),
   //   (std::ranges::views::iota(0) | std::ranges::views::transform(coro_value))
   //     .begin(),
-  //   0, 10
+  //   10, 0
   // );
 
   // tmc::post_bulk(
@@ -107,7 +107,7 @@ static void nowait_disallowed() {
   //   (std::ranges::views::iota(0) |
   //    std::ranges::views::transform([](int) { return func_value; })
   //   ).begin(),
-  //   0, 10
+  //   10, 0
   // );
 }
 
