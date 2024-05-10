@@ -1,10 +1,12 @@
 // Demonstrates all the ways you can block synchronously on tasks from external
 // code
 
+#include <chrono>
+#include <thread>
 #define TMC_IMPL
 
-#include "tmc/sync.hpp"
 #include "tmc/ex_cpu.hpp"
+#include "tmc/sync.hpp"
 
 #include <cstdio>
 #include <ranges>
@@ -71,12 +73,54 @@ static void wait_many_coro_void() {
   fut.get();
 }
 
+static void nowait_many_coro_void() {
+  tmc::post_bulk(
+    tmc::cpu_executor(),
+    (std::ranges::views::iota(0) | std::ranges::views::transform(coro_void))
+      .begin(),
+    0, 10
+  );
+}
+
+static void nowait_many_func_void() {
+  tmc::post_bulk(
+    tmc::cpu_executor(),
+    (std::ranges::views::iota(0) |
+     std::ranges::views::transform([](int) { return func_void; })
+    ).begin(),
+    0, 10
+  );
+}
+
+// neither of these statements will compile - you cannot post() or detach() a
+// type that is non-void returning
+static void nowait_disallowed() {
+  // tmc::post_bulk(
+  //   tmc::cpu_executor(),
+  //   (std::ranges::views::iota(0) | std::ranges::views::transform(coro_value))
+  //     .begin(),
+  //   0, 10
+  // );
+
+  // tmc::post_bulk(
+  //   tmc::cpu_executor(),
+  //   (std::ranges::views::iota(0) |
+  //    std::ranges::views::transform([](int) { return func_value; })
+  //   ).begin(),
+  //   0, 10
+  // );
+}
+
 int main() {
   tmc::cpu_executor().init();
+  nowait_many_coro_void();
+  nowait_many_func_void();
+  std::this_thread::sleep_for(std::chrono::milliseconds(200));
   wait_one_coro_void();
   wait_one_coro_value();
   wait_one_func_void();
   wait_one_func_value();
   wait_many_func_void();
   wait_many_coro_void();
+  nowait_disallowed();
 }
