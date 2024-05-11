@@ -3,6 +3,7 @@
 // supports several kinds of iterator pairs: begin() / end(), begin() / count,
 // or C-style pointer / count
 
+#include <thread>
 #define TMC_IMPL
 
 #include "tmc/ex_cpu.hpp"
@@ -200,6 +201,199 @@ template <int N> tmc::task<void> dynamic_bounded_iterator() {
   co_return;
 }
 
+// Test detach() when the maxCount is less than the number of tasks in the
+// iterator.
+tmc::task<void> detach_maxCount_less() {
+  std::atomic<int> counter(0);
+
+  auto tasks =
+    std::ranges::views::iota(0, 10) |
+    std::ranges::views::transform([&counter](int) -> tmc::task<void> {
+      return [](std::atomic<int>& counter) -> tmc::task<void> {
+        ++counter;
+        co_return;
+      }(counter);
+    });
+
+  tmc::spawn_many(tasks.begin(), tasks.end(), 5).detach();
+
+  // Wait for tasks to complete
+  std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+  assert(counter.load() == 5);
+  co_return;
+}
+
+// Test detach() when the maxCount is greater than the number of tasks in the
+// iterator.
+tmc::task<void> detach_maxCount_greater() {
+  std::atomic<int> counter(0);
+
+  auto tasks =
+    std::ranges::views::iota(0, 10) |
+    std::ranges::views::transform([&counter](int) -> tmc::task<void> {
+      return [](std::atomic<int>& counter) -> tmc::task<void> {
+        ++counter;
+        co_return;
+      }(counter);
+    });
+
+  tmc::spawn_many(tasks.begin(), tasks.end(), 15).detach();
+
+  // Wait for tasks to complete
+  std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+  assert(counter.load() == 10);
+  co_return;
+}
+
+// Test detach() when the Count is less than the number of tasks in the
+// iterator.
+tmc::task<void> detach_maxCount_template_less() {
+  std::atomic<int> counter(0);
+
+  auto tasks =
+    std::ranges::views::iota(0, 10) |
+    std::ranges::views::transform([&counter](int) -> tmc::task<void> {
+      return [](std::atomic<int>& counter) -> tmc::task<void> {
+        ++counter;
+        co_return;
+      }(counter);
+    });
+
+  tmc::spawn_many<5>(tasks.begin(), tasks.end()).detach();
+
+  // Wait for tasks to complete
+  std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+  assert(counter.load() == 5);
+  co_return;
+}
+
+// Test detach() when the Count is greater than the number of tasks in the
+// iterator.
+tmc::task<void> detach_maxCount_template_greater() {
+  std::atomic<int> counter(0);
+
+  auto tasks =
+    std::ranges::views::iota(0, 10) |
+    std::ranges::views::transform([&counter](int) -> tmc::task<void> {
+      return [](std::atomic<int>& counter) -> tmc::task<void> {
+        ++counter;
+        co_return;
+      }(counter);
+    });
+
+  tmc::spawn_many<15>(tasks.begin(), tasks.end()).detach();
+
+  // Wait for tasks to complete
+  std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+  assert(counter.load() == 10);
+  co_return;
+}
+
+// Test detach() when the maxCount is less than the number of tasks in the
+// iterator.
+tmc::task<void> detach_maxCount_less_uncountable_iter() {
+  std::atomic<int> counter(0);
+
+  // Iterator contains 9 tasks but end() - begin() doesn't compile
+  auto tasks =
+    std::ranges::views::iota(0, 10) |
+    std::ranges::views::filter(unpredictable_filter) |
+    std::ranges::views::transform([&counter](int) -> tmc::task<void> {
+      return [](std::atomic<int>& counter) -> tmc::task<void> {
+        ++counter;
+        co_return;
+      }(counter);
+    });
+
+  tmc::spawn_many(tasks.begin(), tasks.end(), 5).detach();
+
+  // Wait for tasks to complete
+  std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+  assert(counter.load() == 5);
+  co_return;
+}
+
+// Test detach() when the maxCount is greater than the number of tasks in the
+// iterator.
+tmc::task<void> detach_maxCount_greater_uncountable_iter() {
+  std::atomic<int> counter(0);
+
+  // Iterator contains 9 tasks but end() - begin() doesn't compile
+  auto tasks =
+    std::ranges::views::iota(0, 10) |
+    std::ranges::views::filter(unpredictable_filter) |
+    std::ranges::views::transform([&counter](int) -> tmc::task<void> {
+      return [](std::atomic<int>& counter) -> tmc::task<void> {
+        ++counter;
+        co_return;
+      }(counter);
+    });
+
+  tmc::spawn_many(tasks.begin(), tasks.end(), 15).detach();
+
+  // Wait for tasks to complete
+  std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+  assert(counter.load() == 9);
+  co_return;
+}
+
+// Test detach() when the Count is less than the number of tasks in the
+// iterator.
+tmc::task<void> detach_maxCount_template_less_uncountable_iter() {
+  std::atomic<int> counter(0);
+
+  // Iterator contains 9 tasks but end() - begin() doesn't compile
+  auto tasks =
+    std::ranges::views::iota(0, 10) |
+    std::ranges::views::filter(unpredictable_filter) |
+    std::ranges::views::transform([&counter](int) -> tmc::task<void> {
+      return [](std::atomic<int>& counter) -> tmc::task<void> {
+        ++counter;
+        co_return;
+      }(counter);
+    });
+
+  tmc::spawn_many<5>(tasks.begin(), tasks.end()).detach();
+
+  // Wait for tasks to complete
+  std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+  assert(counter.load() == 5);
+  co_return;
+}
+
+// Test detach() when the Count is greater than the number of tasks in the
+// iterator.
+tmc::task<void> detach_maxCount_template_greater_uncountable_iter() {
+  std::atomic<int> counter(0);
+
+  size_t taskCount = 0;
+  // Iterator contains 9 tasks but end() - begin() doesn't compile
+  auto tasks =
+    std::ranges::views::iota(0, 10) |
+    std::ranges::views::filter(unpredictable_filter) |
+    std::ranges::views::transform([&counter](int) -> tmc::task<void> {
+      return [](std::atomic<int>& counter) -> tmc::task<void> {
+        ++counter;
+        co_return;
+      }(counter);
+    });
+
+  tmc::spawn_many<15>(tasks.begin(), tasks.end()).detach();
+
+  // Wait for tasks to complete
+  std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+  assert(counter.load() == 9);
+  co_return;
+}
+
 int main(int argc, char* argv[]) {
   return tmc::async_main([]() -> tmc::task<int> {
     co_await static_sized_iterator<Count>();
@@ -207,6 +401,15 @@ int main(int argc, char* argv[]) {
     co_await dynamic_known_sized_iterator<Count>();
     co_await dynamic_unknown_sized_iterator<Count>();
     co_await dynamic_bounded_iterator<Count>();
+    co_await detach_maxCount_less();
+    co_await detach_maxCount_greater();
+    co_await detach_maxCount_template_less();
+    co_await detach_maxCount_template_greater();
+
+    co_await detach_maxCount_less_uncountable_iter();
+    co_await detach_maxCount_greater_uncountable_iter();
+    co_await detach_maxCount_template_less_uncountable_iter();
+    co_await detach_maxCount_template_greater_uncountable_iter();
 
     co_return 0;
   }());

@@ -140,7 +140,7 @@ void large_task_spawn_bench_lazy_bulk() {
       }
       DataSlot = b;
     });
-  auto future = post_bulk_waitable(executor, tasks.begin(), 0, Count);
+  auto future = post_bulk_waitable(executor, tasks.begin(), Count, 0);
   auto postTime = std::chrono::high_resolution_clock::now();
   future.wait();
   auto doneTime = std::chrono::high_resolution_clock::now();
@@ -286,7 +286,7 @@ template <size_t Count, size_t nthreads> void spawn_test() {
                  std::printf("%" PRIu64 ": post outer\n", slot);
                  co_return;
                });
-  auto future = post_bulk_waitable(executor, tasks.begin(), 0, Count);
+  auto future = post_bulk_waitable(executor, tasks.begin(), Count, 0);
   // auto postTime = std::chrono::high_resolution_clock::now();
   future.wait();
   // auto doneTime = std::chrono::high_resolution_clock::now();
@@ -427,7 +427,7 @@ static void external_coro_test() {
     (std::ranges::views::iota(2) |
      std::ranges::views::transform(external_coro_test_task))
       .begin(),
-    0, 2
+    2, 0
   );
   tmc::post_waitable(
     executor,
