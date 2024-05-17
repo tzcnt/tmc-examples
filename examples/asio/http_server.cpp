@@ -67,8 +67,7 @@ int main() {
     // coroutine back on tmc::cpu_executor(). This incurs additional overhead,
     // but enables unfettered access to the CPU executor without any risk of
     // accidentally blocking the I/O thread.
-    tmc::spawn(accept(55550))
-      .detach(); // TODO with_priority doesn't warn (nodiscard) without detach
+    tmc::spawn(accept(55550)).detach();
 
     // This customization runs both the I/O calls and the continuations inline
     // on the single-threaded tmc::asio_executor(). Although this yields higher

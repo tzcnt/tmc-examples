@@ -69,7 +69,7 @@ int main() {
         }(&cpuBraid, &asioBraid, randomPrio)
       )
         .with_priority(randomPrio)
-        .detach(); // TODO with_priority doesn't warn (nodiscard) without detach
+        .detach();
     }
     // TODO implement heterogenous bulk await
     // need to spawn different prios individually,
