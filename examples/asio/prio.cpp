@@ -20,15 +20,14 @@
 template <tmc::detail::TypeErasableExecutor E>
 void check_exec_prio(E& ExpectedExecutor, size_t ExpectedPriority) {
   auto exec = tmc::detail::this_thread::executor;
-  if (exec != ExpectedExecutor.type_erased()) {
+  if (!tmc::detail::this_thread::exec_is(ExpectedExecutor.type_erased())) {
     std::printf("FAIL | expected executor did not match\n");
   }
 
-  auto prio = tmc::detail::this_thread::this_task.prio;
-  if (prio != ExpectedPriority) {
+  if (!tmc::detail::this_thread::prio_is(ExpectedPriority)) {
     std::printf(
       "FAIL | expected priority %" PRIu64 " but got priority %" PRIu64 "\n",
-      ExpectedPriority, prio
+      ExpectedPriority, tmc::detail::this_thread::this_task.prio
     );
   }
 }
