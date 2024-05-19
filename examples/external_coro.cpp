@@ -88,6 +88,9 @@ static void run_external_first_by_promise(int max) {
 
 int main() {
   tmc::cpu_executor().init();
+  // Since there is an internal -> external -> internal ping-pong, running with
+  // odd or even numbers of iterations changes whether the chain ends with an
+  // internal or external coro.
   run_internal_first(4);
   run_internal_first(5);
   run_external_first_by_promise(4);

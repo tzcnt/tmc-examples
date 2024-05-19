@@ -1,15 +1,15 @@
 // Demonstrates all the ways you can block synchronously on tasks from external
 // code
 
-#include <chrono>
-#include <thread>
 #define TMC_IMPL
 
-#include "tmc/ex_cpu.hpp"
 #include "tmc/sync.hpp"
+#include "tmc/ex_cpu.hpp"
 
+#include <chrono>
 #include <cstdio>
 #include <ranges>
+#include <thread>
 
 using namespace tmc;
 
