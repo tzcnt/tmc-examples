@@ -110,7 +110,7 @@ tmc::task<int> await_external_coro_and_spawn() {
   co_return result;
 }
 
-void spawn_on_external_thread() {
+void test_spawn_on_external_thread() {
   std::future<int> result_future =
     tmc::post_waitable(tmc::cpu_executor(), await_external_coro_and_spawn(), 1);
   int result = result_future.get();
@@ -137,12 +137,10 @@ int main() {
   //
   // When spawn() is called from the external thread, the child task will run on
   // the default executor, and after it completes, the awaiting task will also
-  // run back on the default executor. This doesn't move the task back to the
-  // TMC executor, but its children will run on the TMC executor (and the
-  // application won't crash when calling spawn()).
+  // run back on the default executor.
   //
   // If you remove the call to set_default_executor(), the program will simply
   // crash when spawn() is called from the external thread.
   tmc::external::set_default_executor(tmc::cpu_executor());
-  spawn_on_external_thread();
+  test_spawn_on_external_thread();
 }
