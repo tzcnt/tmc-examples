@@ -227,10 +227,15 @@ add_executable(prio
 )
 target_link_libraries(prio ${LIBURING_LIBRARY})
 
-add_executable(delay
+add_executable(asio_cancellation
+    examples/asio/cancellation.cpp
+)
+target_link_libraries(asio_cancellation ${LIBURING_LIBRARY})
+
+add_executable(asio_delay
     examples/asio/delay.cpp
 )
-target_link_libraries(delay ${LIBURING_LIBRARY})
+target_link_libraries(asio_delay ${LIBURING_LIBRARY})
 
 add_executable(asio_http_server
     examples/asio/http_server.cpp
@@ -280,7 +285,14 @@ add_custom_command(TARGET braid POST_BUILD
     ${CMAKE_CURRENT_LIST_DIR}/build
 )
 
-add_custom_command(TARGET delay POST_BUILD
+
+add_custom_command(TARGET asio_cancellation POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    ${CMAKE_BINARY_DIR}/compile_commands.json
+    ${CMAKE_CURRENT_LIST_DIR}/build
+)
+
+add_custom_command(TARGET asio_delay POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
     ${CMAKE_BINARY_DIR}/compile_commands.json
     ${CMAKE_CURRENT_LIST_DIR}/build
