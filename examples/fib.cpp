@@ -46,7 +46,7 @@ static task<size_t> fib(size_t n) {
   // auto x = co_await std::move(xt);
   // co_return x + y;
 
-  // Submit using variadic parameter pack, and get the results as a tuple
+  /* Submit using variadic parameter pack, and get the results as a tuple */
   auto [x, y] = co_await spawn_tuple(fib(n - 1), fib(n - 2));
   co_return x + y;
 }

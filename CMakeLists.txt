@@ -222,10 +222,10 @@ add_executable(spawn_iterator
     examples/spawn_iterator.cpp
 )
 
-add_executable(prio
+add_executable(asio_prio
     examples/asio/prio.cpp
 )
-target_link_libraries(prio ${LIBURING_LIBRARY})
+target_link_libraries(asio_prio ${LIBURING_LIBRARY})
 
 add_executable(asio_cancellation
     examples/asio/cancellation.cpp
@@ -285,7 +285,6 @@ add_custom_command(TARGET braid POST_BUILD
     ${CMAKE_CURRENT_LIST_DIR}/build
 )
 
-
 add_custom_command(TARGET asio_cancellation POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
     ${CMAKE_BINARY_DIR}/compile_commands.json
@@ -293,6 +292,12 @@ add_custom_command(TARGET asio_cancellation POST_BUILD
 )
 
 add_custom_command(TARGET asio_delay POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    ${CMAKE_BINARY_DIR}/compile_commands.json
+    ${CMAKE_CURRENT_LIST_DIR}/build
+)
+
+add_custom_command(TARGET asio_prio POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
     ${CMAKE_BINARY_DIR}/compile_commands.json
     ${CMAKE_CURRENT_LIST_DIR}/build
