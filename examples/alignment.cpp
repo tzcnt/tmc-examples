@@ -3,7 +3,8 @@
 // Clang <16 does not obey alignment when creating coroutine frames
 // https://github.com/llvm/llvm-project/issues/56671
 // This test seems to reproduce the failure in Debug mode at least
-// In Clang 16 you must supply `-fcoro-aligned-allocation` to fix it.
+// In Clang versions 16 or higher you must supply `-fcoro-aligned-allocation`
+// to fix it.
 
 // Bug also exists in GCC 13
 // https://gcc.gnu.org/bugzilla/show_bug.cgi?id=104177
