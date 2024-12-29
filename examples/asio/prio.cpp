@@ -3,17 +3,19 @@
 // executor.
 #define TMC_IMPL
 
-#include "tmc/asio/aw_asio.hpp"
 #include "tmc/asio/ex_asio.hpp"
+#include "tmc/aw_resume_on.hpp"
 #include "tmc/ex_braid.hpp"
 #include "tmc/ex_cpu.hpp"
-#include "tmc/spawn_task.hpp"
+#include "tmc/spawn_many.hpp"
 
+#include <array>
 #include <asio/steady_timer.hpp>
-#include <chrono>
 #include <cinttypes>
 #include <cstdio>
 #include <cstdlib>
+
+constexpr size_t TASK_COUNT = 10000;
 
 // Confirm that the current task is running on the expected
 // executor and with the expected priority.
@@ -32,50 +34,48 @@ void check_exec_prio(E& ExpectedExecutor, size_t ExpectedPriority) {
   }
 }
 
+// Enter and exit the various executors and braids running on those executors.
+// Verify that the initial priority is properly captured and restored each time.
+tmc::task<void> jump_around(
+  tmc::ex_braid* CpuBraid, tmc::ex_braid* AsioBraid, size_t ExpectedPriority
+) {
+  co_await tmc::change_priority(ExpectedPriority);
+  check_exec_prio(tmc::cpu_executor(), ExpectedPriority);
+
+  auto cpuBraidScope = co_await tmc::enter(CpuBraid);
+  check_exec_prio(*CpuBraid, ExpectedPriority);
+  co_await cpuBraidScope.exit();
+  check_exec_prio(tmc::cpu_executor(), ExpectedPriority);
+
+  auto asioScope = co_await tmc::enter(tmc::asio_executor());
+  check_exec_prio(tmc::asio_executor(), ExpectedPriority);
+  {
+    auto asioBraidScope = co_await tmc::enter(AsioBraid);
+    check_exec_prio(*AsioBraid, ExpectedPriority);
+    co_await asioBraidScope.exit();
+    check_exec_prio(tmc::asio_executor(), ExpectedPriority);
+  }
+
+  co_await asioScope.exit();
+  check_exec_prio(tmc::cpu_executor(), ExpectedPriority);
+
+  co_return;
+}
+
 int main() {
   tmc::asio_executor().init();
-  tmc::cpu_executor().set_thread_count(1).set_priority_count(64).init();
+  tmc::cpu_executor().set_thread_count(2).set_priority_count(64).init();
   return tmc::async_main([]() -> tmc::task<int> {
     tmc::ex_braid cpuBraid(tmc::cpu_executor());
     tmc::ex_braid asioBraid(tmc::asio_executor());
-    for (size_t i = 0; i < 100; ++i) {
+
+    std::array<tmc::task<void>, TASK_COUNT> tasks;
+    for (size_t i = 0; i < TASK_COUNT; ++i) {
       size_t randomPrio = static_cast<size_t>(rand()) % 64;
-      tmc::spawn(
-        [](
-          tmc::ex_braid* CpuBraid, tmc::ex_braid* AsioBraid,
-          size_t ExpectedPriority
-        ) -> tmc::task<void> {
-          check_exec_prio(tmc::cpu_executor(), ExpectedPriority);
-
-          auto cpuBraidScope = co_await tmc::enter(CpuBraid);
-          check_exec_prio(*CpuBraid, ExpectedPriority);
-          co_await cpuBraidScope.exit();
-          check_exec_prio(tmc::cpu_executor(), ExpectedPriority);
-
-          auto asioScope = co_await tmc::enter(tmc::asio_executor());
-          check_exec_prio(tmc::asio_executor(), ExpectedPriority);
-          {
-            auto asioBraidScope = co_await tmc::enter(AsioBraid);
-            check_exec_prio(*AsioBraid, ExpectedPriority);
-            co_await asioBraidScope.exit();
-            check_exec_prio(tmc::asio_executor(), ExpectedPriority);
-          }
-
-          co_await asioScope.exit();
-          check_exec_prio(tmc::cpu_executor(), ExpectedPriority);
-
-          co_return;
-        }(&cpuBraid, &asioBraid, randomPrio)
-      )
-        .with_priority(randomPrio)
-        .detach();
+      tasks[i] = jump_around(&cpuBraid, &asioBraid, randomPrio);
     }
-    // TODO implement heterogenous bulk await
-    // need to spawn different prios individually,
-    // but bind them to the same done_count
-    // For now, just wait 5 seconds as a hack job
-    co_await asio::steady_timer{tmc::asio_executor(), std::chrono::seconds(5)}
-      .async_wait(tmc::aw_asio);
+
+    co_await tmc::spawn_many<TASK_COUNT>(tasks.begin());
     co_return 0;
   }());
 }
