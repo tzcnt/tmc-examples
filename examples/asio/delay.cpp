@@ -24,16 +24,6 @@ int main() {
       asio::steady_timer tim{
         tmc::asio_executor(), std::chrono::milliseconds(250)
       };
-      // // this demonstrates early cancellation
-      // tmc::spawn([](asio::steady_timer& Tim) -> tmc::task<void> {
-      //   asio::steady_timer shortTim{
-      //     tmc::asio_executor(), std::chrono::milliseconds(100)
-      //   };
-      //   auto [error] = co_await shortTim.async_wait(tmc::aw_asio)
-      //                    .resume_on(tmc::asio_executor());
-      //   Tim.cancel();
-      // }(tim))
-      //   .detach();
       auto [error] =
         co_await tim.async_wait(tmc::aw_asio).resume_on(tmc::asio_executor());
       if (error) {
@@ -41,7 +31,7 @@ int main() {
         co_return -1;
       }
       print_thread_name();
-      // co_await tmc::delay(std::chrono::milliseconds(250));
+
       auto [error2] =
         co_await asio::steady_timer{
           tmc::asio_executor(), std::chrono::milliseconds(250)

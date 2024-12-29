@@ -10,6 +10,11 @@
 // reference to the long-running operation and cancel it directly after the
 // timer expires.
 
+// Note: Asio already exposes timeout functions for some operations which are
+// probably easier/more performant when available. This example is only to
+// demonstrate how you might build a timeout/cancellation primitive from scratch
+// for another type of awaitable.
+
 #include <asio/error.hpp>
 #define TMC_IMPL
 
