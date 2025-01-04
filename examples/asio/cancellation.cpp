@@ -11,9 +11,10 @@
 // timer expires.
 
 // Note: Asio already exposes timeout functions for some operations which are
-// probably easier/more performant when available. This example is only to
-// demonstrate how you might build a timeout/cancellation primitive from scratch
-// for another type of awaitable.
+// probably easier/more performant when available. Alternatively, you could
+// cancel the main operation directly from within the timeout operation. This
+// example serves to also demonstrate how to use the each() function when you
+// need the awaiting thread involved in the process.
 
 #include <asio/error.hpp>
 #define TMC_IMPL
