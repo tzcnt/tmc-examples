@@ -260,10 +260,10 @@ template <size_t Count, size_t nthreads> void spawn_test() {
   ex_cpu executor;
   executor.set_thread_count(nthreads).init();
   // auto preTime = std::chrono::high_resolution_clock::now();
-  auto tasks = std::ranges::views::iota((size_t)0, Count) |
+  auto tasks = std::ranges::views::iota(static_cast<size_t>(0), Count) |
                std::ranges::views::transform([](size_t slot) -> task<void> {
                  std::printf("%" PRIu64 ": pre outer\n", slot);
-                 co_await spawn([slot]() {
+                 co_await spawn_func([slot]() {
                    std::printf("%" PRIu64 ": co_awaited spawn\n", slot);
                  });
                  co_await spawn([](size_t Slot) -> task<void> {
@@ -275,7 +275,7 @@ template <size_t Count, size_t nthreads> void spawn_test() {
                  std::printf("%" PRIu64 ": post outer\n", slot);
                  // in this case, the spawned function returns a task,
                  // and a 2nd co_await is required
-                 co_await co_await spawn([slot]() -> task<void> {
+                 co_await co_await spawn_func([slot]() -> task<void> {
                    return [](size_t Slot) -> task<void> {
                      std::printf("%" PRIu64 ": pre inner\n", Slot);
                      co_await yield();
@@ -337,7 +337,7 @@ template <size_t nthreads> void spawn_value_test() {
 
       // in this case, the spawned function returns immediately,
       // and a 2nd co_await is required
-      value = co_await co_await spawn([value]() -> task<int> {
+      value = co_await co_await spawn_func([value]() -> task<int> {
         return [](int Value) -> task<int> {
           co_await yield();
           co_await yield();
@@ -431,7 +431,10 @@ static void external_coro_test() {
   );
   tmc::post_waitable(
     executor,
-    []() -> task<void> { co_await tmc::spawn(external_coro_test_task(4)); }(), 0
+    []() -> task<void> {
+      co_await tmc::spawn_func(external_coro_test_task(4));
+    }(),
+    0
   )
     .wait();
   tmc::post_waitable(
