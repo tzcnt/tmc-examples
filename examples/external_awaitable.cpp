@@ -1,16 +1,15 @@
 // A simple example that shows a tmc::task awaiting an external awaitable.
-// Since this external awaitable has no knowledge of TMC, it resumes the task on
-// its own thread in the "unsafe" example.
-
-// The "safe" example uses tmc::external::safe_await() to ensure that the TMC
-// task is restored to its original executor after the external awaitable
-// completes. This method is suitable for use with any unknown awaitable.
+// Since this external awaitable has no knowledge of TMC, it would resume the
+// task on its own thread. However, since tmc::detail::awaitable_traits have not
+// been defined for this external awaitable, TMC wraps it into a task that
+// restores the original executor and priority.
 
 // If you want to implement your own awaitables that are aware of TMC executors
 // and restore awaiting tasks back to their original executors automatically (so
-// that tmc::external::safe_await() is not needed), see the implementation of
+// that this wrapper is not needed), see the implementation of
 // tmc::aw_asio_base::callback::operator() in
 // https://github.com/tzcnt/tmc-asio/blob/main/include/tmc/asio/aw_asio.hpp
+// as well as the specializations of tmc::detail::awaitable_traits in this repo.
 
 #define TMC_IMPL
 
@@ -51,19 +50,14 @@ public:
   Result&& await_resume() && noexcept { return std::move(result); }
 };
 
-static tmc::task<int> await_external_coro(bool safe) {
+static tmc::task<int> await_external_coro() {
   std::printf(
     "started on %s at priority %" PRIu64 "\n", get_thread_name().c_str(),
     tmc::current_priority()
   );
   int result;
-  if (safe) {
-    std::printf("co_awaiting external coro (safely)...\n");
-    result = co_await tmc::external::safe_await<int>(external_awaitable<int>{});
-  } else {
-    std::printf("co_awaiting external coro (unsafely)...\n");
-    result = co_await external_awaitable<int>{};
-  }
+  std::printf("co_awaiting external awaitable...\n");
+  result = co_await external_awaitable<int>{};
   std::printf(
     "resumed on %s at priority %" PRIu64 "\n", get_thread_name().c_str(),
     tmc::current_priority()
@@ -74,9 +68,9 @@ static tmc::task<int> await_external_coro(bool safe) {
   co_return result;
 }
 
-void test_await_external_safe_or_unsafe(bool safe) {
+void test_await_external() {
   std::future<int> result_future =
-    tmc::post_waitable(tmc::cpu_executor(), await_external_coro(safe), 1);
+    tmc::post_waitable(tmc::cpu_executor(), await_external_coro(), 1);
   int result = result_future.get();
   if (result != 42) {
     std::printf("wrong result from result_future\n");
@@ -84,60 +78,43 @@ void test_await_external_safe_or_unsafe(bool safe) {
   std::printf("\n");
 }
 
-tmc::task<int> await_external_coro_and_spawn() {
-  std::printf(
-    "started on %s at priority %" PRIu64 "\n", get_thread_name().c_str(),
-    tmc::current_priority()
-  );
-  std::printf("co_awaiting external coro (unsafely)...\n");
-  int result = co_await external_awaitable<int>{};
-  std::printf(
-    "resumed on %s at priority %" PRIu64 "\n", get_thread_name().c_str(),
-    tmc::current_priority()
-  );
-  std::printf("co_await spawn()...\n");
-  co_await tmc::spawn([]() -> tmc::task<void> {
-    std::printf(
-      "child task running on %s at priority %" PRIu64 "\n",
-      get_thread_name().c_str(), tmc::current_priority()
-    );
-    co_return;
-  }());
-  std::printf(
-    "resumed on %s at priority %" PRIu64 "\n", get_thread_name().c_str(),
-    tmc::current_priority()
-  );
-  co_return result;
-}
+void await_external_coro_and_spawn() {}
 
 void test_spawn_on_external_thread() {
-  std::future<int> result_future =
-    tmc::post_waitable(tmc::cpu_executor(), await_external_coro_and_spawn(), 1);
-  int result = result_future.get();
-  if (result != 42) {
-    std::printf("wrong result from result_future\n");
-  }
-  std::printf("\n");
+  std::printf(
+    "running on %s at priority %" PRIu64 "\n", get_thread_name().c_str(),
+    tmc::current_priority()
+  );
+  std::atomic_bool ready(false);
+  std::thread([&ready]() {
+    tmc::spawn([](std::atomic_bool& Ready) -> tmc::task<void> {
+      std::printf(
+        "child task running on %s at priority %" PRIu64 "\n",
+        get_thread_name().c_str(), tmc::current_priority()
+      );
+      Ready.store(true);
+      Ready.notify_all();
+      co_return;
+    }(ready))
+      .detach();
+  }).detach();
+  ready.wait(false);
 }
 
 int main() {
   hook_init_ex_cpu_thread_name(tmc::cpu_executor());
   tmc::cpu_executor().set_priority_count(2).init();
 
-  // Run await_external_coro(unsafe), so that the TMC coro is resumed on an
-  // external thread
-  test_await_external_safe_or_unsafe(false);
-
-  // Run await_external_coro(safe), which uses tmc::external::safe_await to
-  // resume the TMC coro back on the TMC executor from whence it came
-  test_await_external_safe_or_unsafe(true);
+  // This test verifies that, even though the external awaitable tries to hijack
+  // the TMC task to its thread, it is automagically returned back to the TMC
+  // executor by the safe await machinery of tmc::task::await_transform.
+  test_await_external();
 
   // By configuring the default executor, it will be used in place of the
   // missing thread-local executor on the external thread.
   //
-  // When spawn() is called from the external thread, the child task will run on
-  // the default executor, and after it completes, the awaiting task will also
-  // run back on the default executor.
+  // This test verifies that when spawn() is called from the external thread,
+  // the child task runs on the default executor.
   //
   // If you remove the call to set_default_executor(), the program will simply
   // crash when spawn() is called from the external thread.
