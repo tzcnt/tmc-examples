@@ -47,15 +47,18 @@ tmc::task<void> handler(auto Socket) {
   Socket.close();
 }
 
+static tmc::task<std::optional<asio::basic_stream_socket<asio::ip::tcp>>>
+do_accept(tcp::acceptor& acc) {
+  auto [error, sock] = co_await acc.async_accept(tmc::aw_asio);
+  co_return std::move(sock);
+}
+
 static tmc::task<void> accept(uint16_t Port) {
   std::printf("serving on http://localhost:%d/\n", Port);
   tcp::acceptor acceptor(tmc::asio_executor(), {tcp::v4(), Port});
   while (true) {
-    auto [error, sock] = co_await acceptor.async_accept(tmc::aw_asio);
-    if (error) {
-      break;
-    }
-    tmc::spawn(handler(std::move(sock))).detach();
+    auto sock = co_await do_accept(acceptor);
+    tmc::spawn(handler(*std::move(sock))).detach();
   }
 }
 
