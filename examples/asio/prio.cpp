@@ -21,7 +21,6 @@ constexpr size_t TASK_COUNT = 10000;
 // executor and with the expected priority.
 template <tmc::detail::TypeErasableExecutor E>
 void check_exec_prio(E& ExpectedExecutor, size_t ExpectedPriority) {
-  auto exec = tmc::detail::this_thread::executor;
   if (!tmc::detail::this_thread::exec_is(ExpectedExecutor.type_erased())) {
     std::printf("FAIL | expected executor did not match\n");
   }

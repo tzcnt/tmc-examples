@@ -373,7 +373,6 @@ template <size_t nthreads> void spawn_many_test() {
   std::printf("spawn_many_test()...\n");
   ex_cpu executor;
   executor.set_thread_count(nthreads).init();
-  auto preTime = std::chrono::high_resolution_clock::now();
   auto future = post_waitable(
     executor,
     []() -> task<void> {
