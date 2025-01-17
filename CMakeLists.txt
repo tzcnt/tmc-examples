@@ -237,6 +237,11 @@ add_executable(asio_delay
 )
 target_link_libraries(asio_delay ${LIBURING_LIBRARY})
 
+add_executable(asio_timer_mem_bench
+    examples/asio/timer_mem_bench.cpp
+)
+target_link_libraries(asio_timer_mem_bench ${LIBURING_LIBRARY})
+
 add_executable(asio_http_server
     examples/asio/http_server.cpp
 )
@@ -292,6 +297,12 @@ add_custom_command(TARGET asio_cancellation POST_BUILD
 )
 
 add_custom_command(TARGET asio_delay POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    ${CMAKE_BINARY_DIR}/compile_commands.json
+    ${CMAKE_CURRENT_LIST_DIR}/build
+)
+
+add_custom_command(TARGET asio_timer_mem_bench POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
     ${CMAKE_BINARY_DIR}/compile_commands.json
     ${CMAKE_CURRENT_LIST_DIR}/build
