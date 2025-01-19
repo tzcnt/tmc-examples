@@ -436,18 +436,18 @@ static void external_coro_test() {
     0
   )
     .wait();
-  // tmc::post_waitable(
-  //   executor,
-  //   []() -> task<void> {
-  //     co_await tmc::spawn_many<2>(
-  //       (std::ranges::views::iota(5) |
-  //        std::ranges::views::transform(external_coro_test_task))
-  //         .begin()
-  //     );
-  //   }(),
-  //   0
-  // )
-  //   .wait();
+  tmc::post_waitable(
+    executor,
+    []() -> task<void> {
+      co_await tmc::spawn_func_many<2>(
+        (std::ranges::views::iota(5) |
+         std::ranges::views::transform(external_coro_test_task))
+          .begin()
+      );
+    }(),
+    0
+  )
+    .wait();
   // The post() and post_bulk() tasks at the top of this function are
   // detached... wait a bit to let them finish. This isn't safe - you should
   // wait on a future instead. But I explicitly want to demo the use of the
