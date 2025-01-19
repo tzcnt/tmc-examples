@@ -58,7 +58,7 @@ static task<void> top_fib(size_t n) {
 }
 
 constexpr size_t NRUNS = 1;
-int main(int argc, char* argv[]) {
+int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
 #ifndef NDEBUG
   // Hardcode the size in debug mode so we don't have to fuss around with
   // input arguments in the debug config.

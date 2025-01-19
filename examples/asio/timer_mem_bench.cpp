@@ -24,7 +24,9 @@
 #include <ranges>
 
 asio::steady_timer sleep_timer(int64_t seconds) {
-  return asio::steady_timer{tmc::asio_executor(), std::chrono::seconds(10)};
+  return asio::steady_timer{
+    tmc::asio_executor(), std::chrono::seconds(seconds)
+  };
 }
 
 tmc::task<int> wait_on_tasks(size_t TaskCount) {
@@ -55,7 +57,7 @@ tmc::task<int> wait_on_timers(size_t TaskCount) {
   co_return 0;
 }
 
-int main(int argc, char* argv[]) {
+int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
 #ifndef NDEBUG
   // Hardcode the size in debug mode so we don't have to fuss around with input
   // arguments in the debug config.
