@@ -79,6 +79,7 @@ int main() {
         };
         auto [error] = co_await shortTim.async_wait(tmc::aw_asio)
                          .resume_on(tmc::asio_executor());
+        (void)error; // silence unused warning
         co_return std::chrono::high_resolution_clock::now();
       }();
 
@@ -109,6 +110,9 @@ int main() {
           log_event_timestamp("cancellation signaled", startTime);
           break;
         }
+        default:
+          // Should never happen
+          exit(1);
         }
       }
       std::printf("\n");
