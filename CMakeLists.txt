@@ -58,13 +58,13 @@ else()
     CPMAddPackage(
         NAME TooManyCooks
         GIT_REPOSITORY https://github.com/tzcnt/TooManyCooks.git
-        GIT_TAG e3769ac87b53e41399e979daeb76924d03a3e2cd
+        GIT_TAG 4d0a7d37efacd905fa96c21e5ac015284933812e
         DOWNLOAD_ONLY)
 
     CPMAddPackage(
         NAME tmc_asio
         GIT_REPOSITORY https://github.com/tzcnt/tmc-asio.git
-        GIT_TAG 205de45b3c14868d57b4383ea79bc135bfabac29
+        GIT_TAG 1bf72cd11af1266b67b964ae4bd7bbb5425a3788
         DOWNLOAD_ONLY)
 
     include_directories(
@@ -237,6 +237,11 @@ add_executable(asio_delay
 )
 target_link_libraries(asio_delay ${LIBURING_LIBRARY})
 
+add_executable(asio_timer_mem_bench
+    examples/asio/timer_mem_bench.cpp
+)
+target_link_libraries(asio_timer_mem_bench ${LIBURING_LIBRARY})
+
 add_executable(asio_http_server
     examples/asio/http_server.cpp
 )
@@ -292,6 +297,12 @@ add_custom_command(TARGET asio_cancellation POST_BUILD
 )
 
 add_custom_command(TARGET asio_delay POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    ${CMAKE_BINARY_DIR}/compile_commands.json
+    ${CMAKE_CURRENT_LIST_DIR}/build
+)
+
+add_custom_command(TARGET asio_timer_mem_bench POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
     ${CMAKE_BINARY_DIR}/compile_commands.json
     ${CMAKE_CURRENT_LIST_DIR}/build

@@ -1,6 +1,7 @@
-// Demonstrate how to use tmc::spawn_tuple().each() to await heterogeneous tasks
-// that complete at different times. By submitting a long-running task and a
-// short running timer, timeout-based cancellation can be achieved.
+// Demonstrate how to use tmc::spawn_tuple().each() to await heterogeneous
+// operations that complete at different times. By submitting a long-running
+// operation and a short running timer, timeout-based cancellation can be
+// achieved.
 
 // The timeout nominally occurs after 100ms and the timestamps of the various
 // events are logged. Note that the this example signals the cancellation event
@@ -22,7 +23,6 @@
 #include "tmc/asio/aw_asio.hpp"
 #include "tmc/asio/ex_asio.hpp"
 #include "tmc/ex_cpu.hpp"
-#include "tmc/external.hpp"
 #include "tmc/spawn_task_tuple.hpp"
 
 #include <asio/steady_timer.hpp>
@@ -70,9 +70,6 @@ int main() {
       asio::steady_timer mainOperationHandle{
         tmc::asio_executor(), std::chrono::milliseconds(1000)
       };
-      auto mainTask = tmc::external::to_task<std::tuple<asio::error_code>>(
-        mainOperationHandle.async_wait(tmc::aw_asio)
-      );
 
       // A shorter timer is used for the timeout
       auto timeoutTask =
@@ -82,6 +79,7 @@ int main() {
         };
         auto [error] = co_await shortTim.async_wait(tmc::aw_asio)
                          .resume_on(tmc::asio_executor());
+        (void)error; // silence unused warning
         co_return std::chrono::high_resolution_clock::now();
       }();
 
@@ -89,7 +87,10 @@ int main() {
       // immediately as it becomes ready, even if the other tasks are still
       // running
       auto eachResult =
-        tmc::spawn_tuple(std::move(mainTask), std::move(timeoutTask)).each();
+        tmc::spawn_tuple(
+          mainOperationHandle.async_wait(tmc::aw_asio), std::move(timeoutTask)
+        )
+          .each();
 
       for (auto readyIdx = co_await eachResult; readyIdx != eachResult.end();
            readyIdx = co_await eachResult) {
@@ -109,6 +110,9 @@ int main() {
           log_event_timestamp("cancellation signaled", startTime);
           break;
         }
+        default:
+          // Should never happen
+          exit(1);
         }
       }
       std::printf("\n");
