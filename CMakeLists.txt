@@ -22,7 +22,6 @@ add_definitions(
 
     # Other
     # "-DTMC_USE_BOOST_ASIO"
-    # "-DTMC_QUEUE_PREFER_STEAL"
 
     # Debug / testing options
     # "-DTMC_USE_MUTEXQ"
@@ -85,7 +84,7 @@ include_directories(SYSTEM
     ${asio_SOURCE_DIR}/asio/include
 )
 
-# HWLOC support
+# TMC HWLOC support
 option(TMC_USE_HWLOC "libhwloc" ON)
 
 if(TMC_USE_HWLOC)
@@ -101,12 +100,12 @@ if(TMC_USE_HWLOC)
     endif()
 endif()
 
-# URING support
-option(TMC_USE_IO_URING "io_uring (requires Linux and liburing)" ON)
+# URING support - this isn't a TMC flag, but an Asio option (for performance)
+option(USE_IO_URING "io_uring (requires Linux and liburing)" ON)
 
-if(TMC_USE_IO_URING)
+if(USE_IO_URING)
     if(NOT CMAKE_SYSTEM_NAME MATCHES Linux)
-        set(TMC_USE_IO_URING OFF CACHE BOOL "feature disabled (requires Linux)" FORCE)
+        set(USE_IO_URING OFF CACHE BOOL "feature disabled (requires Linux)" FORCE)
         message(STATUS "TMC_USE_IO_URING: WARN feature disabled (requires Linux)")
     else()
         message(STATUS "TMC_USE_IO_URING: running find_package(liburing)...")
