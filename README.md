@@ -11,11 +11,11 @@ This repository uses CMake to download and configure the TMC libraries, either a
 
 ### Supported Compilers
 Linux:
-- Clang 16 or newer
-- GCC 12.3 or newer
+- Clang 17 or newer
+- GCC 14 or newer
 
 Windows:
-- Clang 16 or newer (via clang-cl.exe)
+- Clang 17 or newer (via clang-cl.exe)
 - MSVC latest version (???)
 
 ### Supported Hardware
