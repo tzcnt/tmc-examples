@@ -1,4 +1,5 @@
-// Create an external executor that exposes all TMC compatibilities.
+// Create an external executor that exposes all TMC compatibilities
+// by providing a specialization of tmc::detail::executor_traits.
 // For another example, see
 // https://github.com/tzcnt/tmc-asio/blob/main/include/tmc/asio/ex_asio.hpp
 
@@ -6,23 +7,22 @@
 
 #include "util/thread_name.hpp"
 
+#include "tmc/detail/concepts.hpp"
 #include "tmc/ex_cpu.hpp"
 #include "tmc/spawn_task.hpp"
 #include "tmc/sync.hpp"
 
+#include <coroutine>
 #include <string>
 #include <thread>
 
 // A terrible executor that creates a new thread for every task.
-// Implements the tmc::detail::TypeErasableExecutor concept.
 class external_executor {
   tmc::detail::type_erased_executor type_erased_this;
 
 public:
   external_executor() : type_erased_this(this) {}
 
-  // post() and post_bulk() are the only methods that need to be implemented
-  // to construct a type_erased_executor.
   template <typename Functor>
   void post(Functor&& Func, [[maybe_unused]] size_t Priority) {
     std::thread([this, Func] {
@@ -46,11 +46,32 @@ public:
     }
   }
 
-  // The type_erased() method implements the tmc::detail::TypeErasableExecutor
-  // concept. This isn't strictly necessary, but it allows you to pass this
-  // directly to certain TMC customization functions, such as run_on() used in
-  // this example.
   tmc::detail::type_erased_executor* type_erased() { return &type_erased_this; }
+};
+
+// A complete, minimal implementation of executor_traits.
+template <> struct tmc::detail::executor_traits<external_executor> {
+  static void
+  post(external_executor& ex, tmc::work_item&& Item, size_t Priority) {
+    ex.post(std::move(Item), Priority);
+  }
+
+  template <typename It>
+  static void
+  post_bulk(external_executor& ex, It&& Items, size_t Count, size_t Priority) {
+    ex.post_bulk(std::forward<It>(Items), Count, Priority);
+  }
+
+  static tmc::detail::type_erased_executor* type_erased(external_executor& ex) {
+    return ex.type_erased();
+  }
+
+  static std::coroutine_handle<> task_enter_context(
+    external_executor& ex, std::coroutine_handle<> Outer, size_t Priority
+  ) {
+    ex.post(Outer, Priority);
+    return std::noop_coroutine();
+  }
 };
 
 static external_executor external{};

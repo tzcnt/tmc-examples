@@ -19,9 +19,11 @@ constexpr size_t TASK_COUNT = 10000;
 
 // Confirm that the current task is running on the expected
 // executor and with the expected priority.
-template <tmc::detail::TypeErasableExecutor E>
-void check_exec_prio(E& ExpectedExecutor, size_t ExpectedPriority) {
-  if (!tmc::detail::this_thread::exec_is(ExpectedExecutor.type_erased())) {
+template <typename Exec>
+void check_exec_prio(Exec& ExpectedExecutor, size_t ExpectedPriority) {
+  if (!tmc::detail::this_thread::exec_is(
+        tmc::detail::executor_traits<Exec>::type_erased(ExpectedExecutor)
+      )) {
     std::printf("FAIL | expected executor did not match\n");
   }
 
