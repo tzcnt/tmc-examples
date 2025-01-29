@@ -1,6 +1,7 @@
 #pragma once
 
 #include <coroutine>
+#include <exception>
 #include <utility>
 
 // A simple "external" awaitable coroutine type that has no knowledge of TMC.
@@ -41,7 +42,7 @@ template <typename Result> struct external_coro_promise {
   external_coro<Result> get_return_object() noexcept {
     return {external_coro<Result>::from_promise(*this)};
   }
-  void unhandled_exception() { throw; }
+  void unhandled_exception() { std::terminate(); }
   void return_value(Result&& Value) { *result_ptr = std::move(Value); }
   void return_value(const Result& Value) { *result_ptr = Value; }
   std::coroutine_handle<> continuation;
@@ -55,7 +56,7 @@ template <> struct external_coro_promise<void> {
   external_coro<void> get_return_object() noexcept {
     return {external_coro<void>::from_promise(*this)};
   }
-  [[noreturn]] void unhandled_exception() { throw; }
+  void unhandled_exception() { std::terminate(); }
   void return_void() {}
   std::coroutine_handle<> continuation;
 };
