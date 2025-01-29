@@ -251,70 +251,16 @@ add_executable(asio_http_skynet
 )
 target_link_libraries(asio_http_skynet ${LIBURING_LIBRARY})
 
-# copy compile_commands.json to the root directory after build so clangd can find it
+# copy compile_commands.json to the build directory after build so clangd can find it
 # clangd won't look in the /build/{config} directory, only in the top-level /build directory
-add_custom_command(TARGET spawn_misc POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-    ${CMAKE_BINARY_DIR}/compile_commands.json
-    ${CMAKE_CURRENT_LIST_DIR}/build
+# this shows up as a real build target, so prefix with z to put at the end of the list
+add_custom_target(
+    zCopyCompileCommands ALL
+    DEPENDS ${CMAKE_CURRENT_LIST_DIR}/build/compile_commands.json
 )
-
-add_custom_command(TARGET alignment POST_BUILD
+add_custom_command(OUTPUT ${CMAKE_CURRENT_LIST_DIR}/build/compile_commands.json
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
     ${CMAKE_BINARY_DIR}/compile_commands.json
     ${CMAKE_CURRENT_LIST_DIR}/build
-)
-
-add_custom_command(TARGET equilibrium POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-    ${CMAKE_BINARY_DIR}/compile_commands.json
-    ${CMAKE_CURRENT_LIST_DIR}/build
-)
-
-add_custom_command(TARGET skynet POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-    ${CMAKE_BINARY_DIR}/compile_commands.json
-    ${CMAKE_CURRENT_LIST_DIR}/build
-)
-
-add_custom_command(TARGET fib POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-    ${CMAKE_BINARY_DIR}/compile_commands.json
-    ${CMAKE_CURRENT_LIST_DIR}/build
-)
-
-add_custom_command(TARGET braid POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-    ${CMAKE_BINARY_DIR}/compile_commands.json
-    ${CMAKE_CURRENT_LIST_DIR}/build
-)
-
-add_custom_command(TARGET asio_cancellation POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-    ${CMAKE_BINARY_DIR}/compile_commands.json
-    ${CMAKE_CURRENT_LIST_DIR}/build
-)
-
-add_custom_command(TARGET asio_delay POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-    ${CMAKE_BINARY_DIR}/compile_commands.json
-    ${CMAKE_CURRENT_LIST_DIR}/build
-)
-
-add_custom_command(TARGET asio_timer_mem_bench POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-    ${CMAKE_BINARY_DIR}/compile_commands.json
-    ${CMAKE_CURRENT_LIST_DIR}/build
-)
-
-add_custom_command(TARGET asio_prio POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-    ${CMAKE_BINARY_DIR}/compile_commands.json
-    ${CMAKE_CURRENT_LIST_DIR}/build
-)
-
-add_custom_command(TARGET spawn_iterator POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-    ${CMAKE_BINARY_DIR}/compile_commands.json
-    ${CMAKE_CURRENT_LIST_DIR}/build
+    DEPENDS ${CMAKE_BINARY_DIR}/compile_commands.json
 )
