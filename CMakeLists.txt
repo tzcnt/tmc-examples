@@ -41,6 +41,7 @@ add_definitions(
 )
 
 include(cmake/CPM.cmake)
+add_subdirectory(tests)
 
 # By default, download the TMC repos as CPM packages.
 # If this option is enabled, CMake will expect them to be in git submodules.
@@ -49,10 +50,8 @@ include(cmake/CPM.cmake)
 option(TMC_AS_SUBMODULE "Download TMC repos as Git submodules" OFF)
 
 if(TMC_AS_SUBMODULE)
-    include_directories(
-        ${tmc_examples_SOURCE_DIR}/submodules/TooManyCooks/include
-        ${tmc_examples_SOURCE_DIR}/submodules/tmc-asio/include
-    )
+    set(TMC_INCLUDE_PATH ${tmc_examples_SOURCE_DIR}/submodules/TooManyCooks/include CACHE STRING "")
+    set(TMC_ASIO_INCLUDE_PATH ${tmc_examples_SOURCE_DIR}/submodules/tmc-asio/include CACHE STRING "")
 else()
     CPMAddPackage(
         NAME TooManyCooks
@@ -66,11 +65,14 @@ else()
         GIT_TAG 94ced942e39c9fae1dc0bb2e122c5744c29b7408
         DOWNLOAD_ONLY)
 
-    include_directories(
-        ${TooManyCooks_SOURCE_DIR}/include
-        ${tmc_asio_SOURCE_DIR}/include
-    )
+    set(TMC_INCLUDE_PATH ${TooManyCooks_SOURCE_DIR}/include CACHE STRING "")
+    set(TMC_ASIO_INCLUDE_PATH ${tmc_asio_SOURCE_DIR}/include CACHE STRING "")
 endif()
+
+include_directories(
+    ${TMC_INCLUDE_PATH}
+    ${TMC_ASIO_INCLUDE_PATH}
+)
 
 CPMAddPackage(
     NAME asio
