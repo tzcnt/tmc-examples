@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.14)
 project(tmc_tests)
 
 # For Windows: Prevent overriding the parent project's compiler/linker settings
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_EXPORT_COMPILE_COMMANDS "1")
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 set(BUILD_GMOCK OFF CACHE BOOL "" FORCE)
@@ -34,15 +35,18 @@ endfunction()
 
 make_exe(
   tests
-  tmc_impl.cpp
+  main.cpp
   test_ex_cpu.cpp
   assert_ex_cpu.cpp
-)
-target_link_libraries(
-  tests
-  GTest::gtest_main
+  test_ex_asio.cpp
 )
 
+target_link_libraries(
+  tests
+  hwloc
+  uring
+  GTest::gtest_main
+)
 include(GoogleTest)
 
 gtest_discover_tests(tests)

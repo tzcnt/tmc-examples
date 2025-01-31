@@ -2,9 +2,19 @@
 
 #include <gtest/gtest.h>
 
-#define CATEGORY ex_cpu_asserts
+#define CATEGORY assert_ex_cpu_DeathTest
 
 #ifndef NDEBUG
+TEST(CATEGORY, too_many_threads) {
+  EXPECT_DEATH(
+    {
+      tmc::ex_cpu ex;
+      ex.set_thread_count(1).set_thread_count(65).init();
+    },
+    "thread_count"
+  );
+}
+
 TEST(CATEGORY, invalid_priority) {
   // Accidentally submitted a task-returning func without calling it
   EXPECT_DEATH(

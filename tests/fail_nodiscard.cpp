@@ -10,3 +10,9 @@ TEST(CATEGORY, task_func_post) {
     "!handle"
   );
 }
+
+tmc::post_bulk_waitable(
+  tmc::cpu_executor(),
+  tmc::iter_adapter(0, [](int i) -> tmc::task<int> { co_return 1; }), 10, 0
+)
+  .get();
