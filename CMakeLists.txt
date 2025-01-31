@@ -41,7 +41,6 @@ add_definitions(
 )
 
 include(cmake/CPM.cmake)
-add_subdirectory(tests)
 
 # By default, download the TMC repos as CPM packages.
 # If this option is enabled, CMake will expect them to be in git submodules.
@@ -174,7 +173,18 @@ if(TMC_CHECK_WARNINGS_CLANG)
     )
 endif()
 
-add_executable(alignment
+# copy compile_commands.json to the build directory after build so clangd can find it
+# clangd won't look in the /build/{config} directory, only in the top-level /build directory
+function(make_exe target_name)
+    add_executable(${target_name} ${ARGN})
+    add_custom_command(TARGET ${target_name} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        ${CMAKE_BINARY_DIR}/compile_commands.json
+        ${CMAKE_CURRENT_LIST_DIR}/build
+    )
+endfunction()
+
+make_exe(alignment
     examples/alignment.cpp
 )
 
@@ -182,87 +192,75 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND CMAKE_CXX_COMPILER_VERSION VERSION
     target_compile_options(alignment PRIVATE -fcoro-aligned-allocation)
 endif()
 
-add_executable(spawn_misc
+make_exe(spawn_misc
     examples/spawn_misc.cpp
 )
 
-add_executable(equilibrium
+make_exe(equilibrium
     examples/equilibrium.cpp
 )
 
-add_executable(external_coro
+make_exe(external_coro
     examples/external_coro.cpp
 )
 
-add_executable(external_executor
+make_exe(external_executor
     examples/external_executor.cpp
 )
 
-add_executable(external_awaitable
+make_exe(external_awaitable
     examples/external_awaitable.cpp
 )
 
-add_executable(braid
+make_exe(braid
     examples/braid.cpp
 )
 
-add_executable(skynet
+make_exe(skynet
     examples/skynet/main.cpp
 )
 target_include_directories(skynet PRIVATE examples/skynet)
 
-add_executable(fib
+make_exe(fib
     examples/fib.cpp
 )
 
-add_executable(sync
+make_exe(sync
     examples/sync.cpp
 )
 
-add_executable(spawn_iterator
+make_exe(spawn_iterator
     examples/spawn_iterator.cpp
 )
 
-add_executable(asio_prio
+make_exe(asio_prio
     examples/asio/prio.cpp
 )
 target_link_libraries(asio_prio ${LIBURING_LIBRARY})
 
-add_executable(asio_cancellation
+make_exe(asio_cancellation
     examples/asio/cancellation.cpp
 )
 target_link_libraries(asio_cancellation ${LIBURING_LIBRARY})
 
-add_executable(asio_delay
+make_exe(asio_delay
     examples/asio/delay.cpp
 )
 target_link_libraries(asio_delay ${LIBURING_LIBRARY})
 
-add_executable(asio_timer_mem_bench
+make_exe(asio_timer_mem_bench
     examples/asio/timer_mem_bench.cpp
 )
 target_link_libraries(asio_timer_mem_bench ${LIBURING_LIBRARY})
 
-add_executable(asio_http_server
+make_exe(asio_http_server
     examples/asio/http_server.cpp
 )
 target_link_libraries(asio_http_server ${LIBURING_LIBRARY})
 
-add_executable(asio_http_skynet
+make_exe(asio_http_skynet
     examples/asio/http_skynet.cpp
 )
 target_link_libraries(asio_http_skynet ${LIBURING_LIBRARY})
 
-# copy compile_commands.json to the build directory after build so clangd can find it
-# clangd won't look in the /build/{config} directory, only in the top-level /build directory
-# this shows up as a real build target, so prefix with z to put at the end of the list
-add_custom_target(
-    zCopyCompileCommands ALL
-    DEPENDS ${CMAKE_CURRENT_LIST_DIR}/build/compile_commands.json
-)
-add_custom_command(OUTPUT ${CMAKE_CURRENT_LIST_DIR}/build/compile_commands.json
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-    ${CMAKE_BINARY_DIR}/compile_commands.json
-    ${CMAKE_CURRENT_LIST_DIR}/build
-    DEPENDS ${CMAKE_BINARY_DIR}/compile_commands.json
-)
+add_subdirectory(tests)
