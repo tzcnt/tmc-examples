@@ -39,6 +39,7 @@ make_exe(
   test_ex_cpu.cpp
   assert_ex_cpu.cpp
   test_ex_asio.cpp
+  prio.cpp
 )
 
 target_link_libraries(
