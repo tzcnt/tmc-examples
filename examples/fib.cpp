@@ -41,14 +41,14 @@ static task<size_t> fib(size_t n) {
   // co_return results[0] + results[1];
 
   /* Spawn one, then serially execute the other, then await the first */
-  // auto xt = spawn(fib(n - 1)).run_early();
-  // auto y = co_await fib(n - 2);
-  // auto x = co_await std::move(xt);
-  // co_return x + y;
+  auto xt = spawn(fib(n - 1)).run_early();
+  auto y = co_await fib(n - 2);
+  auto x = co_await std::move(xt);
+  co_return x + y;
 
   /* Submit using variadic parameter pack, and get the results as a tuple */
-  auto [x, y] = co_await spawn_tuple(fib(n - 1), fib(n - 2));
-  co_return x + y;
+  // auto [x, y] = co_await spawn_tuple(fib(n - 1), fib(n - 2));
+  // co_return x + y;
 }
 
 static task<void> top_fib(size_t n) {

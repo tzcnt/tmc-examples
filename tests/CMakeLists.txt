@@ -33,15 +33,16 @@ function(make_exe target_name)
 endfunction()
 
 make_exe(
-  test1
+  tests
   tmc_impl.cpp
-  test1.cpp
+  test_ex_cpu.cpp
+  assert_ex_cpu.cpp
 )
 target_link_libraries(
-  test1
+  tests
   GTest::gtest_main
 )
 
 include(GoogleTest)
 
-gtest_discover_tests(test1)
+gtest_discover_tests(tests)
