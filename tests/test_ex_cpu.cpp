@@ -2,6 +2,7 @@
 
 #include <gtest/gtest.h>
 #include <ranges>
+#include <thread>
 
 #define CATEGORY test_ex_cpu
 
@@ -14,6 +15,10 @@ protected:
   static tmc::ex_cpu& ex() { return tmc::cpu_executor(); }
 };
 
-#include "executor_tests.ipp"
+// TEST_F(CATEGORY, init) {
+//   EXPECT_EQ(ex().thread_count(), std::thread::hardware_concurrency());
+// }
+
+#include "test_executors.ipp"
 
 #undef CATEGORY

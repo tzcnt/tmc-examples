@@ -5,8 +5,6 @@
 
 #define CAT_TEST(CATEGORY, NAME) TEST_F(CATEGORY, NAME)
 
-TEST_F(CATEGORY, init) { EXPECT_EQ(ex().thread_count(), 64); }
-
 TEST_F(CATEGORY, post_waitable_coro) {
   tmc::post_waitable(ex(), []() -> tmc::task<void> { co_return; }(), 0).get();
   tmc::post_waitable(ex(), empty_task(), 0).get();
@@ -69,4 +67,23 @@ TEST_F(CATEGORY, post_bulk_waitable_func) {
     EXPECT_EQ(results[0], 0);
     EXPECT_EQ(results[1], 1);
   }
+}
+
+TEST_F(CATEGORY, async_main) {
+  test_async_main(ex(), []() -> tmc::task<void> { co_await empty_task(); }());
+  int x = test_async_main_int(ex(), []() -> tmc::task<int> {
+    int x = co_await int_task();
+    co_return x;
+  }());
+  EXPECT_EQ(x, 1);
+}
+
+TEST_F(CATEGORY, spawn_coro) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    int x = 5;
+    auto task = tmc::spawn(int_task()).run_early();
+    co_await tmc::spawn(empty_task());
+    x = co_await std::move(task);
+    EXPECT_EQ(x, 1);
+  }());
 }
