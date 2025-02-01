@@ -16,8 +16,10 @@
 // cancel the main operation directly from within the timeout operation. This
 // example serves to also demonstrate how to use the each() function when you
 // need the awaiting thread involved in the process.
+#ifdef _WIN32
+#include <SDKDDKVer.h>
+#endif
 
-#include <asio/error.hpp>
 #define TMC_IMPL
 
 #include "tmc/asio/aw_asio.hpp"
@@ -25,6 +27,7 @@
 #include "tmc/ex_cpu.hpp"
 #include "tmc/spawn_tuple.hpp"
 
+#include <asio/error.hpp>
 #include <asio/steady_timer.hpp>
 #include <chrono>
 #include <cinttypes>

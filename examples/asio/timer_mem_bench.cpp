@@ -10,6 +10,9 @@
 
 // So most of the overhead is coming from the asio timer itself.
 // Perhaps someday I can write a smaller timer.
+#ifdef _WIN32
+#include <SDKDDKVer.h>
+#endif
 
 #define TMC_IMPL
 
