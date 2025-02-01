@@ -53,7 +53,8 @@ template <int N> tmc::task<void> static_sized_iterator() {
   // This will produce equivalent behavior, but is not as explicit in the intent
   // auto results = co_await tmc::spawn_many<N>(iter.begin(), iter.end());
 
-  auto sum = std::accumulate(results.begin(), results.end(), 0);
+  [[maybe_unused]] auto sum =
+    std::accumulate(results.begin(), results.end(), 0);
 
   assert(sum == (1 << N) - 1);
 
@@ -83,7 +84,8 @@ template <int N> tmc::task<void> static_bounded_iterator() {
 
     // This extra work yields a performance benefit, because we can still use
     // std::array with an unknown-sized iterator that spawns "up to N" tasks.
-    auto sum = std::accumulate(results.begin(), results.begin() + taskCount, 0);
+    [[maybe_unused]] auto sum =
+      std::accumulate(results.begin(), results.begin() + taskCount, 0);
     assert(sum == (1 << N) - 1 - 8);
   }
   {
@@ -102,7 +104,8 @@ template <int N> tmc::task<void> static_bounded_iterator() {
     // At this point, taskCount == 5 and N == 5.
     // We stopped consuming elements from the iterator after N tasks.
     assert(taskCount == N);
-    auto sum = std::accumulate(results.begin(), results.begin() + taskCount, 0);
+    [[maybe_unused]] auto sum =
+      std::accumulate(results.begin(), results.begin() + taskCount, 0);
     assert(sum == (1 << N) - 1 - 8 + (1 << N));
   }
   co_return;
@@ -116,11 +119,13 @@ template <int N> tmc::task<void> dynamic_known_sized_iterator() {
   // (internally calculated from tasks.end() - tasks.begin())
   std::vector<int> results = co_await tmc::spawn_many(iter.begin(), iter.end());
 
-  auto taskCount = static_cast<size_t>(iter.end() - iter.begin());
+  [[maybe_unused]] auto taskCount =
+    static_cast<size_t>(iter.end() - iter.begin());
   // This will produce equivalent behavior:
   // auto results = co_await tmc::spawn_many(iter.begin(), taskCount);
 
-  auto sum = std::accumulate(results.begin(), results.end(), 0);
+  [[maybe_unused]] auto sum =
+    std::accumulate(results.begin(), results.end(), 0);
   assert(sum == (1 << N) - 1 - 8);
   // The results vector is right-sized
   assert(results.size() == taskCount);
@@ -142,7 +147,8 @@ template <int N> tmc::task<void> dynamic_unknown_sized_iterator() {
   // a right-sized result vector will be constructed.
   std::vector<int> results = co_await tmc::spawn_many(iter.begin(), iter.end());
 
-  auto sum = std::accumulate(results.begin(), results.end(), 0);
+  [[maybe_unused]] auto sum =
+    std::accumulate(results.begin(), results.end(), 0);
 
   assert(sum == (1 << N) - 1 - 8);
   // The result vector is right-sized; only the internal task vector is not
@@ -172,7 +178,8 @@ template <int N> tmc::task<void> dynamic_bounded_iterator() {
     // At this point, taskCount == 4 and N == 5.
     assert(taskCount == MaxTasks - 1);
 
-    auto sum = std::accumulate(results.begin(), results.begin() + taskCount, 0);
+    [[maybe_unused]] auto sum =
+      std::accumulate(results.begin(), results.begin() + taskCount, 0);
     assert(sum == (1 << N) - 1 - 8);
     // The results vector is still right-sized.
     assert(results.size() == taskCount);
@@ -194,7 +201,8 @@ template <int N> tmc::task<void> dynamic_bounded_iterator() {
     // At this point, taskCount == 5 and N == 5.
     // We stopped consuming elements from the iterator after N tasks.
     assert(taskCount == N);
-    auto sum = std::accumulate(results.begin(), results.begin() + taskCount, 0);
+    [[maybe_unused]] auto sum =
+      std::accumulate(results.begin(), results.begin() + taskCount, 0);
     assert(sum == (1 << N) - 1 - 8 + (1 << N));
     assert(results.size() == taskCount);
     assert(results.size() == results.capacity());
