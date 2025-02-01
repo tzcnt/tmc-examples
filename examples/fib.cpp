@@ -71,6 +71,10 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
 
   size_t n = static_cast<size_t>(atoi(argv[1]));
 #endif
+#ifdef TMC_USE_HWLOC
+  // Opt-in to hyperthreading
+  tmc::cpu_executor().set_thread_occupancy(2.0f);
+#endif
   tmc::async_main([](size_t N) -> tmc::task<int> {
     auto startTime = std::chrono::high_resolution_clock::now();
     for (size_t i = 0; i < NRUNS; ++i) {
