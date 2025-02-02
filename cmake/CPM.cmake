@@ -31,8 +31,8 @@ cmake_minimum_required(VERSION 3.14 FATAL_ERROR)
 # Initialize logging prefix
 if(NOT CPM_INDENT)
   set(CPM_INDENT
-      "CPM:"
-      CACHE INTERNAL ""
+    "CPM:"
+    CACHE INTERNAL ""
   )
 endif()
 
@@ -45,17 +45,19 @@ endif()
 set(CURRENT_CPM_VERSION 0.40.5)
 
 get_filename_component(CPM_CURRENT_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}" REALPATH)
+
 if(CPM_DIRECTORY)
   if(NOT CPM_DIRECTORY STREQUAL CPM_CURRENT_DIRECTORY)
     if(CPM_VERSION VERSION_LESS CURRENT_CPM_VERSION)
       message(
         AUTHOR_WARNING
-          "${CPM_INDENT} \
+        "${CPM_INDENT} \
 A dependency is using a more recent CPM version (${CURRENT_CPM_VERSION}) than the current project (${CPM_VERSION}). \
 It is recommended to upgrade CPM to the most recent version. \
 See https://github.com/cpm-cmake/CPM.cmake for more information."
       )
     endif()
+
     if(${CMAKE_VERSION} VERSION_LESS "3.17.0")
       include(FetchContent)
     endif()
@@ -67,6 +69,7 @@ See https://github.com/cpm-cmake/CPM.cmake for more information."
     PROPERTY CPM_INITIALIZED
     SET
   )
+
   if(CPM_INITIALIZED)
     return()
   endif()
@@ -106,49 +109,50 @@ macro(cpm_set_policies)
     set(CMAKE_POLICY_DEFAULT_CMP0150 NEW)
   endif()
 endmacro()
+
 cpm_set_policies()
 
 option(CPM_USE_LOCAL_PACKAGES "Always try to use `find_package` to get dependencies"
-       $ENV{CPM_USE_LOCAL_PACKAGES}
+  $ENV{CPM_USE_LOCAL_PACKAGES}
 )
 option(CPM_LOCAL_PACKAGES_ONLY "Only use `find_package` to get dependencies"
-       $ENV{CPM_LOCAL_PACKAGES_ONLY}
+  $ENV{CPM_LOCAL_PACKAGES_ONLY}
 )
 option(CPM_DOWNLOAD_ALL "Always download dependencies from source" $ENV{CPM_DOWNLOAD_ALL})
 option(CPM_DONT_UPDATE_MODULE_PATH "Don't update the module path to allow using find_package"
-       $ENV{CPM_DONT_UPDATE_MODULE_PATH}
+  $ENV{CPM_DONT_UPDATE_MODULE_PATH}
 )
 option(CPM_DONT_CREATE_PACKAGE_LOCK "Don't create a package lock file in the binary path"
-       $ENV{CPM_DONT_CREATE_PACKAGE_LOCK}
+  $ENV{CPM_DONT_CREATE_PACKAGE_LOCK}
 )
 option(CPM_INCLUDE_ALL_IN_PACKAGE_LOCK
-       "Add all packages added through CPM.cmake to the package lock"
-       $ENV{CPM_INCLUDE_ALL_IN_PACKAGE_LOCK}
+  "Add all packages added through CPM.cmake to the package lock"
+  $ENV{CPM_INCLUDE_ALL_IN_PACKAGE_LOCK}
 )
 option(CPM_USE_NAMED_CACHE_DIRECTORIES
-       "Use additional directory of package name in cache on the most nested level."
-       $ENV{CPM_USE_NAMED_CACHE_DIRECTORIES}
+  "Use additional directory of package name in cache on the most nested level."
+  $ENV{CPM_USE_NAMED_CACHE_DIRECTORIES}
 )
 
 set(CPM_VERSION
-    ${CURRENT_CPM_VERSION}
-    CACHE INTERNAL ""
+  ${CURRENT_CPM_VERSION}
+  CACHE INTERNAL ""
 )
 set(CPM_DIRECTORY
-    ${CPM_CURRENT_DIRECTORY}
-    CACHE INTERNAL ""
+  ${CPM_CURRENT_DIRECTORY}
+  CACHE INTERNAL ""
 )
 set(CPM_FILE
-    ${CMAKE_CURRENT_LIST_FILE}
-    CACHE INTERNAL ""
+  ${CMAKE_CURRENT_LIST_FILE}
+  CACHE INTERNAL ""
 )
 set(CPM_PACKAGES
-    ""
-    CACHE INTERNAL ""
+  ""
+  CACHE INTERNAL ""
 )
 set(CPM_DRY_RUN
-    OFF
-    CACHE INTERNAL "Don't download or configure dependencies (for testing)"
+  OFF
+  CACHE INTERNAL "Don't download or configure dependencies (for testing)"
 )
 
 if(DEFINED ENV{CPM_SOURCE_CACHE})
@@ -158,29 +162,31 @@ else()
 endif()
 
 set(CPM_SOURCE_CACHE
-    ${CPM_SOURCE_CACHE_DEFAULT}
-    CACHE PATH "Directory to download CPM dependencies"
+  ${CPM_SOURCE_CACHE_DEFAULT}
+  CACHE PATH "Directory to download CPM dependencies"
 )
 
 if(NOT CPM_DONT_UPDATE_MODULE_PATH AND NOT DEFINED CMAKE_FIND_PACKAGE_REDIRECTS_DIR)
   set(CPM_MODULE_PATH
-      "${CMAKE_BINARY_DIR}/CPM_modules"
-      CACHE INTERNAL ""
+    "${CMAKE_BINARY_DIR}/CPM_modules"
+    CACHE INTERNAL ""
   )
+
   # remove old modules
   file(REMOVE_RECURSE ${CPM_MODULE_PATH})
   file(MAKE_DIRECTORY ${CPM_MODULE_PATH})
+
   # locally added CPM modules should override global packages
   set(CMAKE_MODULE_PATH "${CPM_MODULE_PATH};${CMAKE_MODULE_PATH}")
 endif()
 
 if(NOT CPM_DONT_CREATE_PACKAGE_LOCK)
   set(CPM_PACKAGE_LOCK_FILE
-      "${CMAKE_BINARY_DIR}/cpm-package-lock.cmake"
-      CACHE INTERNAL ""
+    "${CMAKE_BINARY_DIR}/cpm-package-lock.cmake"
+    CACHE INTERNAL ""
   )
   file(WRITE ${CPM_PACKAGE_LOCK_FILE}
-       "# CPM Package Lock\n# This file should be committed to version control\n\n"
+    "# CPM Package Lock\n# This file should be committed to version control\n\n"
   )
 endif()
 
@@ -190,8 +196,8 @@ include(FetchContent)
 function(cpm_package_name_from_git_uri URI RESULT)
   if("${URI}" MATCHES "([^/:]+)/?.git/?$")
     set(${RESULT}
-        ${CMAKE_MATCH_1}
-        PARENT_SCOPE
+      ${CMAKE_MATCH_1}
+      PARENT_SCOPE
     )
   else()
     unset(${RESULT} PARENT_SCOPE)
@@ -207,12 +213,12 @@ function(cpm_package_name_and_ver_from_url url outName outVer)
     if(filename MATCHES "([a-zA-Z0-9_\\.-]+)[_-]v?(([0-9]+\\.)*[0-9]+[a-zA-Z0-9]*)")
       # We matched <name>-<version> (ie foo-1.2.3)
       set(${outName}
-          "${CMAKE_MATCH_1}"
-          PARENT_SCOPE
+        "${CMAKE_MATCH_1}"
+        PARENT_SCOPE
       )
       set(${outVer}
-          "${CMAKE_MATCH_2}"
-          PARENT_SCOPE
+        "${CMAKE_MATCH_2}"
+        PARENT_SCOPE
       )
     elseif(filename MATCHES "(([0-9]+\\.)+[0-9]+[a-zA-Z0-9]*)")
       # We couldn't find a name, but we found a version
@@ -223,8 +229,8 @@ function(cpm_package_name_and_ver_from_url url outName outVer)
       # package name from the filename, we'd get bogus at best.
       unset(${outName} PARENT_SCOPE)
       set(${outVer}
-          "${CMAKE_MATCH_1}"
-          PARENT_SCOPE
+        "${CMAKE_MATCH_1}"
+        PARENT_SCOPE
       )
     else()
       # Boldly assume that the file name is the package name.
@@ -232,8 +238,8 @@ function(cpm_package_name_and_ver_from_url url outName outVer)
       # Yes, something like `irrelevant/ACTUAL_NAME/irrelevant/download.zip` will ruin our day, but
       # such cases should be quite rare. No popular service does this... we think.
       set(${outName}
-          "${filename}"
-          PARENT_SCOPE
+        "${filename}"
+        PARENT_SCOPE
       )
       unset(${outVer} PARENT_SCOPE)
     endif()
@@ -247,20 +253,22 @@ endfunction()
 function(cpm_find_package NAME VERSION)
   string(REPLACE " " ";" EXTRA_ARGS "${ARGN}")
   find_package(${NAME} ${VERSION} ${EXTRA_ARGS} QUIET)
+
   if(${CPM_ARGS_NAME}_FOUND)
     if(DEFINED ${CPM_ARGS_NAME}_VERSION)
       set(VERSION ${${CPM_ARGS_NAME}_VERSION})
     endif()
+
     cpm_message(STATUS "${CPM_INDENT} Using local package ${CPM_ARGS_NAME}@${VERSION}")
     CPMRegisterPackage(${CPM_ARGS_NAME} "${VERSION}")
     set(CPM_PACKAGE_FOUND
-        YES
-        PARENT_SCOPE
+      YES
+      PARENT_SCOPE
     )
   else()
     set(CPM_PACKAGE_FOUND
-        NO
-        PARENT_SCOPE
+      NO
+      PARENT_SCOPE
     )
   endif()
 endfunction()
@@ -277,15 +285,15 @@ function(cpm_create_module_file Name)
       # https://cmake.org/cmake/help/latest/module/FetchContent.html#fetchcontent-find-package-integration-examples
       string(TOLOWER ${Name} NameLower)
       file(WRITE ${CMAKE_FIND_PACKAGE_REDIRECTS_DIR}/${NameLower}-config.cmake
-           "include(\"${CMAKE_CURRENT_LIST_DIR}/${NameLower}-extra.cmake\" OPTIONAL)\n"
-           "include(\"${CMAKE_CURRENT_LIST_DIR}/${Name}Extra.cmake\" OPTIONAL)\n"
+        "include(\"${CMAKE_CURRENT_LIST_DIR}/${NameLower}-extra.cmake\" OPTIONAL)\n"
+        "include(\"${CMAKE_CURRENT_LIST_DIR}/${Name}Extra.cmake\" OPTIONAL)\n"
       )
       file(WRITE ${CMAKE_FIND_PACKAGE_REDIRECTS_DIR}/${NameLower}-version.cmake
-           "set(PACKAGE_VERSION_COMPATIBLE TRUE)\n" "set(PACKAGE_VERSION_EXACT TRUE)\n"
+        "set(PACKAGE_VERSION_COMPATIBLE TRUE)\n" "set(PACKAGE_VERSION_EXACT TRUE)\n"
       )
     else()
       file(WRITE ${CPM_MODULE_PATH}/Find${Name}.cmake
-           "include(\"${CPM_FILE}\")\n${ARGN}\nset(${Name}_FOUND TRUE)"
+        "include(\"${CPM_FILE}\")\n${ARGN}\nset(${Name}_FOUND TRUE)"
       )
     endif()
   endif()
@@ -304,11 +312,13 @@ function(CPMFindPackage)
   endif()
 
   set(downloadPackage ${CPM_DOWNLOAD_ALL})
+
   if(DEFINED CPM_DOWNLOAD_${CPM_ARGS_NAME})
     set(downloadPackage ${CPM_DOWNLOAD_${CPM_ARGS_NAME}})
   elseif(DEFINED ENV{CPM_DOWNLOAD_${CPM_ARGS_NAME}})
     set(downloadPackage $ENV{CPM_DOWNLOAD_${CPM_ARGS_NAME}})
   endif()
+
   if(downloadPackage)
     CPMAddPackage(${ARGN})
     cpm_export_variables(${CPM_ARGS_NAME})
@@ -321,30 +331,31 @@ function(CPMFindPackage)
     CPMAddPackage(${ARGN})
     cpm_export_variables(${CPM_ARGS_NAME})
   endif()
-
 endfunction()
 
 # checks if a package has been added before
 function(cpm_check_if_package_already_added CPM_ARGS_NAME CPM_ARGS_VERSION)
   if("${CPM_ARGS_NAME}" IN_LIST CPM_PACKAGES)
     CPMGetPackageVersion(${CPM_ARGS_NAME} CPM_PACKAGE_VERSION)
+
     if("${CPM_PACKAGE_VERSION}" VERSION_LESS "${CPM_ARGS_VERSION}")
       message(
         WARNING
-          "${CPM_INDENT} Requires a newer version of ${CPM_ARGS_NAME} (${CPM_ARGS_VERSION}) than currently included (${CPM_PACKAGE_VERSION})."
+        "${CPM_INDENT} Requires a newer version of ${CPM_ARGS_NAME} (${CPM_ARGS_VERSION}) than currently included (${CPM_PACKAGE_VERSION})."
       )
     endif()
+
     cpm_get_fetch_properties(${CPM_ARGS_NAME})
     set(${CPM_ARGS_NAME}_ADDED NO)
     set(CPM_PACKAGE_ALREADY_ADDED
-        YES
-        PARENT_SCOPE
+      YES
+      PARENT_SCOPE
     )
     cpm_export_variables(${CPM_ARGS_NAME})
   else()
     set(CPM_PACKAGE_ALREADY_ADDED
-        NO
-        PARENT_SCOPE
+      NO
+      PARENT_SCOPE
     )
   endif()
 endfunction()
@@ -368,8 +379,9 @@ function(cpm_parse_add_package_single_arg arg outArgs)
     elseif(scheme STREQUAL "bb")
       set(out "BITBUCKET_REPOSITORY;${uri}")
       set(packageType "git")
-      # A CPM-specific scheme was not found. Looks like this is a generic URL so try to determine
-      # type
+
+    # A CPM-specific scheme was not found. Looks like this is a generic URL so try to determine
+    # type
     elseif(arg MATCHES ".git/?(@|#|$)")
       set(out "GIT_REPOSITORY;${arg}")
       set(packageType "git")
@@ -403,8 +415,9 @@ function(cpm_parse_add_package_single_arg arg outArgs)
   elseif(packageType STREQUAL "archive")
     # For archives we interpret #... as a URL hash.
     string(REGEX REPLACE "#([^#]+)$" ";URL_HASH;\\1" out "${out}")
-    # We don't try to parse the version if it's not provided explicitly. cpm_get_version_from_url
-    # should do this at a later point
+
+  # We don't try to parse the version if it's not provided explicitly. cpm_get_version_from_url
+  # should do this at a later point
   else()
     # We should never get here. This is an assertion and hitting it means there's a problem with the
     # code above. A packageType was set, but not handled by this if-else.
@@ -412,21 +425,20 @@ function(cpm_parse_add_package_single_arg arg outArgs)
   endif()
 
   set(${outArgs}
-      ${out}
-      PARENT_SCOPE
+    ${out}
+    PARENT_SCOPE
   )
 endfunction()
 
 # Check that the working directory for a git repo is clean
 function(cpm_check_git_working_dir_is_clean repoPath gitTag isClean)
-
   find_package(Git REQUIRED)
 
   if(NOT GIT_EXECUTABLE)
     # No git executable, assume directory is clean
     set(${isClean}
-        TRUE
-        PARENT_SCOPE
+      TRUE
+      PARENT_SCOPE
     )
     return()
   endif()
@@ -439,20 +451,21 @@ function(cpm_check_git_working_dir_is_clean repoPath gitTag isClean)
     OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET
     WORKING_DIRECTORY ${repoPath}
   )
+
   if(resultGitStatus)
     # not supposed to happen, assume clean anyway
     message(WARNING "${CPM_INDENT} Calling git status on folder ${repoPath} failed")
     set(${isClean}
-        TRUE
-        PARENT_SCOPE
+      TRUE
+      PARENT_SCOPE
     )
     return()
   endif()
 
   if(NOT "${repoStatus}" STREQUAL "")
     set(${isClean}
-        FALSE
-        PARENT_SCOPE
+      FALSE
+      PARENT_SCOPE
     )
     return()
   endif()
@@ -467,16 +480,15 @@ function(cpm_check_git_working_dir_is_clean repoPath gitTag isClean)
 
   if(${resultGitDiff} EQUAL 0)
     set(${isClean}
-        TRUE
-        PARENT_SCOPE
+      TRUE
+      PARENT_SCOPE
     )
   else()
     set(${isClean}
-        FALSE
-        PARENT_SCOPE
+      FALSE
+      PARENT_SCOPE
     )
   endif()
-
 endfunction()
 
 # Add PATCH_COMMAND to CPM_ARGS_UNPARSED_ARGUMENTS. This method consumes a list of files in ARGN
@@ -490,20 +502,23 @@ function(cpm_add_patches)
 
   # Find the patch program.
   find_program(PATCH_EXECUTABLE patch)
+
   if(CMAKE_HOST_WIN32 AND NOT PATCH_EXECUTABLE)
     # The Windows git executable is distributed with patch.exe. Find the path to the executable, if
     # it exists, then search `../usr/bin` and `../../usr/bin` for patch.exe.
     find_package(Git QUIET)
+
     if(GIT_EXECUTABLE)
       get_filename_component(extra_search_path ${GIT_EXECUTABLE} DIRECTORY)
       get_filename_component(extra_search_path_1up ${extra_search_path} DIRECTORY)
       get_filename_component(extra_search_path_2up ${extra_search_path_1up} DIRECTORY)
       find_program(
         PATCH_EXECUTABLE patch HINTS "${extra_search_path_1up}/usr/bin"
-                                     "${extra_search_path_2up}/usr/bin"
+        "${extra_search_path_2up}/usr/bin"
       )
     endif()
   endif()
+
   if(NOT PATCH_EXECUTABLE)
     message(FATAL_ERROR "Couldn't find `patch` executable to use with PATCHES keyword.")
   endif()
@@ -513,12 +528,14 @@ function(cpm_add_patches)
 
   # Ensure each file exists (or error out) and add it to the list.
   set(first_item True)
+
   foreach(PATCH_FILE ${ARGN})
     # Make sure the patch file exists, if we can't find it, try again in the current directory.
     if(NOT EXISTS "${PATCH_FILE}")
       if(NOT EXISTS "${CMAKE_CURRENT_LIST_DIR}/${PATCH_FILE}")
         message(FATAL_ERROR "Couldn't find patch file: '${PATCH_FILE}'")
       endif()
+
       set(PATCH_FILE "${CMAKE_CURRENT_LIST_DIR}/${PATCH_FILE}")
     endif()
 
@@ -533,16 +550,16 @@ function(cpm_add_patches)
     else()
       list(APPEND temp_list "&&")
     endif()
+
     # Add the patch command to the list
     list(APPEND temp_list "${PATCH_EXECUTABLE}" "-p1" "<" "${PATCH_FILE}")
   endforeach()
 
   # Move temp out into parent scope.
   set(CPM_ARGS_UNPARSED_ARGUMENTS
-      ${temp_list}
-      PARENT_SCOPE
+    ${temp_list}
+    PARENT_SCOPE
   )
-
 endfunction()
 
 # method to overwrite internal FetchContent properties, to allow using CPM.cmake to overload
@@ -551,6 +568,7 @@ endfunction()
 # https://github.com/Kitware/CMake/blob/dc3d0b5a0a7d26d43d6cfeb511e224533b5d188f/Modules/FetchContent.cmake#L1152
 function(cpm_override_fetchcontent contentName)
   cmake_parse_arguments(PARSE_ARGV 1 arg "" "SOURCE_DIR;BINARY_DIR" "")
+
   if(NOT "${arg_UNPARSED_ARGUMENTS}" STREQUAL "")
     message(FATAL_ERROR "${CPM_INDENT} Unsupported arguments: ${arg_UNPARSED_ARGUMENTS}")
   endif()
@@ -591,6 +609,7 @@ function(CPMAddPackage)
   cpm_set_policies()
 
   list(LENGTH ARGN argnLength)
+
   if(argnLength EQUAL 1)
     cpm_parse_add_package_single_arg("${ARGN}" ARGN)
 
@@ -599,23 +618,23 @@ function(CPMAddPackage)
   endif()
 
   set(oneValueArgs
-      NAME
-      FORCE
-      VERSION
-      GIT_TAG
-      DOWNLOAD_ONLY
-      GITHUB_REPOSITORY
-      GITLAB_REPOSITORY
-      BITBUCKET_REPOSITORY
-      GIT_REPOSITORY
-      SOURCE_DIR
-      FIND_PACKAGE_ARGUMENTS
-      NO_CACHE
-      SYSTEM
-      GIT_SHALLOW
-      EXCLUDE_FROM_ALL
-      SOURCE_SUBDIR
-      CUSTOM_CACHE_KEY
+    NAME
+    FORCE
+    VERSION
+    GIT_TAG
+    DOWNLOAD_ONLY
+    GITHUB_REPOSITORY
+    GITLAB_REPOSITORY
+    BITBUCKET_REPOSITORY
+    GIT_REPOSITORY
+    SOURCE_DIR
+    FIND_PACKAGE_ARGUMENTS
+    NO_CACHE
+    SYSTEM
+    GIT_SHALLOW
+    EXCLUDE_FROM_ALL
+    SOURCE_SUBDIR
+    CUSTOM_CACHE_KEY
   )
 
   set(multiValueArgs URL OPTIONS DOWNLOAD_COMMAND PATCHES)
@@ -623,7 +642,6 @@ function(CPMAddPackage)
   cmake_parse_arguments(CPM_ARGS "" "${oneValueArgs}" "${multiValueArgs}" "${ARGN}")
 
   # Set default values for arguments
-
   if(NOT DEFINED CPM_ARGS_VERSION)
     if(DEFINED CPM_ARGS_GIT_TAG)
       cpm_get_version_from_git_tag("${CPM_ARGS_GIT_TAG}" CPM_ARGS_VERSION)
@@ -646,6 +664,7 @@ function(CPMAddPackage)
 
   if(DEFINED CPM_ARGS_GIT_REPOSITORY)
     list(APPEND CPM_ARGS_UNPARSED_ARGUMENTS GIT_REPOSITORY ${CPM_ARGS_GIT_REPOSITORY})
+
     if(NOT DEFINED CPM_ARGS_GIT_TAG)
       set(CPM_ARGS_GIT_TAG v${CPM_ARGS_VERSION})
     endif()
@@ -660,6 +679,7 @@ function(CPMAddPackage)
 
   if(DEFINED CPM_ARGS_GIT_TAG)
     list(APPEND CPM_ARGS_UNPARSED_ARGUMENTS GIT_TAG ${CPM_ARGS_GIT_TAG})
+
     # If GIT_SHALLOW is explicitly specified, honor the value.
     if(DEFINED CPM_ARGS_GIT_SHALLOW)
       list(APPEND CPM_ARGS_UNPARSED_ARGUMENTS GIT_SHALLOW ${CPM_ARGS_GIT_SHALLOW})
@@ -670,6 +690,7 @@ function(CPMAddPackage)
     # If a name or version aren't provided, try to infer them from the URL
     list(GET CPM_ARGS_URL 0 firstUrl)
     cpm_package_name_and_ver_from_url(${firstUrl} nameFromUrl verFromUrl)
+
     # If we fail to obtain name and version from the first URL, we could try other URLs if any.
     # However multiple URLs are expected to be quite rare, so for now we won't bother.
 
@@ -677,6 +698,7 @@ function(CPMAddPackage)
     if(NOT DEFINED CPM_ARGS_NAME)
       set(CPM_ARGS_NAME ${nameFromUrl})
     endif()
+
     if(NOT DEFINED CPM_ARGS_VERSION)
       set(CPM_ARGS_VERSION ${verFromUrl})
     endif()
@@ -685,16 +707,16 @@ function(CPMAddPackage)
   endif()
 
   # Check for required arguments
-
   if(NOT DEFINED CPM_ARGS_NAME)
     message(
       FATAL_ERROR
-        "${CPM_INDENT} 'NAME' was not provided and couldn't be automatically inferred for package added with arguments: '${ARGN}'"
+      "${CPM_INDENT} 'NAME' was not provided and couldn't be automatically inferred for package added with arguments: '${ARGN}'"
     )
   endif()
 
   # Check if package has been added before
   cpm_check_if_package_already_added(${CPM_ARGS_NAME} "${CPM_ARGS_VERSION}")
+
   if(CPM_PACKAGE_ALREADY_ADDED)
     cpm_export_variables(${CPM_ARGS_NAME})
     return()
@@ -725,6 +747,7 @@ function(CPMAddPackage)
     set(CPM_DECLARATION_${CPM_ARGS_NAME} "")
     CPMAddPackage(${declaration})
     cpm_export_variables(${CPM_ARGS_NAME})
+
     # checking again to ensure version and option compatibility
     cpm_check_if_package_already_added(${CPM_ARGS_NAME} "${CPM_ARGS_VERSION}")
     return()
@@ -742,7 +765,7 @@ function(CPMAddPackage)
       if(CPM_LOCAL_PACKAGES_ONLY)
         message(
           SEND_ERROR
-            "${CPM_INDENT} ${CPM_ARGS_NAME} not found via find_package(${CPM_ARGS_NAME} ${CPM_ARGS_VERSION})"
+          "${CPM_INDENT} ${CPM_ARGS_NAME} not found via find_package(${CPM_ARGS_NAME} ${CPM_ARGS_VERSION})"
         )
       endif()
     endif()
@@ -771,6 +794,7 @@ function(CPMAddPackage)
     list(APPEND CPM_ARGS_UNPARSED_ARGUMENTS DOWNLOAD_COMMAND ${CPM_ARGS_DOWNLOAD_COMMAND})
   elseif(DEFINED CPM_ARGS_SOURCE_DIR)
     list(APPEND CPM_ARGS_UNPARSED_ARGUMENTS SOURCE_DIR ${CPM_ARGS_SOURCE_DIR})
+
     if(NOT IS_ABSOLUTE ${CPM_ARGS_SOURCE_DIR})
       # Expand `CPM_ARGS_SOURCE_DIR` relative path. This is important because EXISTS doesn't work
       # for relative paths.
@@ -780,8 +804,10 @@ function(CPMAddPackage)
     else()
       set(source_directory ${CPM_ARGS_SOURCE_DIR})
     endif()
+
     if(NOT EXISTS ${source_directory})
       string(TOLOWER ${CPM_ARGS_NAME} lower_case_name)
+
       # remove timestamps so CMake will re-download the dependency
       file(REMOVE_RECURSE "${CPM_FETCHCONTENT_BASE_DIR}/${lower_case_name}-subbuild")
     endif()
@@ -789,6 +815,7 @@ function(CPMAddPackage)
     string(TOLOWER ${CPM_ARGS_NAME} lower_case_name)
     set(origin_parameters ${CPM_ARGS_UNPARSED_ARGUMENTS})
     list(SORT origin_parameters)
+
     if(CPM_ARGS_CUSTOM_CACHE_KEY)
       # Application set a custom unique directory name
       set(download_directory ${CPM_SOURCE_CACHE}/${lower_case_name}/${CPM_ARGS_CUSTOM_CACHE_KEY})
@@ -799,6 +826,7 @@ function(CPMAddPackage)
       string(SHA1 origin_hash "${origin_parameters}")
       set(download_directory ${CPM_SOURCE_CACHE}/${lower_case_name}/${origin_hash})
     endif()
+
     # Expand `download_directory` relative path. This is important because EXISTS doesn't work for
     # relative paths.
     get_filename_component(download_directory ${download_directory} ABSOLUTE)
@@ -819,9 +847,10 @@ function(CPMAddPackage)
       )
       cpm_get_fetch_properties("${CPM_ARGS_NAME}")
 
-      if(DEFINED CPM_ARGS_GIT_TAG AND NOT (PATCH_COMMAND IN_LIST CPM_ARGS_UNPARSED_ARGUMENTS))
+      if(DEFINED CPM_ARGS_GIT_TAG AND NOT(PATCH_COMMAND IN_LIST CPM_ARGS_UNPARSED_ARGUMENTS))
         # warn if cache has been changed since checkout
         cpm_check_git_working_dir_is_clean(${download_directory} ${CPM_ARGS_GIT_TAG} IS_CLEAN)
+
         if(NOT ${IS_CLEAN})
           message(
             WARNING "${CPM_INDENT} Cache for ${CPM_ARGS_NAME} (${download_directory}) is dirty"
@@ -852,6 +881,7 @@ function(CPMAddPackage)
       # it should guarantee no commit hash get mis-detected.
       if(NOT DEFINED CPM_ARGS_GIT_SHALLOW)
         cpm_is_git_tag_commit_hash("${CPM_ARGS_GIT_TAG}" IS_HASH)
+
         if(NOT ${IS_HASH})
           list(APPEND CPM_ARGS_UNPARSED_ARGUMENTS GIT_SHALLOW TRUE)
         endif()
@@ -886,16 +916,20 @@ function(CPMAddPackage)
     # add_subdirectory separately, which is no longer necessary and has been deprecated as of 3.30.
     # A Bug in CMake prevents us to use the non-deprecated functions until 3.30.3.
     set(fetchContentDeclareExtraArgs "")
+
     if(${CMAKE_VERSION} VERSION_GREATER_EQUAL "3.30.3")
       if(${CPM_ARGS_EXCLUDE_FROM_ALL})
         list(APPEND fetchContentDeclareExtraArgs EXCLUDE_FROM_ALL)
       endif()
+
       if(${CPM_ARGS_SYSTEM})
         list(APPEND fetchContentDeclareExtraArgs SYSTEM)
       endif()
+
       if(DEFINED CPM_ARGS_SOURCE_SUBDIR)
         list(APPEND fetchContentDeclareExtraArgs SOURCE_SUBDIR ${CPM_ARGS_SOURCE_SUBDIR})
       endif()
+
       # For CMake version <3.28 OPTIONS are parsed in cpm_add_subdirectory
       if(CPM_ARGS_OPTIONS AND NOT DOWNLOAD_ONLY)
         foreach(OPTION ${CPM_ARGS_OPTIONS})
@@ -904,14 +938,17 @@ function(CPMAddPackage)
         endforeach()
       endif()
     endif()
+
     cpm_declare_fetch(
       "${CPM_ARGS_NAME}" ${fetchContentDeclareExtraArgs} "${CPM_ARGS_UNPARSED_ARGUMENTS}"
     )
 
     cpm_fetch_package("${CPM_ARGS_NAME}" ${DOWNLOAD_ONLY} populated ${CPM_ARGS_UNPARSED_ARGUMENTS})
+
     if(CPM_SOURCE_CACHE AND download_directory)
       file(LOCK ${download_directory}/../cmake.lock RELEASE)
     endif()
+
     if(${populated} AND ${CMAKE_VERSION} VERSION_LESS "3.30.3")
       cpm_add_subdirectory(
         "${CPM_ARGS_NAME}"
@@ -923,6 +960,7 @@ function(CPMAddPackage)
         "${CPM_ARGS_OPTIONS}"
       )
     endif()
+
     cpm_get_fetch_properties("${CPM_ARGS_NAME}")
   endif()
 
@@ -942,20 +980,20 @@ endmacro()
 # export variables available to the caller to the parent scope expects ${CPM_ARGS_NAME} to be set
 macro(cpm_export_variables name)
   set(${name}_SOURCE_DIR
-      "${${name}_SOURCE_DIR}"
-      PARENT_SCOPE
+    "${${name}_SOURCE_DIR}"
+    PARENT_SCOPE
   )
   set(${name}_BINARY_DIR
-      "${${name}_BINARY_DIR}"
-      PARENT_SCOPE
+    "${${name}_BINARY_DIR}"
+    PARENT_SCOPE
   )
   set(${name}_ADDED
-      "${${name}_ADDED}"
-      PARENT_SCOPE
+    "${${name}_ADDED}"
+    PARENT_SCOPE
   )
   set(CPM_LAST_PACKAGE_NAME
-      "${name}"
-      PARENT_SCOPE
+    "${name}"
+    PARENT_SCOPE
   )
 endmacro()
 
@@ -978,7 +1016,7 @@ function(cpm_add_comment_to_package_lock Name)
   if(NOT CPM_DONT_CREATE_PACKAGE_LOCK)
     cpm_prettify_package_arguments(PRETTY_ARGN true ${ARGN})
     file(APPEND ${CPM_PACKAGE_LOCK_FILE}
-         "# ${Name} (unversioned)\n# CPMDeclarePackage(${Name}\n${PRETTY_ARGN}#)\n"
+      "# ${Name} (unversioned)\n# CPMDeclarePackage(${Name}\n${PRETTY_ARGN}#)\n"
     )
   endif()
 endfunction()
@@ -988,15 +1026,18 @@ endfunction()
 macro(CPMUsePackageLock file)
   if(NOT CPM_DONT_CREATE_PACKAGE_LOCK)
     get_filename_component(CPM_ABSOLUTE_PACKAGE_LOCK_PATH ${file} ABSOLUTE)
+
     if(EXISTS ${CPM_ABSOLUTE_PACKAGE_LOCK_PATH})
       include(${CPM_ABSOLUTE_PACKAGE_LOCK_PATH})
     endif()
+
     if(NOT TARGET cpm-update-package-lock)
       add_custom_target(
         cpm-update-package-lock COMMAND ${CMAKE_COMMAND} -E copy ${CPM_PACKAGE_LOCK_FILE}
-                                        ${CPM_ABSOLUTE_PACKAGE_LOCK_PATH}
+        ${CPM_ABSOLUTE_PACKAGE_LOCK_PATH}
       )
     endif()
+
     set(CPM_PACKAGE_LOCK_ENABLED true)
   endif()
 endmacro()
@@ -1005,20 +1046,20 @@ endmacro()
 function(CPMRegisterPackage PACKAGE VERSION)
   list(APPEND CPM_PACKAGES ${PACKAGE})
   set(CPM_PACKAGES
-      ${CPM_PACKAGES}
-      CACHE INTERNAL ""
+    ${CPM_PACKAGES}
+    CACHE INTERNAL ""
   )
   set("CPM_PACKAGE_${PACKAGE}_VERSION"
-      ${VERSION}
-      CACHE INTERNAL ""
+    ${VERSION}
+    CACHE INTERNAL ""
   )
 endfunction()
 
 # retrieve the current version of the package to ${OUTPUT}
 function(CPMGetPackageVersion PACKAGE OUTPUT)
   set(${OUTPUT}
-      "${CPM_PACKAGE_${PACKAGE}_VERSION}"
-      PARENT_SCOPE
+    "${CPM_PACKAGE_${PACKAGE}_VERSION}"
+    PARENT_SCOPE
   )
 endfunction()
 
@@ -1039,12 +1080,12 @@ function(cpm_get_fetch_properties PACKAGE)
   endif()
 
   set(${PACKAGE}_SOURCE_DIR
-      "${CPM_PACKAGE_${PACKAGE}_SOURCE_DIR}"
-      PARENT_SCOPE
+    "${CPM_PACKAGE_${PACKAGE}_SOURCE_DIR}"
+    PARENT_SCOPE
   )
   set(${PACKAGE}_BINARY_DIR
-      "${CPM_PACKAGE_${PACKAGE}_BINARY_DIR}"
-      PARENT_SCOPE
+    "${CPM_PACKAGE_${PACKAGE}_BINARY_DIR}"
+    PARENT_SCOPE
   )
 endfunction()
 
@@ -1054,12 +1095,12 @@ function(cpm_store_fetch_properties PACKAGE source_dir binary_dir)
   endif()
 
   set(CPM_PACKAGE_${PACKAGE}_SOURCE_DIR
-      "${source_dir}"
-      CACHE INTERNAL ""
+    "${source_dir}"
+    CACHE INTERNAL ""
   )
   set(CPM_PACKAGE_${PACKAGE}_BINARY_DIR
-      "${binary_dir}"
-      CACHE INTERNAL ""
+    "${binary_dir}"
+    CACHE INTERNAL ""
   )
 endfunction()
 
@@ -1074,22 +1115,25 @@ function(
   SYSTEM
   OPTIONS
 )
-
   if(NOT DOWNLOAD_ONLY AND EXISTS ${SOURCE_DIR}/CMakeLists.txt)
     set(addSubdirectoryExtraArgs "")
+
     if(EXCLUDE)
       list(APPEND addSubdirectoryExtraArgs EXCLUDE_FROM_ALL)
     endif()
+
     if("${SYSTEM}" AND "${CMAKE_VERSION}" VERSION_GREATER_EQUAL "3.25")
       # https://cmake.org/cmake/help/latest/prop_dir/SYSTEM.html#prop_dir:SYSTEM
       list(APPEND addSubdirectoryExtraArgs SYSTEM)
     endif()
+
     if(OPTIONS)
       foreach(OPTION ${OPTIONS})
         cpm_parse_option("${OPTION}")
         set(${OPTION_KEY} "${OPTION_VALUE}")
       endforeach()
     endif()
+
     set(CPM_OLD_INDENT "${CPM_INDENT}")
     set(CPM_INDENT "${CPM_INDENT} ${PACKAGE}:")
     add_subdirectory(${SOURCE_DIR} ${BINARY_DIR} ${addSubdirectoryExtraArgs})
@@ -1101,9 +1145,10 @@ endfunction()
 # `${PACKAGE}_SOURCE_DIR` and `${PACKAGE}_BINARY_DIR` to the parent scope
 function(cpm_fetch_package PACKAGE DOWNLOAD_ONLY populated)
   set(${populated}
-      FALSE
-      PARENT_SCOPE
+    FALSE
+    PARENT_SCOPE
   )
+
   if(${CPM_DRY_RUN})
     cpm_message(STATUS "${CPM_INDENT} Package ${PACKAGE} not fetched (dry run)")
     return()
@@ -1132,9 +1177,10 @@ function(cpm_fetch_package PACKAGE DOWNLOAD_ONLY populated)
     else()
       FetchContent_Populate(${PACKAGE})
     endif()
+
     set(${populated}
-        TRUE
-        PARENT_SCOPE
+      TRUE
+      PARENT_SCOPE
     )
   endif()
 
@@ -1143,12 +1189,12 @@ function(cpm_fetch_package PACKAGE DOWNLOAD_ONLY populated)
   )
 
   set(${PACKAGE}_SOURCE_DIR
-      ${${lower_case_name}_SOURCE_DIR}
-      PARENT_SCOPE
+    ${${lower_case_name}_SOURCE_DIR}
+    PARENT_SCOPE
   )
   set(${PACKAGE}_BINARY_DIR
-      ${${lower_case_name}_BINARY_DIR}
-      PARENT_SCOPE
+    ${${lower_case_name}_BINARY_DIR}
+    PARENT_SCOPE
   )
 endfunction()
 
@@ -1157,6 +1203,7 @@ function(cpm_parse_option OPTION)
   string(REGEX MATCH "^[^ ]+" OPTION_KEY "${OPTION}")
   string(LENGTH "${OPTION}" OPTION_LENGTH)
   string(LENGTH "${OPTION_KEY}" OPTION_KEY_LENGTH)
+
   if(OPTION_KEY_LENGTH STREQUAL OPTION_LENGTH)
     # no value for key provided, assume user wants to set option to "ON"
     set(OPTION_VALUE "ON")
@@ -1164,30 +1211,32 @@ function(cpm_parse_option OPTION)
     math(EXPR OPTION_KEY_LENGTH "${OPTION_KEY_LENGTH}+1")
     string(SUBSTRING "${OPTION}" "${OPTION_KEY_LENGTH}" "-1" OPTION_VALUE)
   endif()
+
   set(OPTION_KEY
-      "${OPTION_KEY}"
-      PARENT_SCOPE
+    "${OPTION_KEY}"
+    PARENT_SCOPE
   )
   set(OPTION_VALUE
-      "${OPTION_VALUE}"
-      PARENT_SCOPE
+    "${OPTION_VALUE}"
+    PARENT_SCOPE
   )
 endfunction()
 
 # guesses the package version from a git tag
 function(cpm_get_version_from_git_tag GIT_TAG RESULT)
   string(LENGTH ${GIT_TAG} length)
+
   if(length EQUAL 40)
     # GIT_TAG is probably a git hash
     set(${RESULT}
-        0
-        PARENT_SCOPE
+      0
+      PARENT_SCOPE
     )
   else()
     string(REGEX MATCH "v?([0123456789.]*).*" _ ${GIT_TAG})
     set(${RESULT}
-        ${CMAKE_MATCH_1}
-        PARENT_SCOPE
+      ${CMAKE_MATCH_1}
+      PARENT_SCOPE
     )
   endif()
 endfunction()
@@ -1195,22 +1244,23 @@ endfunction()
 # guesses if the git tag is a commit hash or an actual tag or a branch name.
 function(cpm_is_git_tag_commit_hash GIT_TAG RESULT)
   string(LENGTH "${GIT_TAG}" length)
+
   # full hash has 40 characters, and short hash has at least 7 characters.
   if(length LESS 7 OR length GREATER 40)
     set(${RESULT}
-        0
-        PARENT_SCOPE
+      0
+      PARENT_SCOPE
     )
   else()
     if(${GIT_TAG} MATCHES "^[a-fA-F0-9]+$")
       set(${RESULT}
-          1
-          PARENT_SCOPE
+        1
+        PARENT_SCOPE
       )
     else()
       set(${RESULT}
-          0
-          PARENT_SCOPE
+        0
+        PARENT_SCOPE
       )
     endif()
   endif()
@@ -1218,22 +1268,22 @@ endfunction()
 
 function(cpm_prettify_package_arguments OUT_VAR IS_IN_COMMENT)
   set(oneValueArgs
-      NAME
-      FORCE
-      VERSION
-      GIT_TAG
-      DOWNLOAD_ONLY
-      GITHUB_REPOSITORY
-      GITLAB_REPOSITORY
-      BITBUCKET_REPOSITORY
-      GIT_REPOSITORY
-      SOURCE_DIR
-      FIND_PACKAGE_ARGUMENTS
-      NO_CACHE
-      SYSTEM
-      GIT_SHALLOW
-      EXCLUDE_FROM_ALL
-      SOURCE_SUBDIR
+    NAME
+    FORCE
+    VERSION
+    GIT_TAG
+    DOWNLOAD_ONLY
+    GITHUB_REPOSITORY
+    GITLAB_REPOSITORY
+    BITBUCKET_REPOSITORY
+    GIT_REPOSITORY
+    SOURCE_DIR
+    FIND_PACKAGE_ARGUMENTS
+    NO_CACHE
+    SYSTEM
+    GIT_SHALLOW
+    EXCLUDE_FROM_ALL
+    SOURCE_SUBDIR
   )
   set(multiValueArgs URL OPTIONS DOWNLOAD_COMMAND)
   cmake_parse_arguments(CPM_ARGS "" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
@@ -1243,24 +1293,30 @@ function(cpm_prettify_package_arguments OUT_VAR IS_IN_COMMENT)
       if(${IS_IN_COMMENT})
         string(APPEND PRETTY_OUT_VAR "#")
       endif()
+
       if(${oneArgName} STREQUAL "SOURCE_DIR")
         string(REPLACE ${CMAKE_SOURCE_DIR} "\${CMAKE_SOURCE_DIR}" CPM_ARGS_${oneArgName}
-                       ${CPM_ARGS_${oneArgName}}
+          ${CPM_ARGS_${oneArgName}}
         )
       endif()
+
       string(APPEND PRETTY_OUT_VAR "  ${oneArgName} ${CPM_ARGS_${oneArgName}}\n")
     endif()
   endforeach()
+
   foreach(multiArgName ${multiValueArgs})
     if(DEFINED CPM_ARGS_${multiArgName})
       if(${IS_IN_COMMENT})
         string(APPEND PRETTY_OUT_VAR "#")
       endif()
+
       string(APPEND PRETTY_OUT_VAR "  ${multiArgName}\n")
+
       foreach(singleOption ${CPM_ARGS_${multiArgName}})
         if(${IS_IN_COMMENT})
           string(APPEND PRETTY_OUT_VAR "#")
         endif()
+
         string(APPEND PRETTY_OUT_VAR "    \"${singleOption}\"\n")
       endforeach()
     endif()
@@ -1270,16 +1326,18 @@ function(cpm_prettify_package_arguments OUT_VAR IS_IN_COMMENT)
     if(${IS_IN_COMMENT})
       string(APPEND PRETTY_OUT_VAR "#")
     endif()
+
     string(APPEND PRETTY_OUT_VAR " ")
+
     foreach(CPM_ARGS_UNPARSED_ARGUMENT ${CPM_ARGS_UNPARSED_ARGUMENTS})
       string(APPEND PRETTY_OUT_VAR " ${CPM_ARGS_UNPARSED_ARGUMENT}")
     endforeach()
+
     string(APPEND PRETTY_OUT_VAR "\n")
   endif()
 
   set(${OUT_VAR}
-      ${PRETTY_OUT_VAR}
-      PARENT_SCOPE
+    ${PRETTY_OUT_VAR}
+    PARENT_SCOPE
   )
-
 endfunction()
