@@ -56,13 +56,13 @@ else()
     CPMAddPackage(
         NAME TooManyCooks
         GIT_REPOSITORY https://github.com/tzcnt/TooManyCooks.git
-        GIT_TAG 9959ec6f33ab2a07c2840199d8ddf49fa5e31434
+        GIT_TAG 60c56c629c4534b59367dfbabcb82fa3592a1609
         DOWNLOAD_ONLY)
 
     CPMAddPackage(
         NAME tmc_asio
         GIT_REPOSITORY https://github.com/tzcnt/tmc-asio.git
-        GIT_TAG 387fe20a7a11df472b69898202f98f046db6d9cc
+        GIT_TAG 18f5813bd2efafbad52f8ae8aa2a8803f9ce8619
         DOWNLOAD_ONLY)
 
     include_directories(
