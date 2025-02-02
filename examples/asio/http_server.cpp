@@ -1,5 +1,8 @@
 // A simple "Hello, World!" HTTP response server
 // Listens on http://localhost:55550/
+#ifdef _WIN32
+#include <SDKDDKVer.h>
+#endif
 
 #define TMC_IMPL
 
