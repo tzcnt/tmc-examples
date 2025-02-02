@@ -1,6 +1,10 @@
 // Asio and braid executors don't use priority internally, but when using the
 // enter() / exit() functions, the priority should be restored on the original
 // executor.
+#ifdef _WIN32
+#include <SDKDDKVer.h>
+#endif
+
 #define TMC_IMPL
 
 #include "tmc/asio/ex_asio.hpp"

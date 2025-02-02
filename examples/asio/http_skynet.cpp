@@ -2,6 +2,9 @@
 // Connections to http://localhost:55551/ will be served at lower priority
 // Connections on http://localhost:55550/ will be served at higher priority
 // Try load testing both sockets at the same time and observe
+#ifdef _WIN32
+#include <SDKDDKVer.h>
+#endif
 
 #define TMC_IMPL
 

@@ -13,7 +13,6 @@ set(CMAKE_CXX_STANDARD 20)
 add_definitions(
 
     # Performance tuning options
-    "-march=native"
     "-DTMC_WORK_ITEM=CORO" # one of: CORO, FUNC, FUNCORO, FUNCORO32
     "-DTMC_CUSTOM_CORO_ALLOC"
 
@@ -55,13 +54,13 @@ else()
     CPMAddPackage(
         NAME TooManyCooks
         GIT_REPOSITORY https://github.com/tzcnt/TooManyCooks.git
-        GIT_TAG 658aaf223c29817c28f7476bc8106769b0b89edc
+        GIT_TAG d67369186c566ac8bd4d0316dd19ef8d9c44fd7c
         DOWNLOAD_ONLY)
 
     CPMAddPackage(
         NAME tmc_asio
         GIT_REPOSITORY https://github.com/tzcnt/tmc-asio.git
-        GIT_TAG 94ced942e39c9fae1dc0bb2e122c5744c29b7408
+        GIT_TAG 18f5813bd2efafbad52f8ae8aa2a8803f9ce8619
         DOWNLOAD_ONLY)
 
     set(TMC_INCLUDE_PATH ${TooManyCooks_SOURCE_DIR}/include CACHE STRING "" FORCE)
@@ -93,7 +92,7 @@ if(TMC_USE_HWLOC)
     find_package(libhwloc)
 
     if(NOT LIBHWLOC_FOUND)
-        message(FATAL_ERROR "TMC_USE_HWLOC: ERROR package libhwloc not found")
+        message(STATUS "TMC_USE_HWLOC: WARN package libhwloc not found")
     else()
         message(STATUS "TMC_USE_HWLOC: using ${LIBHWLOC_LIBRARY}")
         add_compile_definitions(TMC_USE_HWLOC)
@@ -107,15 +106,15 @@ option(USE_IO_URING "io_uring (requires Linux and liburing)" ON)
 if(USE_IO_URING)
     if(NOT CMAKE_SYSTEM_NAME MATCHES Linux)
         set(USE_IO_URING OFF CACHE BOOL "feature disabled (requires Linux)" FORCE)
-        message(STATUS "TMC_USE_IO_URING: WARN feature disabled (requires Linux)")
+        message(STATUS "USE_IO_URING: WARN feature disabled (requires Linux)")
     else()
-        message(STATUS "TMC_USE_IO_URING: running find_package(liburing)...")
+        message(STATUS "USE_IO_URING: running find_package(liburing)...")
         find_package(liburing)
 
         if(NOT LIBURING_FOUND)
-            message(FATAL_ERROR "TMC_USE_IO_URING: ERROR package liburing not found")
+            message(FATAL_ERROR "USE_IO_URING: ERROR package liburing not found")
         else()
-            message(STATUS "TMC_USE_IO_URING: using ${LIBURING_LIBRARY}")
+            message(STATUS "USE_IO_URING: using ${LIBURING_LIBRARY}")
             add_compile_definitions(ASIO_HAS_IO_URING ASIO_DISABLE_EPOLL)
         endif()
     endif()
