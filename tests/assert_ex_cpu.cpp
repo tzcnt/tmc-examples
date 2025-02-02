@@ -11,7 +11,7 @@ TEST(CATEGORY, too_many_threads) {
       tmc::ex_cpu ex;
       ex.set_thread_count(1).set_thread_count(65).init();
     },
-    "thread_count"
+    "ThreadCount"
   );
 }
 

@@ -91,7 +91,7 @@ TEST_F(CATEGORY, run_early) {
              ) -> tmc::task<void> {
         size_t idx = base;
         inc(results, idx);
-        co_await tmc::spawn(inc_task(results, base));
+        co_await tmc::spawn(inc_task(results, idx));
         EXPECT_EQ(idx, base + 2);
 
         idx = co_await tmc::spawn_func([&results, idx]() mutable {
