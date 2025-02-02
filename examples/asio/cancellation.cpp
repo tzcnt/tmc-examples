@@ -27,6 +27,7 @@
 
 #include <asio/steady_timer.hpp>
 #include <chrono>
+#include <cinttypes>
 #include <cstdio>
 
 void log_event_timestamp(
