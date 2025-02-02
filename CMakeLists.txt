@@ -112,7 +112,7 @@ if(USE_IO_URING)
         find_package(liburing)
 
         if(NOT LIBURING_FOUND)
-            message(FATAL_ERROR "USE_IO_URING: ERROR package liburing not found")
+            message(STATUS "USE_IO_URING: WARN package liburing not found")
         else()
             message(STATUS "USE_IO_URING: using ${LIBURING_LIBRARY}")
             add_compile_definitions(ASIO_HAS_IO_URING ASIO_DISABLE_EPOLL)

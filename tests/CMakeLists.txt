@@ -44,10 +44,18 @@ make_exe(
 
 target_link_libraries(
   tests
-  hwloc
-  uring
   GTest::gtest_main
 )
+
+if(TMC_USE_HWLOC AND LIBHWLOC_FOUND)
+target_link_libraries(${LIBHWLOC_LIBRARY})
+endif()
+
+if(USE_IO_URING AND LIBURING_FOUND)
+add_compile_definitions(ASIO_HAS_IO_URING ASIO_DISABLE_EPOLL)
+target_link_libraries(${LIBURING_LIBRARY})
+endif()
+
 include(GoogleTest)
 
 gtest_discover_tests(tests)
