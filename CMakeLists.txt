@@ -13,7 +13,6 @@ set(CMAKE_CXX_STANDARD 20)
 add_definitions(
 
     # Performance tuning options
-    "-march=native"
     "-DTMC_WORK_ITEM=CORO" # one of: CORO, FUNC, FUNCORO, FUNCORO32
     "-DTMC_CUSTOM_CORO_ALLOC"
 
@@ -85,7 +84,7 @@ include_directories(SYSTEM
 )
 
 # TMC HWLOC support
-option(TMC_USE_HWLOC "libhwloc" ON)
+option(TMC_USE_HWLOC "libhwloc" OFF)
 
 if(TMC_USE_HWLOC)
     message(STATUS "TMC_USE_HWLOC: running find_package(libhwloc)...")
