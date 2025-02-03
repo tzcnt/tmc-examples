@@ -1,4 +1,4 @@
-name: ci-test-workflow
+name: clang-linux-debug
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
     branches: [ main ]
 
 env:
-  PRESET: gcc-linux-debug
+  PRESET: clang-linux-debug
 
 jobs:
   build:

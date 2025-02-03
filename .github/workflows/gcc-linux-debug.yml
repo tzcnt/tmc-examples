@@ -1,0 +1,22 @@
+name: gcc-linux-debug
+
+on:
+  push:
+    branches: [ main, tests ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  PRESET: gcc-linux-debug
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v1
+    - name: configure
+      run: cmake -G "Unix Makefiles" --preset $PRESET .
+    - name: build
+      run: cmake --build ./build/$PRESET --parallel $(nproc) --target tests
+    - name: run tests
+      run: ./build/$PRESET/tests/tests
