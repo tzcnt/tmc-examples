@@ -235,31 +235,34 @@ make_exe(spawn_iterator
 make_exe(asio_prio
     examples/asio/prio.cpp
 )
-target_link_libraries(asio_prio ${LIBURING_LIBRARY})
 
 make_exe(asio_cancellation
     examples/asio/cancellation.cpp
 )
-target_link_libraries(asio_cancellation ${LIBURING_LIBRARY})
 
 make_exe(asio_delay
     examples/asio/delay.cpp
 )
-target_link_libraries(asio_delay ${LIBURING_LIBRARY})
 
 make_exe(asio_timer_mem_bench
     examples/asio/timer_mem_bench.cpp
 )
-target_link_libraries(asio_timer_mem_bench ${LIBURING_LIBRARY})
 
 make_exe(asio_http_server
     examples/asio/http_server.cpp
 )
-target_link_libraries(asio_http_server ${LIBURING_LIBRARY})
 
 make_exe(asio_http_skynet
     examples/asio/http_skynet.cpp
 )
-target_link_libraries(asio_http_skynet ${LIBURING_LIBRARY})
+
+if(USE_IO_URING AND LIBURING_FOUND)
+    target_link_libraries(asio_prio ${LIBURING_LIBRARY})
+    target_link_libraries(asio_cancellation ${LIBURING_LIBRARY})
+    target_link_libraries(asio_delay ${LIBURING_LIBRARY})
+    target_link_libraries(asio_timer_mem_bench ${LIBURING_LIBRARY})
+    target_link_libraries(asio_http_server ${LIBURING_LIBRARY})
+    target_link_libraries(asio_http_skynet ${LIBURING_LIBRARY})
+endif()
 
 add_subdirectory(tests)
