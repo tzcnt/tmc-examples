@@ -16,8 +16,8 @@ jobs:
     - uses: actions/checkout@v4
     - uses: ilammy/msvc-dev-cmd@v1
     - name: configure
-      run: cmake -G "Ninja" --preset $PRESET .
+      run: cmake -G "Ninja" --preset %PRESET% .
     - name: build
-      run: cmake --build ./build/$PRESET --parallel $(nproc) --target tests
+      run: cmake --build ./build/%PRESET% --parallel $(nproc) --target tests
     - name: run tests
-      run: ./build/$PRESET/tests/tests.exe
+      run: ./build/%PRESET%/tests/tests.exe
