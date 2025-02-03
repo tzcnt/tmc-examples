@@ -1,3 +1,5 @@
+![Linux gcc](https://github.com/tzcnt/tmc-examples/actions/workflows/gcc-linux-debug.yml/badge.svg) ![Linux clang](https://github.com/tzcnt/tmc-examples/actions/workflows/clang-linux-debug.yml/badge.svg) ![Windows clang-cl](https://github.com/tzcnt/tmc-examples/actions/workflows/clang-win-debug.yml/badge.svg)
+
 ## tmc-examples
 This repository contains examples of how to use the TooManyCooks asynchronous runtime. The main TMC project repository can be found at:
 https://github.com/tzcnt/TooManyCooks/
