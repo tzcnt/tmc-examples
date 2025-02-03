@@ -1,0 +1,20 @@
+name: ci-test-workflow
+
+on:
+  push:
+    branches: [ tests ]
+  pull_request:
+    branches: [ tests ]
+
+env:
+  PRESET: gcc-linux-debug
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v1
+    - name: configure
+      run: cmake --preset $PRESET . && cmake --parallel $(nproc) --build . --target tests
+    - name: run tests
+      run: ./build/$PRESET/tests
