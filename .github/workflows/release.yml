@@ -2,9 +2,9 @@ name: ci-test-workflow
 
 on:
   push:
-    branches: [ tests ]
+    branches: [ main, tests ]
   pull_request:
-    branches: [ tests ]
+    branches: [ main ]
 
 env:
   PRESET: gcc-linux-debug
