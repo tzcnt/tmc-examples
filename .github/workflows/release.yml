@@ -15,6 +15,6 @@ jobs:
     steps:
     - uses: actions/checkout@v1
     - name: configure
-      run: cmake -G make --preset $PRESET . && cmake --parallel $(nproc) --build . --target tests
+      run: cmake -G "Unix Makefiles" --preset $PRESET . && cmake --parallel $(nproc) --build . --target tests
     - name: run tests
       run: ./build/$PRESET/tests
