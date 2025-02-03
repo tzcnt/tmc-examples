@@ -1,4 +1,4 @@
-name: clang-win-debug
+name: x64-windows-clang-cl
 
 on:
   push:

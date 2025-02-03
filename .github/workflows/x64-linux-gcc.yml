@@ -1,4 +1,4 @@
-name: gcc-linux-debug
+name: x64-linux-gcc
 
 on:
   push:

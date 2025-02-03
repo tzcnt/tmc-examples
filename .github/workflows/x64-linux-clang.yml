@@ -1,4 +1,4 @@
-name: clang-linux-debug
+name: x64-linux-clang
 
 on:
   push:
