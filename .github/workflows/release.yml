@@ -17,6 +17,6 @@ jobs:
     - name: configure
       run: cmake -G "Unix Makefiles" --preset $PRESET .
     - name: build
-      run: cmake --build . --target tests
+      run: cmake --build ./build/$PRESET --target tests
     - name: run tests
       run: ./build/$PRESET/tests
