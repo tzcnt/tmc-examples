@@ -1,0 +1,23 @@
+name: clang-win-debug
+
+on:
+  push:
+    branches: [ main, tests ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  PRESET: clang-win-debug
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v1
+    - uses: TheMrMilchmann/setup-msvc-dev@v3
+    - name: configure
+      run: cmake -G "Ninja" --preset $PRESET .
+    - name: build
+      run: cmake --build ./build/$PRESET --parallel $(nproc) --target tests
+    - name: run tests
+      run: ./build/$PRESET/tests/tests.exe
