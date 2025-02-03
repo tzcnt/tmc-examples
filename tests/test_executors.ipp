@@ -78,12 +78,99 @@ TEST_F(CATEGORY, async_main) {
   EXPECT_EQ(x, 1);
 }
 
+TEST_F(CATEGORY, spawn_func) {
+  const size_t NTASKS = 10;
+  const size_t NCHECKS = 8;
+  std::array<size_t, NTASKS * NCHECKS> results;
+  auto tasks =
+    std::ranges::views::iota(
+      static_cast<size_t>(0), static_cast<size_t>(NTASKS)
+    ) |
+    std::ranges::views::transform([&results](size_t slot) -> tmc::task<void> {
+      return [](
+               std::array<size_t, NTASKS * NCHECKS>& results, size_t base
+             ) -> tmc::task<void> {
+        // These inc() calls are not thread-safe but are synchronized because we
+        // co_await throughout
+        size_t idx = base;
+        inc(results, idx);
+        co_await tmc::spawn_func([&results, &idx]() { inc(results, idx); });
+        EXPECT_EQ(idx, base + 2);
+
+        idx = co_await tmc::spawn_func([&results, idx]() mutable {
+          inc(results, idx);
+          return idx;
+        });
+        EXPECT_EQ(idx, base + 3);
+        co_await tmc::spawn(
+          [](
+            std::array<size_t, NTASKS * NCHECKS>& results, size_t& idx
+          ) -> tmc::task<void> {
+            inc(results, idx);
+            co_await tmc::yield();
+            inc(results, idx);
+          }(results, idx)
+        );
+        EXPECT_EQ(idx, base + 5);
+        // in this case, the spawned function returns a task,
+        // and a 2nd co_await is required
+        co_await co_await tmc::spawn_func(
+          [&idx, &results]() -> tmc::task<void> {
+            return [](
+                     std::array<size_t, NTASKS * NCHECKS>& results, size_t& idx
+                   ) -> tmc::task<void> {
+              inc(results, idx);
+              co_await tmc::yield();
+              inc(results, idx);
+              co_return;
+            }(results, idx);
+          }
+        );
+        EXPECT_EQ(idx, base + 7);
+
+        auto t = tmc::spawn_func([&results, &idx]() { inc(results, idx); });
+        co_await std::move(t).run_on(ex()).resume_on(ex()).with_priority(0);
+        co_return;
+      }(results, slot * NCHECKS);
+    });
+  auto future = post_bulk_waitable(ex(), tasks.begin(), NTASKS, 0);
+  future.get();
+  for (size_t i = 0; i < results.size(); ++i) {
+    EXPECT_EQ(results[i], i);
+  }
+}
+
 TEST_F(CATEGORY, spawn_coro) {
-  test_async_main(ex(), []() -> tmc::task<void> {
-    int x = 5;
-    auto task = tmc::spawn(int_task()).run_early();
-    co_await tmc::spawn(empty_task());
-    x = co_await std::move(task);
-    EXPECT_EQ(x, 1);
-  }());
+  const size_t NTASKS = 10;
+  const size_t NCHECKS = 5;
+  std::array<size_t, NTASKS * NCHECKS> results;
+  auto tasks =
+    std::ranges::views::iota(
+      static_cast<size_t>(0), static_cast<size_t>(NTASKS)
+    ) |
+    std::ranges::views::transform([&results](size_t slot) -> tmc::task<void> {
+      return [](
+               std::array<size_t, NTASKS * NCHECKS>& results, size_t base
+             ) -> tmc::task<void> {
+        size_t idx = base;
+        inc(results, idx);
+        co_await tmc::spawn(inc_task(results, idx));
+        EXPECT_EQ(idx, base + 2);
+
+        auto early = tmc::spawn(inc_task_int(results, idx)).run_early();
+        idx = co_await tmc::spawn(inc_task_int(results, idx + 1));
+        auto r = co_await std::move(early);
+        EXPECT_EQ(r, base + 3);
+        EXPECT_EQ(idx, base + 4);
+
+        auto t = tmc::spawn(inc_task(results, idx));
+        co_await std::move(t).run_on(ex()).resume_on(ex()).with_priority(0);
+        co_return;
+      }(results, slot * NCHECKS);
+    });
+  auto future = post_bulk_waitable(ex(), tasks.begin(), NTASKS, 0);
+  future.get();
+  for (size_t i = 0; i < results.size(); ++i) {
+    EXPECT_EQ(results[i], i);
+  }
 }
