@@ -17,6 +17,6 @@ jobs:
     - name: configure
       run: cmake -G "Unix Makefiles" --preset ${{env.PRESET}} .
     - name: build
-      run: cmake --build ./build/${{env.PRESET}} --parallel $(nproc) --target tests
+      run: cmake --build ./build/${{env.PRESET}} --parallel $(nproc) --target all
     - name: run tests
       run: ./build/${{env.PRESET}}/tests/tests
