@@ -2,7 +2,7 @@ name: x64-windows-clang-cl
 
 on:
   push:
-    branches: [ main, tests ]
+    branches: [ main ]
   pull_request:
     branches: [ main ]
 

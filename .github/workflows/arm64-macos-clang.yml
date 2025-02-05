@@ -2,7 +2,7 @@ name: arm64-macos-clang
 
 on:
   push:
-    branches: [ main, tests ]
+    branches: [ main ]
   pull_request:
     branches: [ main ]
 
