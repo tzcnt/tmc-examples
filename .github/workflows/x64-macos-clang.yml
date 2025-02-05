@@ -1,0 +1,22 @@
+name: x64-macos-clang
+
+on:
+  push:
+    branches: [ main, tests ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  PRESET: clang-macos-debug
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: configure
+      run: cmake -G "Ninja" --preset ${{env.PRESET}} .
+    - name: build
+      run: cmake --build ./build/${{env.PRESET}} --target tests
+    - name: run tests
+      run: ./build/${{env.PRESET}}/tests/tests
