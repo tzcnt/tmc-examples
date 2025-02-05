@@ -17,13 +17,16 @@
 #include "skynet_loop.hpp"
 
 #include "tmc/ex_cpu.hpp"
-#include "tmc/sync.hpp"
 
 #include <cstdio>
 
 #define DEPTH 6
 
 int main() {
+#ifdef TMC_USE_HWLOC
+  // Opt-in to hyperthreading
+  tmc::cpu_executor().set_thread_occupancy(2.0f);
+#endif
   tmc::cpu_executor().init();
   return tmc::async_main([]() -> tmc::task<int> {
     co_await loop_skynet<DEPTH>();
