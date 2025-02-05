@@ -180,7 +180,7 @@ void prio_reversal_test() {
     for (uint64_t prio = npriorities - 1; prio != -1ULL; --prio) {
       results[slot] = post_waitable(
         executor,
-        [](size_t* DataSlot, [[maybe_unused]] size_t Priority) -> task<void> {
+        [](uint64_t* DataSlot, [[maybe_unused]] size_t Priority) -> task<void> {
           int a = 0;
           int b = 1;
           for (int i = 0; i < 1000; ++i) {
