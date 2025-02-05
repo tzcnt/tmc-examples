@@ -337,7 +337,7 @@
         "CMAKE_BUILD_TYPE": "Debug",
         "CMAKE_C_COMPILER": "clang",
         "CMAKE_CXX_COMPILER": "clang++",
-        "CMAKE_CXX_FLAGS": "-march=native",
+        "CMAKE_CXX_FLAGS": "-march=native -fexperimental-library",
         "CMAKE_C_FLAGS": "-march=native",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
       },
