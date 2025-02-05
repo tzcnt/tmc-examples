@@ -1,4 +1,4 @@
-![x64-linux-gcc](https://github.com/tzcnt/tmc-examples/actions/workflows/x64-linux-gcc.yml/badge.svg) ![x64-linux-clang](https://github.com/tzcnt/tmc-examples/actions/workflows/x64-linux-clang.yml/badge.svg) ![x64-windows-clang-cl](https://github.com/tzcnt/tmc-examples/actions/workflows/x64-windows-clang-cl.yml/badge.svg)
+![x64-linux-gcc](https://github.com/tzcnt/tmc-examples/actions/workflows/x64-linux-gcc.yml/badge.svg) ![x64-linux-clang](https://github.com/tzcnt/tmc-examples/actions/workflows/x64-linux-clang.yml/badge.svg) ![x64-windows-clang-cl](https://github.com/tzcnt/tmc-examples/actions/workflows/x64-windows-clang-cl.yml/badge.svg) ![arm64-macos-clang](https://github.com/tzcnt/tmc-examples/actions/workflows/x64-windows-clang-cl.yml/badge.svg)
 
 ## tmc-examples
 This repository contains examples of how to use the TooManyCooks asynchronous runtime. The main TMC project repository can be found at:
