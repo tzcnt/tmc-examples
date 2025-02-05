@@ -15,10 +15,6 @@ protected:
   static tmc::ex_cpu& ex() { return tmc::cpu_executor(); }
 };
 
-// TEST_F(CATEGORY, init) {
-//   EXPECT_EQ(ex().thread_count(), std::thread::hardware_concurrency());
-// }
-
 #include "test_executors.ipp"
 
 #undef CATEGORY

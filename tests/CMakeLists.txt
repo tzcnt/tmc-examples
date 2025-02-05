@@ -39,6 +39,7 @@ make_exe(
   test_ex_cpu.cpp
   assert_ex_cpu.cpp
   test_ex_asio.cpp
+  test_ex_braid.cpp
   prio.cpp
 )
 
