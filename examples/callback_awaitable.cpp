@@ -3,8 +3,9 @@
 
 #define TMC_IMPL
 
+#include "tmc/all_headers.hpp"
+
 #include "callback_awaitable.hpp"
-#include "tmc/ex_cpu.hpp"
 
 // Examples of callback-based async functions that might be provided by an
 // external library.
@@ -47,21 +48,35 @@ void simulated_async_fn_move_only(
   callback(user_data, move_only_type{input + 1});
 }
 
-// Demonstrate usages of these functions with the callback_awaitable wrapper.
+// Demonstrate usages of these functions with the await_callback wrapper.
 int main() {
   tmc::async_main([]() -> tmc::task<int> {
     co_await await_callback(simulated_async_fn_void);
-
-    auto [result1, result2] = co_await await_callback(simulated_async_fn, 1);
-    assert(result1 == 2.0f);
-    assert(result2 == 3.0f);
-
-    auto [result] = co_await await_callback(simulated_async_fn2, 4.0f, 6.0f);
-    assert(result == 10);
-
-    auto aw = await_callback(simulated_async_fn_move_only, 1);
-    auto [move_only_result] = co_await aw;
-    assert(move_only_result.value == 2);
+    {
+      auto [result1, result2] = co_await await_callback(simulated_async_fn, 1);
+      assert(result1 == 2.0f);
+      assert(result2 == 3.0f);
+    }
+    {
+      auto [result] = co_await await_callback(simulated_async_fn2, 4.0f, 6.0f);
+      assert(result == 10);
+    }
+    {
+      auto [move_only_result] =
+        co_await await_callback(simulated_async_fn_move_only, 1);
+      assert(move_only_result.value == 2);
+    }
+    {
+      auto [results1, results2] = co_await tmc::spawn_tuple(
+        await_callback(simulated_async_fn, 1),
+        await_callback(simulated_async_fn_move_only, 1)
+      );
+      auto& [x, y] = results1;
+      auto& [z] = *results2;
+      assert(x == 2.0f);
+      assert(y == 3.0f);
+      assert(z.value == 2);
+    }
 
     co_return 0;
   }());
