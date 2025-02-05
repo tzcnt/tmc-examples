@@ -174,3 +174,70 @@ TEST_F(CATEGORY, spawn_coro) {
     EXPECT_EQ(results[i], i);
   }
 }
+
+TEST_F(CATEGORY, spawn_value) {
+  auto future = post_waitable(
+    ex(),
+    []() -> tmc::task<void> {
+      int value = co_await spawn([]() -> tmc::task<int> { co_return 1; }());
+
+      auto t = [](int Value) -> tmc::task<int> {
+        co_await tmc::yield();
+        co_return Value + 1;
+      }(value);
+      auto s = spawn(std::move(t));
+      value = co_await std::move(s);
+      EXPECT_EQ(value, 2);
+
+      // in this case, the spawned function returns immediately,
+      // and a 2nd co_await is required
+      value = co_await co_await tmc::spawn_func([value]() -> tmc::task<int> {
+        return [](int Value) -> tmc::task<int> { co_return Value + 1; }(value);
+      });
+      EXPECT_EQ(value, 3);
+
+      // You can capture an rvalue reference, but not an lvalue reference,
+      // to the result of co_await spawn(). The result will be a temporary
+      // kept alive by lifetime extension.
+      auto spt = spawn([](int InnerSlot) -> tmc::task<int> {
+        co_return InnerSlot + 1;
+      }(value));
+      auto&& sptr = co_await std::move(spt);
+      value = sptr;
+      EXPECT_EQ(value, 4);
+      co_return;
+    }(),
+    0
+  );
+  future.wait();
+}
+
+TEST_F(CATEGORY, spawn_many) {
+  auto future = post_waitable(
+    ex(),
+    []() -> tmc::task<void> {
+      int value = 0;
+      auto t = [](int Value) -> tmc::task<int> {
+        co_await tmc::yield();
+        co_return Value + 1;
+      }(value);
+      std::array<int, 1> result = co_await spawn_many<1>(&t);
+      value = result[0];
+
+      auto t2 = [](int& Value) -> tmc::task<void> {
+        ++Value;
+        co_return;
+      }(value);
+      co_await spawn_many<1>(&t2);
+      EXPECT_EQ(value, 2);
+
+      auto t3 = [](int Value) -> tmc::task<int> { co_return Value + 1; }(value);
+      auto ts = spawn_many<1>(&t3).run_early();
+      auto results = co_await std::move(ts);
+      EXPECT_EQ(results[0], 3);
+      co_return;
+    }(),
+    0
+  );
+  future.wait();
+}
