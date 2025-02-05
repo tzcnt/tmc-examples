@@ -1,8 +1,6 @@
 #include "test_common.hpp"
 
 #include <gtest/gtest.h>
-#include <ranges>
-#include <thread>
 
 #define CATEGORY test_ex_cpu
 

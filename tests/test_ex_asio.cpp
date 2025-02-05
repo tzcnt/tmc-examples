@@ -2,7 +2,6 @@
 #include "tmc/asio/ex_asio.hpp"
 
 #include <gtest/gtest.h>
-#include <ranges>
 
 #define CATEGORY test_ex_asio
 
