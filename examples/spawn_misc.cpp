@@ -4,9 +4,6 @@
 
 #include "tmc/aw_yield.hpp"
 #include "tmc/ex_cpu.hpp"
-#include "tmc/spawn_func.hpp"
-#include "tmc/spawn_many.hpp"
-#include "tmc/spawn_task.hpp"
 #include "tmc/sync.hpp"
 
 #include <chrono>
