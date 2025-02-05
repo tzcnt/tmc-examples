@@ -199,6 +199,10 @@ make_exe(equilibrium
     examples/equilibrium.cpp
 )
 
+make_exe(callback_awaitable
+    examples/callback_awaitable.cpp
+)
+
 make_exe(external_coro
     examples/external_coro.cpp
 )
