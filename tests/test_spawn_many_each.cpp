@@ -42,10 +42,15 @@ template <int N> tmc::task<void> static_sized_iterator() {
   // We know that the iterator produces exactly N tasks.
   // Provide the template parameter N to spawn_many, so that tasks and results
   // can be statically allocated in std::array.
-  std::array<int, N> results = co_await tmc::spawn_many<N>(iter.begin());
+  std::array<int, N> results;
+  auto ts = tmc::spawn_many<N>(iter.begin()).each();
+  for (auto idx = co_await ts; idx != ts.end(); idx = co_await ts) {
+    results[idx] = ts[idx];
+  }
 
-  // This will produce equivalent behavior, but is not as explicit in the intent
-  // auto results = co_await tmc::spawn_many<N>(iter.begin(), iter.end());
+  // This will produce equivalent behavior, but is not as explicit in the
+  // intent auto results = co_await tmc::spawn_many<N>(iter.begin(),
+  // iter.end());
 
   [[maybe_unused]] auto sum =
     std::accumulate(results.begin(), results.end(), 0);
@@ -68,9 +73,11 @@ template <int N> tmc::task<void> static_bounded_iterator() {
                   ++taskCount;
                   return t;
                 });
-
-    std::array<int, N> results =
-      co_await tmc::spawn_many<N>(iter.begin(), iter.end());
+    std::array<int, N> results;
+    auto ts = tmc::spawn_many<N>(iter.begin(), iter.end()).each();
+    for (auto idx = co_await ts; idx != ts.end(); idx = co_await ts) {
+      results[idx] = ts[idx];
+    }
 
     // At this point, taskCount == 4 and N == 5.
     // The last element of results will be left default-initialized.
@@ -92,8 +99,11 @@ template <int N> tmc::task<void> static_bounded_iterator() {
                   return t;
                 });
 
-    std::array<int, N> results =
-      co_await tmc::spawn_many<N>(iter.begin(), iter.end());
+    std::array<int, N> results;
+    auto ts = tmc::spawn_many<N>(iter.begin(), iter.end()).each();
+    for (auto idx = co_await ts; idx != ts.end(); idx = co_await ts) {
+      results[idx] = ts[idx];
+    }
 
     // At this point, taskCount == 5 and N == 5.
     // We stopped consuming elements from the iterator after N tasks.
@@ -111,7 +121,11 @@ template <int N> tmc::task<void> dynamic_known_sized_iterator() {
   // The template parameter N to spawn_many is not provided.
   // This overload will produce a right-sized output vector
   // (internally calculated from tasks.end() - tasks.begin())
-  std::vector<int> results = co_await tmc::spawn_many(iter.begin(), iter.end());
+  std::vector<int> results;
+  auto ts = tmc::spawn_many(iter.begin(), iter.end()).each();
+  for (auto idx = co_await ts; idx != ts.end(); idx = co_await ts) {
+    results.push_back(ts[idx]);
+  }
 
   [[maybe_unused]] auto taskCount =
     static_cast<size_t>(iter.end() - iter.begin());
@@ -139,7 +153,11 @@ template <int N> tmc::task<void> dynamic_unknown_sized_iterator() {
   // TooManyCooks will first internally construct a task vector (by appending /
   // reallocating as needed), and after the number of tasks has been determined,
   // a right-sized result vector will be constructed.
-  std::vector<int> results = co_await tmc::spawn_many(iter.begin(), iter.end());
+  std::vector<int> results;
+  auto ts = tmc::spawn_many(iter.begin(), iter.end()).each();
+  for (auto idx = co_await ts; idx != ts.end(); idx = co_await ts) {
+    results.push_back(ts[idx]);
+  }
 
   [[maybe_unused]] auto sum =
     std::accumulate(results.begin(), results.end(), 0);
@@ -165,9 +183,11 @@ template <int N> tmc::task<void> dynamic_bounded_iterator() {
                   ++taskCount;
                   return t;
                 });
-
-    std::vector<int> results =
-      co_await tmc::spawn_many(iter.begin(), iter.end(), MaxTasks);
+    std::vector<int> results;
+    auto ts = tmc::spawn_many(iter.begin(), iter.end(), MaxTasks).each();
+    for (auto idx = co_await ts; idx != ts.end(); idx = co_await ts) {
+      results.push_back(ts[idx]);
+    }
 
     // At this point, taskCount == 4 and N == 5.
     EXPECT_EQ(taskCount, MaxTasks - 1);
@@ -188,9 +208,11 @@ template <int N> tmc::task<void> dynamic_bounded_iterator() {
                   ++taskCount;
                   return t;
                 });
-
-    std::vector<int> results =
-      co_await tmc::spawn_many(iter.begin(), iter.end(), MaxTasks);
+    std::vector<int> results;
+    auto ts = tmc::spawn_many(iter.begin(), iter.end(), MaxTasks).each();
+    for (auto idx = co_await ts; idx != ts.end(); idx = co_await ts) {
+      results.push_back(ts[idx]);
+    }
 
     // At this point, taskCount == 5 and N == 5.
     // We stopped consuming elements from the iterator after N tasks.
@@ -204,7 +226,7 @@ template <int N> tmc::task<void> dynamic_bounded_iterator() {
   co_return;
 }
 
-#define CATEGORY test_spawn_many
+#define CATEGORY test_spawn_many_each
 
 class CATEGORY : public testing::Test {
 protected:
