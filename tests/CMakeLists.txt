@@ -41,6 +41,9 @@ make_exe(
   test_ex_asio.cpp
   test_ex_braid.cpp
   test_spawn_many.cpp
+  test_spawn_many_detach.cpp
+  test_spawn_many_run_early.cpp
+  test_spawn_many_each.cpp
   prio.cpp
 )
 
