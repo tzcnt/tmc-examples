@@ -40,6 +40,7 @@ make_exe(
   assert_ex_cpu.cpp
   test_ex_asio.cpp
   test_ex_braid.cpp
+  test_spawn_many.cpp
   prio.cpp
 )
 

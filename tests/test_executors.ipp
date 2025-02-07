@@ -249,7 +249,22 @@ TEST_F(CATEGORY, spawn_many) {
 
       {
         auto tasks = make_task_array();
-        auto results = co_await tmc::spawn_many(tasks.begin(), tasks.end());
+        std::array<int, 2> results = co_await tmc::spawn_many<2>(tasks.begin());
+        EXPECT_EQ(results[0], 1);
+        EXPECT_EQ(results[1], 2);
+      }
+      {
+        auto tasks = make_task_array();
+        std::vector<int> results = co_await tmc::spawn_many(tasks.begin(), 2);
+        EXPECT_EQ(results.size(), 2);
+        EXPECT_EQ(results[0], 1);
+        EXPECT_EQ(results[1], 2);
+      }
+      {
+        auto tasks = make_task_array();
+        std::vector<int> results =
+          co_await tmc::spawn_many(tasks.begin(), tasks.end());
+        EXPECT_EQ(results.size(), 2);
         EXPECT_EQ(results[0], 1);
         EXPECT_EQ(results[1], 2);
       }
