@@ -231,10 +231,28 @@ TEST_F(CATEGORY, spawn_many) {
       co_await spawn_many<1>(&t2);
       EXPECT_EQ(value, 2);
 
-      auto t3 = [](int Value) -> tmc::task<int> { co_return Value + 1; }(value);
-      auto ts = spawn_many<1>(&t3).run_early();
-      auto results = co_await std::move(ts);
-      EXPECT_EQ(results[0], 3);
+      {
+        auto t3 = [](int Value) -> tmc::task<int> {
+          co_return Value + 1;
+        }(value);
+        auto ts = spawn_many<1>(&t3).run_early();
+        auto results = co_await std::move(ts);
+        EXPECT_EQ(results[0], 3);
+      }
+
+      auto make_task_array = []() -> std::array<tmc::task<int>, 2> {
+        std::array<tmc::task<int>, 2> tasks;
+        tasks[0] = []() -> tmc::task<int> { co_return 1; }();
+        tasks[1] = [](int i) -> tmc::task<int> { co_return i + 1; }(1);
+        return std::move(tasks);
+      };
+
+      {
+        auto tasks = make_task_array();
+        auto results = co_await tmc::spawn_many(tasks.begin(), tasks.end());
+        EXPECT_EQ(results[0], 1);
+        EXPECT_EQ(results[1], 2);
+      }
       co_return;
     }(),
     0
