@@ -77,6 +77,53 @@ static inline tmc::task<void> spawn_tuple_compose_void() {
   EXPECT_EQ(sum, (1 << 9) - 1);
 }
 
+static inline tmc::task<void> spawn_many_compose_spawn() {
+  {
+    std::array<tmc::aw_spawned_task<tmc::task<int>>, 2> ts{
+      tmc::spawn(work(0)), tmc::spawn(work(1))
+    };
+    std::array<int, 2> results = co_await tmc::spawn_many<2>(ts.data());
+
+    auto sum = results[0] + results[1];
+
+    EXPECT_EQ(sum, (1 << 2) - 1);
+  }
+  {
+    std::array<int, 2> void_results{0, 1};
+    auto set = [](int& i) -> tmc::task<void> {
+      i = (1 << i);
+      co_return;
+    };
+    std::array<tmc::aw_spawned_task<tmc::task<void>>, 2> ts{
+      tmc::spawn(set(void_results[0])), tmc::spawn(set(void_results[1]))
+    };
+    co_await tmc::spawn_many<2>(ts.data());
+
+    auto sum = void_results[0] + void_results[1];
+
+    EXPECT_EQ(sum, (1 << 2) - 1);
+  }
+}
+
+static inline tmc::task<void> spawn_many_compose_tuple() {
+  std::array<int, 2> void_results{1, 3};
+  auto set = [](int& i) -> tmc::task<void> {
+    i = (1 << i);
+    co_return;
+  };
+  std::array<tmc::aw_spawned_task_tuple<tmc::task<int>, tmc::task<void>>, 2> ts{
+    tmc::spawn_tuple(work(0), set(void_results[0])),
+    tmc::spawn_tuple(work(2), set(void_results[1])),
+  };
+  std::array<std::tuple<int, std::monostate>, 2> results =
+    co_await tmc::spawn_many<2>(ts.data());
+
+  auto sum = std::get<0>(results[0]) + std::get<0>(results[1]) +
+             void_results[0] + void_results[1];
+
+  EXPECT_EQ(sum, (1 << 4) - 1);
+}
+
 TEST_F(CATEGORY, spawn_tuple_compose) {
   test_async_main(ex(), []() -> tmc::task<void> {
     co_await spawn_tuple_compose();
@@ -88,3 +135,52 @@ TEST_F(CATEGORY, spawn_tuple_compose_void) {
     co_await spawn_tuple_compose_void();
   }());
 }
+
+TEST_F(CATEGORY, spawn_many_compose_spawn) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    co_await spawn_many_compose_spawn();
+  }());
+}
+
+TEST_F(CATEGORY, spawn_many_compose_tuple) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    co_await spawn_many_compose_tuple();
+  }());
+}
+
+// Doesn't compile - as expected.
+// static inline tmc::task<void> spawn_many_compose_run_early() {
+//   {
+//     std::array<tmc::aw_run_early<tmc::task<int>>, 2> ts{
+//       tmc::spawn(work(0)).run_early(), tmc::spawn(work(1)).run_early()
+//     };
+//     std::array<int, 2> results =
+//       co_await tmc::spawn_many<2>(std::move(ts).data());
+
+//     auto sum = results[0] + results[1];
+
+//     EXPECT_EQ(sum, (1 << 2) - 1);
+//   }
+//   {
+//     std::array<int, 2> void_results{0, 1};
+//     auto set = [](int& i) -> tmc::task<void> {
+//       i = (1 << i);
+//       co_return;
+//     };
+//     std::array<tmc::aw_run_early<tmc::task<void>>, 2> ts{
+//       tmc::spawn(set(void_results[0])).run_early(),
+//       tmc::spawn(set(void_results[1])).run_early()
+//     };
+//     co_await tmc::spawn_many<2>(ts.data());
+
+//     auto sum = void_results[0] + void_results[1];
+
+//     EXPECT_EQ(sum, (1 << 2) - 1);
+//   }
+// }
+
+// TEST_F(CATEGORY, spawn_many_compose_run_early) {
+//   test_async_main(ex(), []() -> tmc::task<void> {
+//     co_await spawn_many_compose_run_early();
+//   }());
+// }
