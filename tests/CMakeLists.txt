@@ -48,7 +48,7 @@ target_link_libraries(
   GTest::gtest_main
 )
 
-target_compile_definitions(tests PRIVATE TMC_TESTING)
+target_compile_definitions(tests PRIVATE TMC_NO_UNKNOWN_AWAITABLES)
 
 if(TMC_USE_HWLOC AND LIBHWLOC_FOUND)
   target_link_libraries(tests ${LIBHWLOC_LIBRARY})
