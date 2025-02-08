@@ -108,17 +108,18 @@ static inline tmc::task<void> spawn_many_compose_spawn() {
 
 static inline tmc::task<void> spawn_many_compose_spawn_many() {
   {
-    // This version crashes. Inner range holds dangling reference?
+    // This version segfaults. Inner range holds dangling reference?
     // auto iter =
     //   std::ranges::views::iota(0) | std::ranges::views::transform([](int i) {
     //     return tmc::spawn_many<2>((std::ranges::views::iota(i * 2) |
     //                                std::ranges::views::transform(work))
     //                                 .begin());
     //   });
-    std::array<tmc::task<int>, 4> ts{work(0), work(1), work(2), work(3)};
+
+    // Using iter_adapter instead of inner range works.
     auto iter =
-      std::ranges::views::iota(0) | std::ranges::views::transform([&](int i) {
-        return tmc::spawn_many<2>(ts.data() + (i * 2));
+      std::ranges::views::iota(0) | std::ranges::views::transform([](int i) {
+        return tmc::spawn_many<2>(tmc::iter_adapter(i * 2, work));
       });
     std::array<std::array<int, 2>, 2> results =
       co_await tmc::spawn_many<2>(iter.begin());
