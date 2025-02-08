@@ -36,17 +36,25 @@ endfunction()
 make_exe(
   tests
   main.cpp
-  test_ex_cpu.cpp
   assert_ex_cpu.cpp
+  test_ex_cpu.cpp
   test_ex_asio.cpp
   test_ex_braid.cpp
-  prio.cpp
+  test_prio.cpp
 )
 
 target_link_libraries(
   tests
   GTest::gtest_main
 )
+
+# GCC gives weird object linkage errors with the local lambdas used in some tests
+# https://gcc.gnu.org/bugzilla/show_bug.cgi?id=114267
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+  target_compile_options(tests PRIVATE -Wno-subobject-linkage)
+endif()
+
+target_compile_definitions(tests PRIVATE TMC_NO_UNKNOWN_AWAITABLES)
 
 if(TMC_USE_HWLOC AND LIBHWLOC_FOUND)
   target_link_libraries(tests ${LIBHWLOC_LIBRARY})

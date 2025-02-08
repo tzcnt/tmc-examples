@@ -16,7 +16,6 @@ TEST(CATEGORY, too_many_threads) {
 }
 
 TEST(CATEGORY, invalid_priority) {
-  // Accidentally submitted a task-returning func without calling it
   EXPECT_DEATH(
     {
       tmc::ex_cpu ex;

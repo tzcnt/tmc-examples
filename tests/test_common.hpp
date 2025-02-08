@@ -72,3 +72,9 @@ test_async_main(Executor& Exec, tmc::task<void>&& ClientMainTask) {
   );
   exitCode.wait(std::numeric_limits<int>::min());
 }
+
+template <typename Tuple> decltype(auto) sum_tuple(Tuple const& tuple) {
+  return std::apply(
+    [](auto const&... value) -> decltype(auto) { return (value + ...); }, tuple
+  );
+};

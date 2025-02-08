@@ -20,6 +20,8 @@
 // use case, but the function parameters are reordered, you can repurpose this
 // by changing the signature of `initiate_async_fn` and `callback`.
 
+#pragma once
+
 #include "tmc/detail/concepts.hpp"
 #include "tmc/detail/thread_locals.hpp"
 #include "tmc/task.hpp"
