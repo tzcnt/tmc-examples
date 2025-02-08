@@ -212,7 +212,7 @@ TEST_F(CATEGORY, spawn_value) {
   future.wait();
 }
 
-TEST_F(CATEGORY, spawn_many) {
+TEST_F(CATEGORY, spawn_many_small) {
   auto future = post_waitable(
     ex(),
     []() -> tmc::task<void> {

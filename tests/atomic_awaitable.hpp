@@ -2,6 +2,8 @@
 // Creates a helper thread for each await operation so as to not block the
 // executor threads.
 
+#pragma once
+
 #include "tmc/detail/concepts.hpp"
 #include "tmc/detail/thread_locals.hpp"
 #include "tmc/task.hpp"
@@ -9,7 +11,7 @@
 #include <atomic>
 #include <coroutine>
 #include <thread>
-#include <utility>
+
 struct AtomicAwaitableTag {};
 
 template <typename T> struct atomic_awaitable : private AtomicAwaitableTag {

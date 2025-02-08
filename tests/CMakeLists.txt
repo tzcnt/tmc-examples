@@ -36,15 +36,11 @@ endfunction()
 make_exe(
   tests
   main.cpp
-  test_ex_cpu.cpp
   assert_ex_cpu.cpp
+  test_ex_cpu.cpp
   test_ex_asio.cpp
   test_ex_braid.cpp
-  test_spawn_many.cpp
-  test_spawn_many_detach.cpp
-  test_spawn_many_run_early.cpp
-  test_spawn_many_each.cpp
-  prio.cpp
+  test_prio.cpp
 )
 
 target_link_libraries(
