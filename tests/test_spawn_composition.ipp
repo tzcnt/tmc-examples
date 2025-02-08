@@ -50,9 +50,10 @@ static inline tmc::task<void> spawn_tuple_compose_void() {
   // These types aren't move-constructible directly into the spawn_tuple,
   // since they initiate their operations immediately.
   // spawn_tuple is able to take lvalues to these, pass them to safe_wrap
-  // which creates an awaiting task. spawn_tuple also allows passing lvalue for
-  // a task, which is something to fix later. It's not broken, but it goes
-  // against the linear types goal.
+  // which creates an awaiting task. This is undesirable or unclear behavior.
+  // spawn_tuple also allows passing lvalue for a task. This is something to
+  // fix later. It's not broken, but it fails to implement the linear type
+  // rules.
   auto sre = tmc::spawn(set(results[2])).run_early();
   auto tre = tmc::spawn_tuple(set(results[4])).run_early();
   auto t6 = set(results[6]);
@@ -196,7 +197,7 @@ TEST_F(CATEGORY, spawn_many_compose_spawn_many) {
   }());
 }
 
-// Doesn't compile - as expected.
+// Doesn't compile - as expected. run_early() type cannot be moved
 // static inline tmc::task<void> spawn_many_compose_run_early() {
 //   {
 //     std::array<tmc::aw_run_early<tmc::task<int>>, 2> ts{
