@@ -80,7 +80,7 @@ TEST_F(CATEGORY, async_main) {
 
 TEST_F(CATEGORY, spawn_func) {
   const size_t NTASKS = 10;
-  const size_t NCHECKS = 8;
+  const size_t NCHECKS = 10;
   std::array<size_t, NTASKS * NCHECKS> results;
   auto tasks =
     std::ranges::views::iota(
@@ -127,9 +127,25 @@ TEST_F(CATEGORY, spawn_func) {
           }
         );
         EXPECT_EQ(idx, base + 7);
-
-        auto t = tmc::spawn_func([&results, &idx]() { inc(results, idx); });
-        co_await std::move(t).run_on(ex()).resume_on(ex()).with_priority(0);
+        {
+          auto t = tmc::spawn_func([&results, &idx]() { inc(results, idx); });
+          co_await std::move(t).run_on(ex()).resume_on(ex()).with_priority(0);
+          EXPECT_EQ(idx, base + 8);
+        }
+        {
+          auto t = tmc::spawn_func([&results, &idx]() { inc(results, idx); }
+          ).run_early();
+          co_await std::move(t);
+          EXPECT_EQ(idx, base + 9);
+        }
+        {
+          auto t = tmc::spawn_func([&results, idx]() mutable {
+                     inc(results, idx);
+                     return idx;
+                   }).run_early();
+          idx = co_await std::move(t);
+          EXPECT_EQ(idx, base + 10);
+        }
         co_return;
       }(results, slot * NCHECKS);
     });
@@ -278,7 +294,7 @@ TEST_F(CATEGORY, spawn_many_small) {
 // Coerce a task into a coroutine_handle to erase its promise type
 // This will simply behave as if a std::function<void()> was passed.
 static inline std::coroutine_handle<>
-_external_coro_as_std_function_test_task(int I) {
+external_coro_as_std_function_test_task(int I) {
   return [](int i) -> tmc::task<void> { co_return; }(I);
 }
 
@@ -286,7 +302,7 @@ TEST_F(CATEGORY, external_coro_as_std_function) {
   tmc::post_waitable(
     ex(),
     []() -> tmc::task<void> {
-      co_await tmc::spawn_func(_external_coro_as_std_function_test_task(4));
+      co_await tmc::spawn_func(external_coro_as_std_function_test_task(4));
     }(),
     0
   )
@@ -296,8 +312,7 @@ TEST_F(CATEGORY, external_coro_as_std_function) {
     []() -> tmc::task<void> {
       co_await tmc::spawn_func_many<2>(
         (std::ranges::views::iota(5) |
-         std::ranges::views::transform(_external_coro_as_std_function_test_task)
-        )
+         std::ranges::views::transform(external_coro_as_std_function_test_task))
           .begin()
       );
     }(),
