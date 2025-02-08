@@ -78,3 +78,5 @@ template <typename Tuple> decltype(auto) sum_tuple(Tuple const& tuple) {
     [](auto const&... value) -> decltype(auto) { return (value + ...); }, tuple
   );
 };
+
+static inline bool unpredictable_filter(int i) { return i != 3; }
