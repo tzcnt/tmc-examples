@@ -48,6 +48,12 @@ target_link_libraries(
   GTest::gtest_main
 )
 
+# GCC gives weird object linkage errors with the local lambdas used in some tests
+# https://gcc.gnu.org/bugzilla/show_bug.cgi?id=114267
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+  target_compile_options(tests PRIVATE -Wno-subobject-linkage)
+endif()
+
 target_compile_definitions(tests PRIVATE TMC_NO_UNKNOWN_AWAITABLES)
 
 if(TMC_USE_HWLOC AND LIBHWLOC_FOUND)
