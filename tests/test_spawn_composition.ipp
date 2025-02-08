@@ -1,5 +1,6 @@
 #include "test_common.hpp"
 #include "test_spawn_many_common.hpp"
+#include "tmc/utils.hpp"
 
 #include <gtest/gtest.h>
 
@@ -105,6 +106,46 @@ static inline tmc::task<void> spawn_many_compose_spawn() {
   }
 }
 
+static inline tmc::task<void> spawn_many_compose_spawn_many() {
+  {
+    // This version crashes. Inner range holds dangling reference?
+    // auto iter =
+    //   std::ranges::views::iota(0) | std::ranges::views::transform([](int i) {
+    //     return tmc::spawn_many<2>((std::ranges::views::iota(i * 2) |
+    //                                std::ranges::views::transform(work))
+    //                                 .begin());
+    //   });
+    std::array<tmc::task<int>, 4> ts{work(0), work(1), work(2), work(3)};
+    auto iter =
+      std::ranges::views::iota(0) | std::ranges::views::transform([&](int i) {
+        return tmc::spawn_many<2>(ts.data() + (i * 2));
+      });
+    std::array<std::array<int, 2>, 2> results =
+      co_await tmc::spawn_many<2>(iter.begin());
+    auto sum = results[0][0] + results[0][1] + results[1][0] + results[1][1];
+    EXPECT_EQ(sum, (1 << 4) - 1);
+  }
+  {
+    std::array<int, 4> void_results{0, 1, 2, 3};
+    auto set = [](int* i) -> tmc::task<void> {
+      *i = (1 << *i);
+      co_return;
+    };
+
+    auto iter =
+      std::ranges::views::iota(0) | std::ranges::views::transform([&](int i) {
+        return tmc::spawn_many<2>(
+          (std::ranges::views::iota(void_results.data() + (i * 2)) |
+           std::ranges::views::transform(set))
+            .begin()
+        );
+      });
+    co_await tmc::spawn_many<2>(iter.begin());
+    auto sum = std::accumulate(void_results.begin(), void_results.end(), 0);
+    EXPECT_EQ(sum, (1 << 4) - 1);
+  }
+}
+
 static inline tmc::task<void> spawn_many_compose_tuple() {
   std::array<int, 2> void_results{1, 3};
   auto set = [](int& i) -> tmc::task<void> {
@@ -145,6 +186,12 @@ TEST_F(CATEGORY, spawn_many_compose_spawn) {
 TEST_F(CATEGORY, spawn_many_compose_tuple) {
   test_async_main(ex(), []() -> tmc::task<void> {
     co_await spawn_many_compose_tuple();
+  }());
+}
+
+TEST_F(CATEGORY, spawn_many_compose_spawn_many) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    co_await spawn_many_compose_spawn_many();
   }());
 }
 
