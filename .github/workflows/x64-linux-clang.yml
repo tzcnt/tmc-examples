@@ -8,7 +8,7 @@ on:
 
 env:
   PRESET: clang-linux-debug
-  BRANCH_NAME: ${{ github.head_ref || github.ref_name }} 
+  BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
 
 jobs:
   build-and-test:
@@ -17,7 +17,7 @@ jobs:
     - uses: actions/checkout@v4
     - name: submodule-clone
       run: >
-        cd submodules 
+        cd submodules
         && git clone https://github.com/tzcnt/TooManyCooks.git
         && git clone https://github.com/tzcnt/tmc-asio.git
     # If a branch with the same name exists in the dependency repos, use that. Otherwise, use main.
