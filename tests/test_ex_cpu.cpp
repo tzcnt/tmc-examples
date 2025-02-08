@@ -14,9 +14,11 @@ protected:
 };
 
 #include "test_executors.ipp"
+#include "test_spawn_composition.ipp"
 #include "test_spawn_many.ipp"
 #include "test_spawn_many_detach.ipp"
 #include "test_spawn_many_each.ipp"
 #include "test_spawn_many_run_early.ipp"
+#include "test_spawn_tuple.ipp"
 
 #undef CATEGORY
