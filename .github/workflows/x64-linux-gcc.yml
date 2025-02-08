@@ -10,7 +10,7 @@ env:
   PRESET: gcc-linux-debug
 
 jobs:
-  build:
+  build-and-test:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
