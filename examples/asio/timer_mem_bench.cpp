@@ -26,7 +26,7 @@
 #include <cstdio>
 #include <ranges>
 
-asio::steady_timer sleep_timer(ssize_t seconds) {
+asio::steady_timer sleep_timer(ptrdiff_t seconds) {
   return asio::steady_timer{
     tmc::asio_executor(), std::chrono::seconds(seconds)
   };
