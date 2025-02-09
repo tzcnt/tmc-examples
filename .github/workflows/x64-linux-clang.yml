@@ -14,8 +14,8 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        WORK_ITEM: [CORO, FUNCORO]
         PRESET: [clang-linux-debug, clang-linux-release]
+        WORK_ITEM: [CORO, FUNCORO]
     steps:
     - uses: actions/checkout@v4
     - name: submodule-clone
