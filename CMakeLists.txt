@@ -40,7 +40,10 @@ add_definitions(
 )
 
 # Optional flags can be passed at the command line. Used by GitHub Actions workflow.
-add_definitions(${CMD_FLAGS})
+if(CMD_FLAGS)
+    message(STATUS "CMD_FLAGS: ${CMD_FLAGS}")
+    add_definitions(${CMD_FLAGS})
+endif()
 
 include(cmake/CPM.cmake)
 
