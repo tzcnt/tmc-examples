@@ -16,7 +16,6 @@
 #include "tmc/ex_cpu.hpp"
 #include "tmc/spawn_many.hpp"
 
-#include <cinttypes>
 #include <cstdio>
 #include <ranges>
 

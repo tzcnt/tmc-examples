@@ -7,7 +7,6 @@
 #include "tmc/all_headers.hpp"
 
 #include <chrono>
-#include <cinttypes>
 #include <cstdio>
 
 using namespace tmc;

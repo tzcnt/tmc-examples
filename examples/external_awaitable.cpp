@@ -22,7 +22,6 @@
 #include "tmc/sync.hpp"
 
 #include <chrono>
-#include <cinttypes>
 #include <coroutine>
 #include <future>
 #include <thread>

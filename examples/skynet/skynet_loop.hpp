@@ -9,7 +9,6 @@
 #include "tmc/task.hpp"
 
 #include <chrono>
-#include <cinttypes>
 #include <cstdio>
 
 template <size_t Depth = 6> tmc::task<void> loop_skynet() {

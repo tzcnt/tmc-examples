@@ -5,7 +5,6 @@
 
 #include <atomic>
 #include <chrono>
-#include <cinttypes>
 #include <cstdio>
 #include <ranges>
 

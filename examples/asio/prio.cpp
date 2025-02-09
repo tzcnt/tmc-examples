@@ -15,7 +15,6 @@
 
 #include <array>
 #include <asio/steady_timer.hpp>
-#include <cinttypes>
 #include <cstdio>
 #include <cstdlib>
 

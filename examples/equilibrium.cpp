@@ -7,7 +7,6 @@
 #include "tmc/sync.hpp"
 
 #include <chrono>
-#include <cinttypes>
 #include <cstdio>
 #include <future>
 #include <ranges>

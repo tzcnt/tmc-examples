@@ -10,7 +10,6 @@
 #include "tmc/task.hpp"
 
 #include <chrono>
-#include <cinttypes>
 #include <cstdio>
 #include <ranges>
 #include <vector>
