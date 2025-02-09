@@ -37,11 +37,10 @@ void log_event_timestamp(
   std::chrono::high_resolution_clock::time_point now =
     std::chrono::high_resolution_clock::now()
 ) {
-  std::printf(
-    "%s at %zu us\n", event.c_str(),
+  size_t duration =
     std::chrono::duration_cast<std::chrono::microseconds>(now - startTime)
-      .count()
-  );
+      .count();
+  std::printf("%s at %zu us\n", event.c_str(), duration);
 }
 
 void log_error_code(

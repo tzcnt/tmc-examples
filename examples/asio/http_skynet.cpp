@@ -24,14 +24,16 @@
 #include <asio/streambuf.hpp>
 #include <asio/write.hpp>
 #include <chrono>
+#include <cstddef>
 #include <ranges>
 #include <sstream>
 #include <string>
 
-// 32-bit platform can't hold the full sum, but signed integer overflow is
+// The proper sum of skynet (1M tasks) is 499999500000.
+// 32-bit platforms can't hold the full sum, but signed integer overflow is
 // defined so it will wrap to this number.
 static constexpr inline size_t EXPECTED_RESULT =
-  TMC_PLATFORM_BITS == 64 ? 499999500000 : 1783293664;
+  sizeof(size_t) == 8 ? 499999500000 : 1783293664;
 
 using asio::ip::tcp;
 

@@ -41,13 +41,13 @@ template <size_t Count> tmc::task<void> large_task_spawn_bench_lazy_bulk() {
   co_await spawn_many<Count>(tasks.begin()).run_on(br);
   auto done = std::chrono::high_resolution_clock::now();
 
-  auto execDur =
-    std::chrono::duration_cast<std::chrono::nanoseconds>(done - pre);
+  size_t execDur =
+    std::chrono::duration_cast<std::chrono::nanoseconds>(done - pre).count();
   std::printf(
     "executed %zu tasks in %zu ns: %zu ns/task (wall), %zu "
     "ns/task/thread\n",
-    Count, execDur.count(), execDur.count() / Count,
-    (16) * execDur.count() / Count
+    Count, execDur, execDur / Count,
+    tmc::cpu_executor().thread_count() * execDur / Count
   );
 }
 
@@ -84,13 +84,13 @@ template <size_t Count> tmc::task<void> braid_lock() {
   if (value != data[0] * Count) {
     std::printf("FAIL: expected %zu but got %zu\n", data[0] * Count, value);
   }
-  auto execDur =
-    std::chrono::duration_cast<std::chrono::nanoseconds>(done - pre);
+  size_t execDur =
+    std::chrono::duration_cast<std::chrono::nanoseconds>(done - pre).count();
   std::printf(
     "executed %zu tasks in %zu ns: %zu ns/task (wall), %zu "
     "ns/task/thread\n",
-    Count, execDur.count(), execDur.count() / Count,
-    (16) * execDur.count() / Count
+    Count, execDur, execDur / Count,
+    tmc::cpu_executor().thread_count() * execDur / Count
   );
 }
 
@@ -148,13 +148,13 @@ template <size_t Count> tmc::task<void> braid_lock_middle() {
     std::printf("FAIL: expected %zu but got %zu\n", data[0] * Count, value);
   }
 
-  auto execDur =
-    std::chrono::duration_cast<std::chrono::nanoseconds>(done - pre);
+  size_t execDur =
+    std::chrono::duration_cast<std::chrono::nanoseconds>(done - pre).count();
   std::printf(
     "executed %zu tasks in %zu ns: %zu ns/task (wall), %zu "
     "ns/task/thread\n",
-    Count, execDur.count(), execDur.count() / Count,
-    (16) * execDur.count() / Count
+    Count, execDur, execDur / Count,
+    tmc::cpu_executor().thread_count() * execDur / Count
   );
 }
 
@@ -210,13 +210,13 @@ template <size_t Count> tmc::task<void> braid_lock_middle_resume_on() {
   if (lockCount != Count) {
     std::printf("FAIL: expected %zu but got %zu\n", data[0] * Count, value);
   }
-  auto execDur =
-    std::chrono::duration_cast<std::chrono::nanoseconds>(done - pre);
+  size_t execDur =
+    std::chrono::duration_cast<std::chrono::nanoseconds>(done - pre).count();
   std::printf(
     "executed %zu tasks in %zu ns: %zu ns/task (wall), %zu "
     "ns/task/thread\n",
-    Count, execDur.count(), execDur.count() / Count,
-    (16) * execDur.count() / Count
+    Count, execDur, execDur / Count,
+    tmc::cpu_executor().thread_count() * execDur / Count
   );
 }
 
@@ -277,13 +277,13 @@ template <size_t Count> tmc::task<void> braid_lock_middle_child_task() {
     std::printf("FAIL: expected %zu but got %zu\n", data[0] * Count, value);
   }
 
-  auto execDur =
-    std::chrono::duration_cast<std::chrono::nanoseconds>(done - pre);
+  size_t execDur =
+    std::chrono::duration_cast<std::chrono::nanoseconds>(done - pre).count();
   std::printf(
     "executed %zu tasks in %zu ns: %zu ns/task (wall), %zu "
     "ns/task/thread\n",
-    Count, execDur.count(), execDur.count() / Count,
-    (16) * execDur.count() / Count
+    Count, execDur, execDur / Count,
+    tmc::cpu_executor().thread_count() * execDur / Count
   );
 }
 static tmc::task<int> async_main() {

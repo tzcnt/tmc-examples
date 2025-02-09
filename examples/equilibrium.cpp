@@ -98,12 +98,13 @@ int main() {
   std::printf("%zu tasks\n", count);
   for (size_t i = 0; i < results.size(); ++i) {
     auto benchResult = results[i];
+    size_t postDur = benchResult.post_dur_ns.count();
+    size_t execDur = benchResult.dur_ns.count();
     std::printf(
-      "%zu thr, %ld post ns, %ld tot ns: %zu ns/task (wall), %zu "
+      "%zu thr, %zu post ns, %zu tot ns: %zu ns/task (wall), %zu "
       "thread-ns/task\n",
-      benchResult.thread_count, benchResult.post_dur_ns.count(),
-      benchResult.dur_ns.count(), benchResult.dur_ns.count() / count,
-      (benchResult.thread_count) * benchResult.dur_ns.count() / count
+      benchResult.thread_count, postDur, execDur, execDur / count,
+      benchResult.thread_count * execDur / count
     );
   }
   //}

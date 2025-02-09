@@ -40,20 +40,21 @@ template <size_t Count, size_t ThreadCount> void small_func_spawn_bench_lazy() {
     }
   }
 
-  auto spawnDur =
-    std::chrono::duration_cast<std::chrono::nanoseconds>(postTime - preTime);
+  size_t spawnDur =
+    std::chrono::duration_cast<std::chrono::nanoseconds>(postTime - preTime)
+      .count();
   std::printf(
-    "spawned %zu tasks in %zu ns: %zu ns/task\n", Count, spawnDur.count(),
-    spawnDur.count() / Count
+    "spawned %zu tasks in %zu ns: %zu ns/task\n", Count, spawnDur,
+    spawnDur / Count
   );
 
-  auto execDur =
-    std::chrono::duration_cast<std::chrono::nanoseconds>(doneTime - postTime);
+  size_t execDur =
+    std::chrono::duration_cast<std::chrono::nanoseconds>(doneTime - postTime)
+      .count();
   std::printf(
     "executed %zu tasks in %zu ns: %zu ns/task (wall), %zu "
     "ns/task/thread\n",
-    Count, execDur.count(), execDur.count() / Count,
-    ThreadCount * execDur.count() / Count
+    Count, execDur, execDur / Count, ThreadCount * (execDur / Count)
   );
 }
 
@@ -94,20 +95,21 @@ template <size_t Count, size_t nthreads> void large_task_spawn_bench_lazy() {
   }
   auto doneTime = std::chrono::high_resolution_clock::now();
 
-  auto spawnDur =
-    std::chrono::duration_cast<std::chrono::nanoseconds>(postTime - preTime);
+  size_t spawnDur =
+    std::chrono::duration_cast<std::chrono::nanoseconds>(postTime - preTime)
+      .count();
   std::printf(
-    "spawned %zu tasks in %zu ns: %zu ns/task\n", Count, spawnDur.count(),
-    spawnDur.count() / Count
+    "spawned %zu tasks in %zu ns: %zu ns/task\n", Count, spawnDur,
+    spawnDur / Count
   );
 
-  auto execDur =
-    std::chrono::duration_cast<std::chrono::nanoseconds>(doneTime - postTime);
+  size_t execDur =
+    std::chrono::duration_cast<std::chrono::nanoseconds>(doneTime - postTime)
+      .count();
   std::printf(
     "executed %zu tasks in %zu ns: %zu ns/task (wall), %zu "
     "ns/task/thread\n",
-    Count, execDur.count(), execDur.count() / Count,
-    nthreads * execDur.count() / Count
+    Count, execDur, execDur / Count, nthreads * execDur / Count
   );
 }
 
@@ -139,20 +141,21 @@ void large_task_spawn_bench_lazy_bulk() {
   future.wait();
   auto doneTime = std::chrono::high_resolution_clock::now();
 
-  auto spawnDur =
-    std::chrono::duration_cast<std::chrono::nanoseconds>(postTime - preTime);
+  size_t spawnDur =
+    std::chrono::duration_cast<std::chrono::nanoseconds>(postTime - preTime)
+      .count();
   std::printf(
-    "spawned %zu tasks in %zu ns: %zu ns/task\n", Count, spawnDur.count(),
-    spawnDur.count() / Count
+    "spawned %zu tasks in %zu ns: %zu ns/task\n", Count, spawnDur,
+    spawnDur / Count
   );
 
-  auto execDur =
-    std::chrono::duration_cast<std::chrono::nanoseconds>(doneTime - postTime);
+  size_t execDur =
+    std::chrono::duration_cast<std::chrono::nanoseconds>(doneTime - postTime)
+      .count();
   std::printf(
     "executed %zu tasks in %zu ns: %zu ns/task (wall), %zu "
     "ns/task/thread\n",
-    Count, execDur.count(), execDur.count() / Count,
-    nthreads * execDur.count() / Count
+    Count, execDur, execDur / Count, nthreads * execDur / Count
   );
 }
 
@@ -207,20 +210,21 @@ DONE:
   }
   auto doneTime = std::chrono::high_resolution_clock::now();
 
-  auto spawnDur =
-    std::chrono::duration_cast<std::chrono::nanoseconds>(postTime - preTime);
+  size_t spawnDur =
+    std::chrono::duration_cast<std::chrono::nanoseconds>(postTime - preTime)
+      .count();
   std::printf(
-    "spawned %zu tasks in %zu ns: %zu ns/task\n", Count, spawnDur.count(),
-    spawnDur.count() / Count
+    "spawned %zu tasks in %zu ns: %zu ns/task\n", Count, spawnDur,
+    spawnDur / Count
   );
 
-  auto execDur =
-    std::chrono::duration_cast<std::chrono::nanoseconds>(doneTime - postTime);
+  size_t execDur =
+    std::chrono::duration_cast<std::chrono::nanoseconds>(doneTime - postTime)
+      .count();
   std::printf(
     "executed %zu tasks in %zu ns: %zu ns/task (wall), %zu "
     "ns/task/thread\n",
-    Count, execDur.count(), execDur.count() / Count,
-    nthreads * execDur.count() / Count
+    Count, execDur, execDur / Count, nthreads * execDur / Count
   );
 }
 

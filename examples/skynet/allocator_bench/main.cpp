@@ -10,6 +10,11 @@
 #include <cstdio>
 #include <ranges>
 
+// 32-bit platform can't hold the full sum, but signed integer overflow is
+// defined so it will wrap to this number.
+static constexpr inline size_t EXPECTED_RESULT =
+  TMC_PLATFORM_BITS == 64 ? 499999500000 : 1783293664;
+
 using namespace tmc;
 
 namespace skynet {
@@ -42,7 +47,7 @@ task<size_t> skynet_one(size_t BaseNum, size_t Depth) {
 }
 template <size_t DepthMax> task<void> skynet() {
   size_t count = co_await skynet_one<DepthMax>(0, 0);
-  if (count != 499999500000) {
+  if (count != EXPECTED_RESULT) {
     std::printf("%zu\n", count);
   }
 }
@@ -61,9 +66,10 @@ tmc::task<int> bench_async_main() {
   }
 
   auto endTime = std::chrono::high_resolution_clock::now();
-  auto totalTimeNs =
-    std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime);
-  std::printf("%zu", totalTimeNs.count() / NRUNS);
+  size_t totalTimeNs =
+    std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime)
+      .count();
+  std::printf("%zu", totalTimeNs / NRUNS);
 
   co_return 0;
 }
