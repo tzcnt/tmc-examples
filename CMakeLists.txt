@@ -39,6 +39,9 @@ add_definitions(
     # "-Wno-deprecated-declarations"
 )
 
+# Optional flags can be passed at the command line. Used by GitHub Actions workflow.
+add_definitions(${CMD_FLAGS})
+
 include(cmake/CPM.cmake)
 
 # By default, download the TMC repos as CPM packages.
