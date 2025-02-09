@@ -13,7 +13,7 @@ set(CMAKE_CXX_STANDARD 20)
 add_definitions(
 
     # Performance tuning options
-    "-DTMC_WORK_ITEM=CORO" # one of: CORO, FUNC, FUNCORO, FUNCORO32
+    # "-DTMC_WORK_ITEM=CORO" # one of: CORO, FUNC, FUNCORO
     "-DTMC_CUSTOM_CORO_ALLOC"
 
     # "-DTMC_TRIVIAL_TASK" # enabled in this repo for Release builds via CMakePresets.json
