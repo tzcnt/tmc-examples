@@ -2,6 +2,7 @@
 // Connections to http://localhost:55551/ will be served at lower priority
 // Connections on http://localhost:55550/ will be served at higher priority
 // Try load testing both sockets at the same time and observe
+#include "tmc/detail/compat.hpp"
 #ifdef _WIN32
 #include <SDKDDKVer.h>
 #endif
@@ -26,6 +27,11 @@
 #include <ranges>
 #include <sstream>
 #include <string>
+
+// 32-bit platform can't hold the full sum, but signed integer overflow is
+// defined so it will wrap to this number.
+static constexpr inline size_t EXPECTED_RESULT =
+  TMC_PLATFORM_BITS == 64 ? 499999500000 : 1783293664;
 
 using asio::ip::tcp;
 
@@ -58,12 +64,13 @@ template <size_t DepthMax> tmc::task<std::string> skynet() {
   size_t count = co_await skynet_one<DepthMax>(0, 0);
   auto endTime = std::chrono::high_resolution_clock::now();
   std::ostringstream output;
-  if (count != 499999500000) {
+  if (count != EXPECTED_RESULT) {
     output << "got wrong result: " << count << "\n";
   }
-  auto execDur =
-    std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime);
-  output << "executed skynet in " << execDur.count() << " us\n";
+  size_t execDur =
+    std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime)
+      .count();
+  output << "executed skynet in " << execDur << " us\n";
   co_return std::string(output.str());
 }
 

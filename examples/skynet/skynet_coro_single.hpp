@@ -1,4 +1,5 @@
 #pragma once
+#include "skynet_shared.hpp"
 #include "tmc/ex_cpu.hpp"
 #include "tmc/spawn_task.hpp"
 #include "tmc/sync.hpp"
@@ -32,7 +33,7 @@ tmc::task<size_t> skynet_one(size_t BaseNum, size_t Depth) {
 
 template <size_t DepthMax> tmc::task<void> skynet() {
   size_t count = co_await skynet_one<DepthMax>(0, 0);
-  if (count != 499999500000) {
+  if (count != EXPECTED_RESULT) {
     std::printf("%zu\n", count);
   }
   done.store(true);
@@ -50,11 +51,12 @@ template <size_t Depth = 6> void run_skynet() {
     std::printf("skynet_coro_single did not finish!\n");
   }
 
-  auto execDur =
-    std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - startTime);
+  size_t execDur =
+    std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - startTime)
+      .count();
   std::printf(
-    "executed skynet in %zu ns: %zu thread-ns\n", execDur.count(),
-    executor.thread_count() * static_cast<size_t>(execDur.count())
+    "executed skynet in %zu ns: %zu thread-ns\n", execDur,
+    executor.thread_count() * execDur
   );
 }
 
