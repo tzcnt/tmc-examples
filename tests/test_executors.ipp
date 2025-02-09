@@ -58,12 +58,11 @@ TEST_F(CATEGORY, post_bulk_waitable_coro) {
 TEST_F(CATEGORY, post_bulk_waitable_func) {
   {
     std::array<int, 2> results = {5, 5};
-    auto range = (std::ranges::views::iota(0UL) |
-                  std::ranges::views::transform([&](int i) {
-                    return [&results, i = i]() { results[i] = i; };
-                  })
-    ).begin();
-    tmc::post_bulk_waitable(ex(), range, 2, 0).wait();
+    auto ts =
+      std::ranges::views::iota(0UL) | std::ranges::views::transform([&](int i) {
+        return [&results, i = i]() { results[i] = i; };
+      });
+    tmc::post_bulk_waitable(ex(), ts.begin(), 2, 0).wait();
     EXPECT_EQ(results[0], 0);
     EXPECT_EQ(results[1], 1);
   }

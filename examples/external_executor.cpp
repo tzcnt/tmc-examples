@@ -25,10 +25,10 @@ public:
 
   template <typename Functor>
   void post(Functor&& Func, [[maybe_unused]] size_t Priority) {
-    std::thread([this, Func] {
+    std::thread([this, func = std::forward<Functor>(Func)] {
       // Thread locals must be setup for each new executor thread
       tmc::detail::this_thread::executor = &type_erased_this; // mandatory
-      Func();
+      func();
     }).detach();
   }
 
@@ -37,10 +37,10 @@ public:
     FunctorIterator FuncIter, size_t Count, [[maybe_unused]] size_t Priority
   ) {
     for (size_t i = 0; i < Count; ++i) {
-      std::thread([this, Func = *FuncIter] {
+      std::thread([this, func = std::move(*FuncIter)] {
         // Thread locals must be setup for each new executor thread
         tmc::detail::this_thread::executor = &type_erased_this; // mandatory
-        Func();
+        func();
       }).detach();
       ++FuncIter;
     }

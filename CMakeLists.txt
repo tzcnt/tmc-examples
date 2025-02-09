@@ -13,7 +13,7 @@ set(CMAKE_CXX_STANDARD 20)
 add_definitions(
 
     # Performance tuning options
-    "-DTMC_WORK_ITEM=CORO" # one of: CORO, FUNC, FUNCORO, FUNCORO32
+    # "-DTMC_WORK_ITEM=CORO" # one of: CORO, FUNC, FUNCORO
     "-DTMC_CUSTOM_CORO_ALLOC"
 
     # "-DTMC_TRIVIAL_TASK" # enabled in this repo for Release builds via CMakePresets.json
@@ -39,6 +39,12 @@ add_definitions(
     # "-Wno-deprecated-declarations"
 )
 
+# Optional flags can be passed at the command line. Used by GitHub Actions workflow.
+if(CMD_FLAGS)
+    message(STATUS "CMD_FLAGS: ${CMD_FLAGS}")
+    add_definitions(${CMD_FLAGS})
+endif()
+
 include(cmake/CPM.cmake)
 
 # By default, download the TMC repos as CPM packages.
@@ -54,13 +60,13 @@ else()
     CPMAddPackage(
         NAME TooManyCooks
         GIT_REPOSITORY https://github.com/tzcnt/TooManyCooks.git
-        GIT_TAG c88c112eb1a25b210997d6aa21eb384bfceb5604
+        GIT_TAG e13ec476ecd760846c2056ec5934ea7faa84cb60
         DOWNLOAD_ONLY)
 
     CPMAddPackage(
         NAME tmc_asio
         GIT_REPOSITORY https://github.com/tzcnt/tmc-asio.git
-        GIT_TAG 18f5813bd2efafbad52f8ae8aa2a8803f9ce8619
+        GIT_TAG d97cbdba3d77a65238bf4ddf6d1748cb8040cfe1
         DOWNLOAD_ONLY)
 
     set(TMC_INCLUDE_PATH ${TooManyCooks_SOURCE_DIR}/include CACHE STRING "" FORCE)
