@@ -6,7 +6,6 @@
 #include "tmc/spawn_many.hpp"
 #include "tmc/task.hpp"
 
-#include <atomic>
 #include <chrono>
 #include <cstdio>
 #include <ranges>
