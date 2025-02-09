@@ -35,8 +35,7 @@ static void check_alignment(void* ptr) {
   auto low_bits = reinterpret_cast<size_t>(ptr) % ALIGNMENT;
   if (low_bits != 0) {
     std::printf(
-      "FAIL: Expected align %" PRIu64 " but got align %" PRIu64 "\n", ALIGNMENT,
-      low_bits
+      "FAIL: Expected align %zu but got align %zu\n", ALIGNMENT, low_bits
     );
     std::fflush(stdout);
   }

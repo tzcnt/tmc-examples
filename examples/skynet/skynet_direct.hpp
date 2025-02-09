@@ -30,7 +30,7 @@ tmc::task<size_t> skynet_one(size_t BaseNum, size_t Depth) {
 template <size_t DepthMax> tmc::task<void> skynet() {
   size_t count = co_await skynet_one<DepthMax>(0, 0);
   if (count != 499999500000) {
-    std::printf("%" PRIu64 "\n", count);
+    std::printf("%zu\n", count);
   }
   done.store(true);
 }
@@ -51,8 +51,7 @@ template <size_t Depth = 6> void run_skynet() {
   auto execDur =
     std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - startTime);
   std::printf(
-    "executed skynet in %" PRIu64 " ns: %" PRIu64 " thread-ns\n",
-    execDur.count(),
+    "executed skynet in %zu ns: %zu thread-ns\n", execDur.count(),
     executor.thread_count() * static_cast<size_t>(execDur.count())
   );
 }

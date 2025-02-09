@@ -45,8 +45,7 @@ template <size_t Count> tmc::task<void> large_task_spawn_bench_lazy_bulk() {
   auto execDur =
     std::chrono::duration_cast<std::chrono::nanoseconds>(done - pre);
   std::printf(
-    "executed %" PRIu64 " tasks in %" PRIu64 " ns: %" PRIu64
-    " ns/task (wall), %" PRIu64 " "
+    "executed %zu tasks in %zu ns: %zu ns/task (wall), %zu "
     "ns/task/thread\n",
     Count, execDur.count(), execDur.count() / Count,
     (16) * execDur.count() / Count
@@ -84,15 +83,12 @@ template <size_t Count> tmc::task<void> braid_lock() {
   auto done = std::chrono::high_resolution_clock::now();
 
   if (value != data[0] * Count) {
-    std::printf(
-      "FAIL: expected %" PRIu64 " but got %" PRIu64 "\n", data[0] * Count, value
-    );
+    std::printf("FAIL: expected %zu but got %zu\n", data[0] * Count, value);
   }
   auto execDur =
     std::chrono::duration_cast<std::chrono::nanoseconds>(done - pre);
   std::printf(
-    "executed %" PRIu64 " tasks in %" PRIu64 " ns: %" PRIu64
-    " ns/task (wall), %" PRIu64 " "
+    "executed %zu tasks in %zu ns: %zu ns/task (wall), %zu "
     "ns/task/thread\n",
     Count, execDur.count(), execDur.count() / Count,
     (16) * execDur.count() / Count
@@ -147,21 +143,16 @@ template <size_t Count> tmc::task<void> braid_lock_middle() {
   auto done = std::chrono::high_resolution_clock::now();
 
   if (value != data[0] * Count) {
-    std::printf(
-      "FAIL: expected %" PRIu64 " but got %" PRIu64 "\n", data[0] * Count, value
-    );
+    std::printf("FAIL: expected %zu but got %zu\n", data[0] * Count, value);
   }
   if (lockCount != Count) {
-    std::printf(
-      "FAIL: expected %" PRIu64 " but got %" PRIu64 "\n", data[0] * Count, value
-    );
+    std::printf("FAIL: expected %zu but got %zu\n", data[0] * Count, value);
   }
 
   auto execDur =
     std::chrono::duration_cast<std::chrono::nanoseconds>(done - pre);
   std::printf(
-    "executed %" PRIu64 " tasks in %" PRIu64 " ns: %" PRIu64
-    " ns/task (wall), %" PRIu64 " "
+    "executed %zu tasks in %zu ns: %zu ns/task (wall), %zu "
     "ns/task/thread\n",
     Count, execDur.count(), execDur.count() / Count,
     (16) * execDur.count() / Count
@@ -215,20 +206,15 @@ template <size_t Count> tmc::task<void> braid_lock_middle_resume_on() {
   auto done = std::chrono::high_resolution_clock::now();
 
   if (value != data[0] * Count) {
-    std::printf(
-      "FAIL: expected %" PRIu64 " but got %" PRIu64 "\n", data[0] * Count, value
-    );
+    std::printf("FAIL: expected %zu but got %zu\n", data[0] * Count, value);
   }
   if (lockCount != Count) {
-    std::printf(
-      "FAIL: expected %" PRIu64 " but got %" PRIu64 "\n", data[0] * Count, value
-    );
+    std::printf("FAIL: expected %zu but got %zu\n", data[0] * Count, value);
   }
   auto execDur =
     std::chrono::duration_cast<std::chrono::nanoseconds>(done - pre);
   std::printf(
-    "executed %" PRIu64 " tasks in %" PRIu64 " ns: %" PRIu64
-    " ns/task (wall), %" PRIu64 " "
+    "executed %zu tasks in %zu ns: %zu ns/task (wall), %zu "
     "ns/task/thread\n",
     Count, execDur.count(), execDur.count() / Count,
     (16) * execDur.count() / Count
@@ -286,21 +272,16 @@ template <size_t Count> tmc::task<void> braid_lock_middle_child_task() {
   auto done = std::chrono::high_resolution_clock::now();
 
   if (value != data[0] * Count) {
-    std::printf(
-      "FAIL: expected %" PRIu64 " but got %" PRIu64 "\n", data[0] * Count, value
-    );
+    std::printf("FAIL: expected %zu but got %zu\n", data[0] * Count, value);
   }
   if (lockCount != Count) {
-    std::printf(
-      "FAIL: expected %" PRIu64 " but got %" PRIu64 "\n", data[0] * Count, value
-    );
+    std::printf("FAIL: expected %zu but got %zu\n", data[0] * Count, value);
   }
 
   auto execDur =
     std::chrono::duration_cast<std::chrono::nanoseconds>(done - pre);
   std::printf(
-    "executed %" PRIu64 " tasks in %" PRIu64 " ns: %" PRIu64
-    " ns/task (wall), %" PRIu64 " "
+    "executed %zu tasks in %zu ns: %zu ns/task (wall), %zu "
     "ns/task/thread\n",
     Count, execDur.count(), execDur.count() / Count,
     (16) * execDur.count() / Count

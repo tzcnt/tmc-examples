@@ -96,12 +96,11 @@ int main() {
     results[i] = find_equilibrium(count, i + 1);
   }
 
-  std::printf("%" PRIu64 " tasks\n", count);
+  std::printf("%zu tasks\n", count);
   for (size_t i = 0; i < results.size(); ++i) {
     auto benchResult = results[i];
     std::printf(
-      "%" PRIu64 " thr, %ld post ns, %ld tot ns: %" PRIu64
-      " ns/task (wall), %" PRIu64 " "
+      "%zu thr, %ld post ns, %ld tot ns: %zu ns/task (wall), %zu "
       "thread-ns/task\n",
       benchResult.thread_count, benchResult.post_dur_ns.count(),
       benchResult.dur_ns.count(), benchResult.dur_ns.count() / count,

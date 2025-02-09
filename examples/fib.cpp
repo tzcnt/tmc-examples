@@ -53,7 +53,7 @@ static task<size_t> fib(size_t n) {
 
 static task<void> top_fib(size_t n) {
   auto result = co_await fib(n);
-  std::printf("%" PRIu64 "\n", result);
+  std::printf("%zu\n", result);
   co_return;
 }
 
@@ -85,7 +85,7 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
     auto totalTimeUs = std::chrono::duration_cast<std::chrono::microseconds>(
       endTime - startTime
     );
-    std::printf("%" PRIu64 " us\n", totalTimeUs.count() / NRUNS);
+    std::printf("%zu us\n", totalTimeUs.count() / NRUNS);
     co_return 0;
   }(n));
 }

@@ -37,9 +37,8 @@ template <size_t Depth = 6> tmc::task<void> loop_skynet() {
     auto execPrint =
       std::chrono::duration_cast<std::chrono::microseconds>(execDur);
     std::printf(
-      "%" PRIu64 " skynet iterations in %" PRIu64 " us: %" PRIu64
-      " thread-us\n",
-      iter_count, execPrint.count(),
+      "%zu skynet iterations in %zu us: %zu thread-us\n", iter_count,
+      execPrint.count(),
       tmc::cpu_executor().thread_count() *
         static_cast<size_t>(execPrint.count())
     );

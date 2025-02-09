@@ -45,7 +45,7 @@ task<size_t> skynet_one(size_t BaseNum, size_t Depth) {
 template <size_t DepthMax> task<void> skynet() {
   size_t count = co_await skynet_one<DepthMax>(0, 0);
   if (count != 499999500000) {
-    std::printf("%" PRIu64 "\n", count);
+    std::printf("%zu\n", count);
   }
 }
 } // namespace bulk
@@ -65,7 +65,7 @@ tmc::task<int> bench_async_main() {
   auto endTime = std::chrono::high_resolution_clock::now();
   auto totalTimeNs =
     std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime);
-  std::printf("%" PRIu64 "", totalTimeNs.count() / NRUNS);
+  std::printf("%zu", totalTimeNs.count() / NRUNS);
 
   co_return 0;
 }

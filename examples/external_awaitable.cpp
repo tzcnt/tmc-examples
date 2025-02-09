@@ -52,14 +52,14 @@ public:
 
 static tmc::task<int> await_external_coro() {
   std::printf(
-    "started on %s at priority %" PRIu64 "\n", get_thread_name().c_str(),
+    "started on %s at priority %zu\n", get_thread_name().c_str(),
     tmc::current_priority()
   );
   int result;
   std::printf("co_awaiting external awaitable...\n");
   result = co_await external_awaitable<int>{};
   std::printf(
-    "resumed on %s at priority %" PRIu64 "\n", get_thread_name().c_str(),
+    "resumed on %s at priority %zu\n", get_thread_name().c_str(),
     tmc::current_priority()
   );
   if (result != 42) {
@@ -82,15 +82,15 @@ void await_external_coro_and_spawn() {}
 
 void test_spawn_on_external_thread() {
   std::printf(
-    "running on %s at priority %" PRIu64 "\n", get_thread_name().c_str(),
+    "running on %s at priority %zu\n", get_thread_name().c_str(),
     tmc::current_priority()
   );
   std::atomic_bool ready(false);
   std::thread([&ready]() {
     tmc::spawn([](std::atomic_bool& Ready) -> tmc::task<void> {
       std::printf(
-        "child task running on %s at priority %" PRIu64 "\n",
-        get_thread_name().c_str(), tmc::current_priority()
+        "child task running on %s at priority %zu\n", get_thread_name().c_str(),
+        tmc::current_priority()
       );
       Ready.store(true);
       Ready.notify_all();

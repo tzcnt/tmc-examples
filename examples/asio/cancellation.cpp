@@ -39,7 +39,7 @@ void log_event_timestamp(
     std::chrono::high_resolution_clock::now()
 ) {
   std::printf(
-    "%s at %" PRIu64 " us\n", event.c_str(),
+    "%s at %zu us\n", event.c_str(),
     std::chrono::duration_cast<std::chrono::microseconds>(now - startTime)
       .count()
   );

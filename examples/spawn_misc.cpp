@@ -37,22 +37,21 @@ template <size_t Count, size_t ThreadCount> void small_func_spawn_bench_lazy() {
 
   for (size_t i = 0; i < Count; ++i) {
     if (data[i] != i) {
-      std::printf("FAIL: index %" PRIu64 " value %" PRIu64 "", i, data[i]);
+      std::printf("FAIL: index %zu value %zu", i, data[i]);
     }
   }
 
   auto spawnDur =
     std::chrono::duration_cast<std::chrono::nanoseconds>(postTime - preTime);
   std::printf(
-    "spawned %" PRIu64 " tasks in %" PRIu64 " ns: %" PRIu64 " ns/task\n", Count,
-    spawnDur.count(), spawnDur.count() / Count
+    "spawned %zu tasks in %zu ns: %zu ns/task\n", Count, spawnDur.count(),
+    spawnDur.count() / Count
   );
 
   auto execDur =
     std::chrono::duration_cast<std::chrono::nanoseconds>(doneTime - postTime);
   std::printf(
-    "executed %" PRIu64 " tasks in %" PRIu64 " ns: %" PRIu64
-    " ns/task (wall), %" PRIu64 " "
+    "executed %zu tasks in %zu ns: %zu ns/task (wall), %zu "
     "ns/task/thread\n",
     Count, execDur.count(), execDur.count() / Count,
     ThreadCount * execDur.count() / Count
@@ -99,15 +98,14 @@ template <size_t Count, size_t nthreads> void large_task_spawn_bench_lazy() {
   auto spawnDur =
     std::chrono::duration_cast<std::chrono::nanoseconds>(postTime - preTime);
   std::printf(
-    "spawned %" PRIu64 " tasks in %" PRIu64 " ns: %" PRIu64 " ns/task\n", Count,
-    spawnDur.count(), spawnDur.count() / Count
+    "spawned %zu tasks in %zu ns: %zu ns/task\n", Count, spawnDur.count(),
+    spawnDur.count() / Count
   );
 
   auto execDur =
     std::chrono::duration_cast<std::chrono::nanoseconds>(doneTime - postTime);
   std::printf(
-    "executed %" PRIu64 " tasks in %" PRIu64 " ns: %" PRIu64
-    " ns/task (wall), %" PRIu64 " "
+    "executed %zu tasks in %zu ns: %zu ns/task (wall), %zu "
     "ns/task/thread\n",
     Count, execDur.count(), execDur.count() / Count,
     nthreads * execDur.count() / Count
@@ -145,15 +143,14 @@ void large_task_spawn_bench_lazy_bulk() {
   auto spawnDur =
     std::chrono::duration_cast<std::chrono::nanoseconds>(postTime - preTime);
   std::printf(
-    "spawned %" PRIu64 " tasks in %" PRIu64 " ns: %" PRIu64 " ns/task\n", Count,
-    spawnDur.count(), spawnDur.count() / Count
+    "spawned %zu tasks in %zu ns: %zu ns/task\n", Count, spawnDur.count(),
+    spawnDur.count() / Count
   );
 
   auto execDur =
     std::chrono::duration_cast<std::chrono::nanoseconds>(doneTime - postTime);
   std::printf(
-    "executed %" PRIu64 " tasks in %" PRIu64 " ns: %" PRIu64
-    " ns/task (wall), %" PRIu64 " "
+    "executed %zu tasks in %zu ns: %zu ns/task (wall), %zu "
     "ns/task/thread\n",
     Count, execDur.count(), execDur.count() / Count,
     nthreads * execDur.count() / Count
@@ -187,13 +184,11 @@ void prio_reversal_test() {
               b = b + a;
             }
             if (yield_requested()) {
-              // std::printf("su %"PRIu64"\t", prio);
               co_await yield();
             }
           }
 
           *DataSlot = b;
-          // std::printf("co %"PRIu64"\t", prio);
         }(&data[slot], prio),
         prio
       );
@@ -216,15 +211,14 @@ DONE:
   auto spawnDur =
     std::chrono::duration_cast<std::chrono::nanoseconds>(postTime - preTime);
   std::printf(
-    "spawned %" PRIu64 " tasks in %" PRIu64 " ns: %" PRIu64 " ns/task\n", Count,
-    spawnDur.count(), spawnDur.count() / Count
+    "spawned %zu tasks in %zu ns: %zu ns/task\n", Count, spawnDur.count(),
+    spawnDur.count() / Count
   );
 
   auto execDur =
     std::chrono::duration_cast<std::chrono::nanoseconds>(doneTime - postTime);
   std::printf(
-    "executed %" PRIu64 " tasks in %" PRIu64 " ns: %" PRIu64
-    " ns/task (wall), %" PRIu64 " "
+    "executed %zu tasks in %zu ns: %zu ns/task (wall), %zu "
     "ns/task/thread\n",
     Count, execDur.count(), execDur.count() / Count,
     nthreads * execDur.count() / Count
