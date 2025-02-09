@@ -24,7 +24,7 @@ struct bench_result {
   std::chrono::duration<long, std::ratio<1, 1000000000>> dur_ns;
 };
 
-[[maybe_unused]] static task<void> make_task(uint64_t& DataSlot) {
+[[maybe_unused]] static task<void> make_task(size_t& DataSlot) {
   int a = 0;
   int b = 1;
 #pragma unroll 1
@@ -43,7 +43,7 @@ struct bench_result {
 static bench_result find_equilibrium(size_t Count, size_t ThreadCount) {
   auto& executor = tmc::cpu_executor();
   executor.set_thread_count(ThreadCount).init();
-  std::vector<uint64_t> data;
+  std::vector<size_t> data;
   data.resize(Count);
   std::future<void> future;
 #ifdef USE_ITERATOR

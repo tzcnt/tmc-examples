@@ -32,7 +32,7 @@ struct alignas(ALIGNMENT) aligned_struct {
 };
 
 static void check_alignment(void* ptr) {
-  auto low_bits = reinterpret_cast<uint64_t>(ptr) % ALIGNMENT;
+  auto low_bits = reinterpret_cast<size_t>(ptr) % ALIGNMENT;
   if (low_bits != 0) {
     std::printf(
       "FAIL: Expected align %" PRIu64 " but got align %" PRIu64 "\n", ALIGNMENT,
@@ -43,7 +43,7 @@ static void check_alignment(void* ptr) {
 }
 static task<void> run_one(int i, unaligned_struct* ur, aligned_struct* ar) {
   static_assert(alignof(aligned_struct) == ALIGNMENT);
-  static_assert(sizeof(void*) == sizeof(uint64_t));
+  static_assert(sizeof(void*) == sizeof(size_t));
   unaligned_struct u;
   aligned_struct a;
   u.value = i & 0xFF;

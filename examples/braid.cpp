@@ -19,14 +19,14 @@ using namespace tmc;
 
 template <size_t Count> tmc::task<void> large_task_spawn_bench_lazy_bulk() {
   ex_braid br;
-  std::array<uint64_t, Count> data;
+  std::array<size_t, Count> data;
   for (size_t i = 0; i < Count; ++i) {
     data[i] = 0;
   }
   auto pre = std::chrono::high_resolution_clock::now();
   auto tasks =
-    std::ranges::views::transform(data, [](uint64_t& elem) -> task<void> {
-      return [](uint64_t* Elem) -> task<void> {
+    std::ranges::views::transform(data, [](size_t& elem) -> task<void> {
+      return [](size_t* Elem) -> task<void> {
         int a = 0;
         int b = 1;
         for (int i = 0; i < 1000; ++i) {
@@ -55,30 +55,29 @@ template <size_t Count> tmc::task<void> large_task_spawn_bench_lazy_bulk() {
 
 template <size_t Count> tmc::task<void> braid_lock() {
   ex_braid br;
-  std::array<uint64_t, Count> data;
+  std::array<size_t, Count> data;
   for (size_t i = 0; i < Count; ++i) {
     data[i] = 0;
   }
-  uint64_t value = 0;
+  size_t value = 0;
   auto pre = std::chrono::high_resolution_clock::now();
   auto tasks = std::ranges::views::transform(
     data,
-    [&br, &value](uint64_t& elem) -> task<void> {
-      return
-        [](uint64_t* Elem, ex_braid* Braid, uint64_t* Value) -> task<void> {
-          int a = 0;
-          int b = 1;
-          for (int i = 0; i < 1000; ++i) {
-            for (int j = 0; j < 500; ++j) {
-              a = a + b;
-              b = b + a;
-            }
+    [&br, &value](size_t& elem) -> task<void> {
+      return [](size_t* Elem, ex_braid* Braid, size_t* Value) -> task<void> {
+        int a = 0;
+        int b = 1;
+        for (int i = 0; i < 1000; ++i) {
+          for (int j = 0; j < 500; ++j) {
+            a = a + b;
+            b = b + a;
           }
-          *Elem = b;
-          co_await tmc::enter(Braid);
-          *Value = *Value + b;
-          // not necessary to exit the braid scope, since the task has ended
-        }(&elem, &br, &value);
+        }
+        *Elem = b;
+        co_await tmc::enter(Braid);
+        *Value = *Value + b;
+        // not necessary to exit the braid scope, since the task has ended
+      }(&elem, &br, &value);
     }
   );
   co_await spawn_many<Count>(tasks.begin());
@@ -102,20 +101,20 @@ template <size_t Count> tmc::task<void> braid_lock() {
 
 template <size_t Count> tmc::task<void> braid_lock_middle() {
   ex_braid br;
-  std::array<uint64_t, Count> data;
+  std::array<size_t, Count> data;
   for (size_t i = 0; i < Count; ++i) {
     data[i] = 0;
   }
-  uint64_t value = 0;
-  uint64_t lockCount = 0;
+  size_t value = 0;
+  size_t lockCount = 0;
   auto pre = std::chrono::high_resolution_clock::now();
   std::vector<tmc::task<void>> tasks;
   tasks.resize(Count);
   {
-    for (uint64_t slot = 0; slot < Count; ++slot) {
+    for (size_t slot = 0; slot < Count; ++slot) {
       tasks[slot] = [](
-                      auto* DataSlot, ex_braid* Braid, uint64_t* Value,
-                      uint64_t* LockCount
+                      auto* DataSlot, ex_braid* Braid, size_t* Value,
+                      size_t* LockCount
                     ) -> task<void> {
         int a = 0;
         int b = 1;
@@ -171,20 +170,20 @@ template <size_t Count> tmc::task<void> braid_lock_middle() {
 
 template <size_t Count> tmc::task<void> braid_lock_middle_resume_on() {
   ex_braid br;
-  std::array<uint64_t, Count> data;
+  std::array<size_t, Count> data;
   for (size_t i = 0; i < Count; ++i) {
     data[i] = 0;
   }
-  uint64_t value = 0;
-  uint64_t lockCount = 0;
+  size_t value = 0;
+  size_t lockCount = 0;
   auto pre = std::chrono::high_resolution_clock::now();
   std::vector<tmc::task<void>> tasks;
   tasks.resize(Count);
   {
-    for (uint64_t slot = 0; slot < Count; ++slot) {
+    for (size_t slot = 0; slot < Count; ++slot) {
       tasks[slot] = [](
-                      auto* DataSlot, ex_braid* Braid, uint64_t* Value,
-                      uint64_t* LockCount
+                      auto* DataSlot, ex_braid* Braid, size_t* Value,
+                      size_t* LockCount
                     ) -> task<void> {
         int a = 0;
         int b = 1;
@@ -236,27 +235,27 @@ template <size_t Count> tmc::task<void> braid_lock_middle_resume_on() {
   );
 }
 
-tmc::task<void> increment(uint64_t* Value) {
+tmc::task<void> increment(size_t* Value) {
   (*Value)++;
   co_return;
 }
 
 template <size_t Count> tmc::task<void> braid_lock_middle_child_task() {
   ex_braid br;
-  std::array<uint64_t, Count> data;
+  std::array<size_t, Count> data;
   for (size_t i = 0; i < Count; ++i) {
     data[i] = 0;
   }
-  uint64_t value = 0;
-  uint64_t lockCount = 0;
+  size_t value = 0;
+  size_t lockCount = 0;
   auto pre = std::chrono::high_resolution_clock::now();
   std::vector<tmc::task<void>> tasks;
   tasks.resize(Count);
   {
-    for (uint64_t slot = 0; slot < Count; ++slot) {
+    for (size_t slot = 0; slot < Count; ++slot) {
       tasks[slot] = [](
-                      auto* DataSlot, ex_braid* Braid, uint64_t* Value,
-                      uint64_t* LockCount
+                      auto* DataSlot, ex_braid* Braid, size_t* Value,
+                      size_t* LockCount
                     ) -> task<void> {
         int a = 0;
         int b = 1;

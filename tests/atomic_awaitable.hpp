@@ -90,7 +90,7 @@ template <IsAwAtomic Awaitable> struct awaitable_traits<Awaitable> {
     awaitable.customizer.done_count = DoneCount;
   }
 
-  static void set_flags(self_type& awaitable, uint64_t Flags) {
+  static void set_flags(self_type& awaitable, size_t Flags) {
     awaitable.customizer.flags = Flags;
   }
 };
