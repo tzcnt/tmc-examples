@@ -174,7 +174,8 @@ void prio_reversal_test() {
   auto preTime = std::chrono::high_resolution_clock::now();
   size_t slot = 0;
   while (true) {
-    for (size_t prio = npriorities - 1; prio != -1ULL; --prio) {
+    for (size_t prio = npriorities - 1; prio != static_cast<size_t>(-1);
+         --prio) {
       results[slot] = post_waitable(
         executor,
         [](size_t* DataSlot, [[maybe_unused]] size_t Priority) -> task<void> {

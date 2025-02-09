@@ -22,8 +22,9 @@
 
 #pragma once
 
-#include "tmc/detail/concepts.hpp"
-#include "tmc/detail/thread_locals.hpp"
+#include "tmc/detail/compat.hpp"   // for TMC_FORCE_INLINE
+#include "tmc/detail/concepts.hpp" // for result_storage_t, awaitable_traits
+#include "tmc/detail/thread_locals.hpp" // for this_thread
 #include "tmc/task.hpp"
 
 #include <coroutine>
