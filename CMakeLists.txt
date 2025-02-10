@@ -235,37 +235,37 @@ make_exe(spawn_iterator
     examples/spawn_iterator.cpp
 )
 
-make_exe(asio_prio
+function(make_asio_exe target_name)
+    make_exe(${target_name} ${ARGN})
+    target_compile_definitions(${target_name} PRIVATE -DASIO_NO_EXCEPTIONS -DASIO_NO_EXCEPTIONS)
+
+    if(USE_IO_URING AND LIBURING_FOUND)
+        target_link_libraries(${target_name} ${LIBURING_LIBRARY})
+    endif()
+endfunction()
+
+make_asio_exe(asio_prio
     examples/asio/prio.cpp
 )
 
-make_exe(asio_cancellation
+make_asio_exe(asio_cancellation
     examples/asio/cancellation.cpp
 )
 
-make_exe(asio_delay
+make_asio_exe(asio_delay
     examples/asio/delay.cpp
 )
 
-make_exe(asio_timer_mem_bench
+make_asio_exe(asio_timer_mem_bench
     examples/asio/timer_mem_bench.cpp
 )
 
-make_exe(asio_http_server
+make_asio_exe(asio_http_server
     examples/asio/http_server.cpp
 )
 
-make_exe(asio_http_skynet
+make_asio_exe(asio_http_skynet
     examples/asio/http_skynet.cpp
 )
-
-if(USE_IO_URING AND LIBURING_FOUND)
-    target_link_libraries(asio_prio ${LIBURING_LIBRARY})
-    target_link_libraries(asio_cancellation ${LIBURING_LIBRARY})
-    target_link_libraries(asio_delay ${LIBURING_LIBRARY})
-    target_link_libraries(asio_timer_mem_bench ${LIBURING_LIBRARY})
-    target_link_libraries(asio_http_server ${LIBURING_LIBRARY})
-    target_link_libraries(asio_http_skynet ${LIBURING_LIBRARY})
-endif()
 
 add_subdirectory(tests)

@@ -22,6 +22,8 @@
 
 #define TMC_IMPL
 
+#include "asio_noexcept.hpp" // IWYU pragma: keep
+
 #include "tmc/asio/aw_asio.hpp"
 #include "tmc/asio/ex_asio.hpp"
 #include "tmc/ex_cpu.hpp"

@@ -7,6 +7,7 @@
 
 #define TMC_IMPL
 
+#include "asio_noexcept.hpp" // IWYU pragma: keep
 #include "asio_thread_name.hpp"
 
 #include "tmc/asio/aw_asio.hpp"

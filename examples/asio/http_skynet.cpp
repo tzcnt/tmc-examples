@@ -2,12 +2,13 @@
 // Connections to http://localhost:55551/ will be served at lower priority
 // Connections on http://localhost:55550/ will be served at higher priority
 // Try load testing both sockets at the same time and observe
-#include "tmc/detail/compat.hpp"
 #ifdef _WIN32
 #include <SDKDDKVer.h>
 #endif
 
 #define TMC_IMPL
+
+#include "asio_noexcept.hpp" // IWYU pragma: keep
 
 #include "tmc/asio/aw_asio.hpp"
 #include "tmc/asio/ex_asio.hpp"

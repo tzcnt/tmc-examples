@@ -12,7 +12,7 @@
         "CMAKE_BUILD_TYPE": "Debug",
         "CMAKE_C_COMPILER": "clang",
         "CMAKE_CXX_COMPILER": "clang++",
-        "CMAKE_CXX_FLAGS": "-march=native",
+        "CMAKE_CXX_FLAGS": "-march=native -fno-exceptions",
         "CMAKE_C_FLAGS": "-march=native",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
       },
@@ -33,7 +33,7 @@
         "CMAKE_BUILD_TYPE": "Release",
         "CMAKE_C_COMPILER": "clang",
         "CMAKE_CXX_COMPILER": "clang++",
-        "CMAKE_CXX_FLAGS": "-march=native -DTMC_TRIVIAL_TASK",
+        "CMAKE_CXX_FLAGS": "-march=native -fno-exceptions -DTMC_TRIVIAL_TASK",
         "CMAKE_C_FLAGS": "-march=native",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
       },
@@ -54,7 +54,7 @@
         "CMAKE_BUILD_TYPE": "RelWithDebInfo",
         "CMAKE_C_COMPILER": "clang",
         "CMAKE_CXX_COMPILER": "clang++",
-        "CMAKE_CXX_FLAGS": "-march=native",
+        "CMAKE_CXX_FLAGS": "-march=native -fno-exceptions",
         "CMAKE_C_FLAGS": "-march=native",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
       },
@@ -75,7 +75,7 @@
         "CMAKE_BUILD_TYPE": "Debug",
         "CMAKE_C_COMPILER": "gcc",
         "CMAKE_CXX_COMPILER": "g++",
-        "CMAKE_CXX_FLAGS": "-march=native",
+        "CMAKE_CXX_FLAGS": "-march=native -fno-exceptions",
         "CMAKE_C_FLAGS": "-march=native",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
       },
@@ -96,7 +96,7 @@
         "CMAKE_BUILD_TYPE": "Release",
         "CMAKE_C_COMPILER": "gcc",
         "CMAKE_CXX_COMPILER": "g++",
-        "CMAKE_CXX_FLAGS": "-march=native -DTMC_TRIVIAL_TASK",
+        "CMAKE_CXX_FLAGS": "-march=native -fno-exceptions -DTMC_TRIVIAL_TASK",
         "CMAKE_C_FLAGS": "-march=native",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
       },
@@ -117,7 +117,7 @@
         "CMAKE_BUILD_TYPE": "RelWithDebInfo",
         "CMAKE_C_COMPILER": "gcc",
         "CMAKE_CXX_COMPILER": "g++",
-        "CMAKE_CXX_FLAGS": "-march=native",
+        "CMAKE_CXX_FLAGS": "-march=native -fno-exceptions",
         "CMAKE_C_FLAGS": "-march=native",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
       },

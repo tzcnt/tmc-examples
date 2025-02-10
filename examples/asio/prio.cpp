@@ -7,6 +7,8 @@
 
 #define TMC_IMPL
 
+#include "asio_noexcept.hpp" // IWYU pragma: keep
+
 #include "tmc/asio/ex_asio.hpp"
 #include "tmc/aw_resume_on.hpp"
 #include "tmc/ex_braid.hpp"
