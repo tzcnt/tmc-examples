@@ -5,6 +5,38 @@
 
 #define CAT_TEST(CATEGORY, NAME) TEST_F(CATEGORY, NAME)
 
+TEST_F(CATEGORY, post_coro) {
+  std::atomic<int> x = 0;
+  tmc::post(
+    ex(),
+    [](std::atomic<int>& i) -> tmc::task<void> {
+      ++i;
+      i.notify_all();
+      co_return;
+    }(x),
+    0
+  );
+  x.wait(0);
+  EXPECT_EQ(x, 1);
+  tmc::post(ex(), capturing_task(x), 0);
+  x.wait(1);
+  EXPECT_EQ(x, 2);
+}
+
+TEST_F(CATEGORY, post_func) {
+  std::atomic<int> x = 0;
+  tmc::post(
+    ex(),
+    [&x]() {
+      ++x;
+      x.notify_all();
+    },
+    0
+  );
+  x.wait(0);
+  EXPECT_EQ(x, 1);
+}
+
 TEST_F(CATEGORY, post_waitable_coro) {
   tmc::post_waitable(ex(), []() -> tmc::task<void> { co_return; }(), 0).get();
   tmc::post_waitable(ex(), empty_task(), 0).get();
