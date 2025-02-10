@@ -1,3 +1,5 @@
+#include "asio_noexcept.hpp" // IWYU pragma: keep
+
 #include "test_common.hpp"
 #include "tmc/asio/ex_asio.hpp"
 

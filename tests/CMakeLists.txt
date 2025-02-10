@@ -55,6 +55,7 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 endif()
 
 target_compile_definitions(tests PRIVATE TMC_NO_UNKNOWN_AWAITABLES)
+target_compile_definitions(tests PRIVATE -DASIO_NO_EXCEPTIONS -DASIO_NO_EXCEPTIONS)
 
 if(TMC_USE_HWLOC AND LIBHWLOC_FOUND)
   target_link_libraries(tests ${LIBHWLOC_LIBRARY})
