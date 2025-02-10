@@ -60,6 +60,88 @@ TEST_F(CATEGORY, post_waitable_func) {
   EXPECT_EQ(y, 1);
 }
 
+TEST_F(CATEGORY, post_bulk_coro) {
+  {
+    std::atomic<int> flag = 0;
+    std::array<int, 2> results = {5, 5};
+    tmc::post_bulk(
+      ex(),
+      tmc::iter_adapter(
+        0,
+        [&results, &flag](int i) -> tmc::task<void> {
+          return [](int* out, int val, std::atomic<int>& x) -> tmc::task<void> {
+            *out = val;
+            ++x;
+            x.notify_all();
+            co_return;
+          }(&results[i], i, flag);
+        }
+      ),
+      2, 0
+    );
+    flag.wait(0);
+    if (flag != 2) {
+      flag.wait(1);
+    }
+    EXPECT_EQ(flag, 2);
+
+    EXPECT_EQ(results[0], 0);
+    EXPECT_EQ(results[1], 1);
+  }
+
+  {
+    std::atomic<int> flag = 0;
+    std::array<int, 2> results = {5, 5};
+    tmc::post_bulk(
+      ex(),
+      (std::ranges::views::iota(0) |
+       std::ranges::views::transform(
+         [&results, &flag](int i) -> tmc::task<void> {
+           return
+             [](int* out, int val, std::atomic<int>& x) -> tmc::task<void> {
+               *out = val;
+               ++x;
+               x.notify_all();
+               co_return;
+             }(&results[i], i, flag);
+         }
+       )
+      ).begin(),
+      2, 0
+    );
+    flag.wait(0);
+    if (flag != 2) {
+      flag.wait(1);
+    }
+    EXPECT_EQ(flag, 2);
+    EXPECT_EQ(results[0], 0);
+    EXPECT_EQ(results[1], 1);
+  }
+}
+
+TEST_F(CATEGORY, post_bulk_func) {
+  {
+    std::atomic<int> flag = 0;
+    std::array<int, 2> results = {5, 5};
+    auto ts =
+      std::ranges::views::iota(0UL) | std::ranges::views::transform([&](int i) {
+        return [&results, &flag, i = i]() {
+          results[i] = i;
+          ++flag;
+          flag.notify_all();
+        };
+      });
+    tmc::post_bulk(ex(), ts.begin(), 2, 0);
+    flag.wait(0);
+    if (flag != 2) {
+      flag.wait(1);
+    }
+    EXPECT_EQ(flag, 2);
+    EXPECT_EQ(results[0], 0);
+    EXPECT_EQ(results[1], 1);
+  }
+}
+
 TEST_F(CATEGORY, post_bulk_waitable_coro) {
   tmc::post_bulk_waitable(
     ex(), tmc::iter_adapter(0, [](int i) -> tmc::task<void> { co_return; }), 10,
