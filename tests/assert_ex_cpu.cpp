@@ -40,6 +40,9 @@ TEST(CATEGORY, task_func_post) {
 
 TEST(CATEGORY, spawn_without_executor) {
   EXPECT_DEATH({ tmc::spawn(empty_task()).detach(); }, "executor != nullptr");
+  EXPECT_DEATH(
+    { auto x = tmc::spawn(empty_task()).run_early(); }, "executor != nullptr"
+  );
 }
 
 TEST(CATEGORY, spawn_many_without_executor) {
@@ -52,11 +55,24 @@ TEST(CATEGORY, spawn_many_without_executor) {
     },
     "executor != nullptr"
   );
+  EXPECT_DEATH(
+    {
+      tmc::task<void> tasks[2];
+      tasks[0] = empty_task();
+      tasks[1] = empty_task();
+      tmc::spawn_many<2>(&tasks[0]).run_early();
+    },
+    "executor != nullptr"
+  );
 }
 
 TEST(CATEGORY, spawn_tuple_without_executor) {
   EXPECT_DEATH(
     { tmc::spawn_tuple(empty_task(), empty_task()).detach(); },
+    "executor != nullptr"
+  );
+  EXPECT_DEATH(
+    { tmc::spawn_tuple(empty_task(), empty_task()).run_early(); },
     "executor != nullptr"
   );
 }
