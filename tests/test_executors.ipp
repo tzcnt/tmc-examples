@@ -256,10 +256,10 @@ TEST_F(CATEGORY, spawn_many_small) {
       }
 
       auto make_task_array = []() -> std::array<tmc::task<int>, 2> {
-        std::array<tmc::task<int>, 2> tasks;
-        tasks[0] = []() -> tmc::task<int> { co_return 1; }();
-        tasks[1] = [](int i) -> tmc::task<int> { co_return i + 1; }(1);
-        return std::move(tasks);
+        return std::array<tmc::task<int>, 2>{
+          []() -> tmc::task<int> { co_return 1; }(),
+          [](int i) -> tmc::task<int> { co_return i + 1; }(1)
+        };
       };
 
       {
