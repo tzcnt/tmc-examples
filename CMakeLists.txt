@@ -27,6 +27,17 @@ add_definitions(
     # "-DTMC_QUEUE_NO_LIFO"
 )
 
+# Optional flags can be passed at the command line. Used by GitHub Actions workflow.
+if(CMD_COMPILE_FLAGS)
+    message(STATUS "CMD_COMPILE_FLAGS: ${CMD_COMPILE_FLAGS}")
+    add_compile_options(${CMD_COMPILE_FLAGS})
+endif()
+
+if(CMD_LINK_FLAGS)
+    message(STATUS "CMD_LINK_FLAGS: ${CMD_LINK_FLAGS}")
+    add_link_options(${CMD_LINK_FLAGS})
+endif()
+
 include(cmake/CPM.cmake)
 
 # By default, download the TMC repos as CPM packages.
@@ -258,14 +269,3 @@ if(USE_IO_URING AND LIBURING_FOUND)
 endif()
 
 add_subdirectory(tests)
-
-# Optional flags can be passed at the command line. Used by GitHub Actions workflow.
-if(CMD_COMPILE_FLAGS)
-    message(STATUS "CMD_COMPILE_FLAGS: ${CMD_COMPILE_FLAGS}")
-    add_compile_options(${CMD_COMPILE_FLAGS})
-endif()
-
-if(CMD_LINK_FLAGS)
-    message(STATUS "CMD_LINK_FLAGS: ${CMD_LINK_FLAGS}")
-    add_link_options(${CMD_LINK_FLAGS})
-endif()
