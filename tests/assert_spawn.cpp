@@ -4,6 +4,7 @@
 
 #define CATEGORY assert_spawn_DeathTest
 
+#ifndef NDEBUG
 TEST(CATEGORY, spawn_run_early) {
   EXPECT_DEATH(
     {
@@ -18,3 +19,4 @@ TEST(CATEGORY, spawn_run_early) {
     "done_count"
   );
 }
+#endif
