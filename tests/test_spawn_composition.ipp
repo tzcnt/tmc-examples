@@ -191,10 +191,6 @@ static inline tmc::task<void> spawn_many_compose_spawn_func() {
   }
   {
     std::array<int, 2> void_results{0, 1};
-    auto set = [](int& i) -> tmc::task<void> {
-      i = (1 << i);
-      co_return;
-    };
     std::array<tmc::aw_spawned_func<void>, 2> ts{
       tmc::spawn_func([&void_results]() -> void { void_results[0] = 1 << 0; }),
       tmc::spawn_func([&void_results]() -> void { void_results[1] = 1 << 1; })

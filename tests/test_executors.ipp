@@ -5,6 +5,38 @@
 
 #define CAT_TEST(CATEGORY, NAME) TEST_F(CATEGORY, NAME)
 
+TEST_F(CATEGORY, post_coro) {
+  std::atomic<int> x = 0;
+  tmc::post(
+    ex(),
+    [](std::atomic<int>& i) -> tmc::task<void> {
+      ++i;
+      i.notify_all();
+      co_return;
+    }(x),
+    0
+  );
+  x.wait(0);
+  EXPECT_EQ(x, 1);
+  tmc::post(ex(), capturing_task(x), 0);
+  x.wait(1);
+  EXPECT_EQ(x, 2);
+}
+
+TEST_F(CATEGORY, post_func) {
+  std::atomic<int> x = 0;
+  tmc::post(
+    ex(),
+    [&x]() {
+      ++x;
+      x.notify_all();
+    },
+    0
+  );
+  x.wait(0);
+  EXPECT_EQ(x, 1);
+}
+
 TEST_F(CATEGORY, post_waitable_coro) {
   tmc::post_waitable(ex(), []() -> tmc::task<void> { co_return; }(), 0).get();
   tmc::post_waitable(ex(), empty_task(), 0).get();
@@ -26,6 +58,139 @@ TEST_F(CATEGORY, post_waitable_func) {
   EXPECT_EQ(x, 1);
   auto y = tmc::post_waitable(ex(), int_func, 0).get();
   EXPECT_EQ(y, 1);
+}
+
+TEST_F(CATEGORY, post_bulk_coro_begin_count) {
+  {
+    std::atomic<int> flag = 0;
+    std::array<int, 2> results = {5, 5};
+    tmc::post_bulk(
+      ex(),
+      tmc::iter_adapter(
+        0,
+        [&results, &flag](int i) -> tmc::task<void> {
+          return [](int* out, int val, std::atomic<int>& x) -> tmc::task<void> {
+            *out = val;
+            ++x;
+            x.notify_all();
+            co_return;
+          }(&results[i], i, flag);
+        }
+      ),
+      2, 0
+    );
+    flag.wait(0);
+    if (flag != 2) {
+      flag.wait(1);
+    }
+    EXPECT_EQ(flag, 2);
+
+    EXPECT_EQ(results[0], 0);
+    EXPECT_EQ(results[1], 1);
+  }
+
+  {
+    std::atomic<int> flag = 0;
+    std::array<int, 2> results = {5, 5};
+    tmc::post_bulk(
+      ex(),
+      (std::ranges::views::iota(0) |
+       std::ranges::views::transform(
+         [&results, &flag](int i) -> tmc::task<void> {
+           return
+             [](int* out, int val, std::atomic<int>& x) -> tmc::task<void> {
+               *out = val;
+               ++x;
+               x.notify_all();
+               co_return;
+             }(&results[i], i, flag);
+         }
+       )
+      ).begin(),
+      2, 0
+    );
+    flag.wait(0);
+    if (flag != 2) {
+      flag.wait(1);
+    }
+    EXPECT_EQ(flag, 2);
+    EXPECT_EQ(results[0], 0);
+    EXPECT_EQ(results[1], 1);
+  }
+}
+
+TEST_F(CATEGORY, post_bulk_coro_begin_end) {
+  {
+    std::atomic<int> flag = 0;
+    std::array<int, 2> results = {5, 5};
+    auto range =
+      std::ranges::views::iota(0, 2) |
+      std::ranges::views::transform(
+        [&results, &flag](int i) -> tmc::task<void> {
+          return [](int* out, int val, std::atomic<int>& x) -> tmc::task<void> {
+            *out = val;
+            ++x;
+            x.notify_all();
+            co_return;
+          }(&results[i], i, flag);
+        }
+      );
+    tmc::post_bulk(ex(), range.begin(), range.end(), 0);
+    flag.wait(0);
+    if (flag != 2) {
+      flag.wait(1);
+    }
+    EXPECT_EQ(flag, 2);
+
+    EXPECT_EQ(results[0], 0);
+    EXPECT_EQ(results[1], 1);
+  }
+}
+
+TEST_F(CATEGORY, post_bulk_func_begin_count) {
+  {
+    std::atomic<int> flag = 0;
+    std::array<int, 2> results = {5, 5};
+    auto ts =
+      std::ranges::views::iota(0) | std::ranges::views::transform([&](int i) {
+        return [&results, &flag, i = i]() {
+          results[i] = i;
+          ++flag;
+          flag.notify_all();
+        };
+      });
+    tmc::post_bulk(ex(), ts.begin(), 2, 0);
+    flag.wait(0);
+    if (flag != 2) {
+      flag.wait(1);
+    }
+    EXPECT_EQ(flag, 2);
+    EXPECT_EQ(results[0], 0);
+    EXPECT_EQ(results[1], 1);
+  }
+}
+
+TEST_F(CATEGORY, post_bulk_func_begin_end) {
+  {
+    std::atomic<int> flag = 0;
+    std::array<int, 2> results = {5, 5};
+    auto ts = std::ranges::views::iota(0, 2) |
+              std::ranges::views::transform([&](int i) {
+                return [&results, &flag, i = i]() {
+                  results[i] = i;
+                  ++flag;
+                  flag.notify_all();
+                };
+              });
+    tmc::post_bulk(ex(), ts.begin(), ts.end(), 0);
+    flag.wait(0);
+    if (flag != 2) {
+      flag.wait(1);
+    }
+    EXPECT_EQ(flag, 2);
+    EXPECT_EQ(results[0], 0);
+    EXPECT_EQ(results[1], 1);
+  }
 }
 
 TEST_F(CATEGORY, post_bulk_waitable_coro) {
@@ -256,10 +421,10 @@ TEST_F(CATEGORY, spawn_many_small) {
       }
 
       auto make_task_array = []() -> std::array<tmc::task<int>, 2> {
-        std::array<tmc::task<int>, 2> tasks;
-        tasks[0] = []() -> tmc::task<int> { co_return 1; }();
-        tasks[1] = [](int i) -> tmc::task<int> { co_return i + 1; }(1);
-        return std::move(tasks);
+        return std::array<tmc::task<int>, 2>{
+          []() -> tmc::task<int> { co_return 1; }(),
+          [](int i) -> tmc::task<int> { co_return i + 1; }(1)
+        };
       };
 
       {
