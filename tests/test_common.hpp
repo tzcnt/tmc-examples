@@ -7,6 +7,12 @@ static inline tmc::task<void> empty_task() { co_return; }
 
 static inline tmc::task<int> int_task() { co_return 1; }
 
+static inline tmc::task<void> capturing_task(std::atomic<int>& i) {
+  ++i;
+  i.notify_all();
+  co_return;
+}
+
 static inline void empty_func() {}
 
 static inline int int_func() { return 1; }
