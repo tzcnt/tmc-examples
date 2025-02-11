@@ -2,6 +2,15 @@
 
 #include <gtest/gtest.h>
 
+// This file does bad things on purpose, so disable the compiler warnings for
+// them.
+#pragma warning(push, 0)
+#pragma clang diagnostic push
+#pragma GCC diagnostic push
+
+#pragma clang diagnostic ignored "-Wunused-result"
+#pragma GCC diagnostic ignored "-Wunused-result"
+
 #define CATEGORY assert_ex_cpu_DeathTest
 
 #ifndef NDEBUG
@@ -78,3 +87,7 @@ TEST(CATEGORY, spawn_tuple_without_executor) {
 }
 
 #endif
+
+#pragma GCC diagnostic pop
+#pragma clang diagnostic pop
+#pragma warning(pop)
