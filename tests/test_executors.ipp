@@ -60,7 +60,7 @@ TEST_F(CATEGORY, post_waitable_func) {
   EXPECT_EQ(y, 1);
 }
 
-TEST_F(CATEGORY, post_bulk_coro) {
+TEST_F(CATEGORY, post_bulk_coro_begin_count) {
   {
     std::atomic<int> flag = 0;
     std::array<int, 2> results = {5, 5};
@@ -119,12 +119,40 @@ TEST_F(CATEGORY, post_bulk_coro) {
   }
 }
 
-TEST_F(CATEGORY, post_bulk_func) {
+TEST_F(CATEGORY, post_bulk_coro_begin_end) {
+  {
+    std::atomic<int> flag = 0;
+    std::array<int, 2> results = {5, 5};
+    auto range =
+      std::ranges::views::iota(0, 2) |
+      std::ranges::views::transform(
+        [&results, &flag](int i) -> tmc::task<void> {
+          return [](int* out, int val, std::atomic<int>& x) -> tmc::task<void> {
+            *out = val;
+            ++x;
+            x.notify_all();
+            co_return;
+          }(&results[i], i, flag);
+        }
+      );
+    tmc::post_bulk(ex(), range.begin(), range.end(), 0);
+    flag.wait(0);
+    if (flag != 2) {
+      flag.wait(1);
+    }
+    EXPECT_EQ(flag, 2);
+
+    EXPECT_EQ(results[0], 0);
+    EXPECT_EQ(results[1], 1);
+  }
+}
+
+TEST_F(CATEGORY, post_bulk_func_begin_count) {
   {
     std::atomic<int> flag = 0;
     std::array<int, 2> results = {5, 5};
     auto ts =
-      std::ranges::views::iota(0UL) | std::ranges::views::transform([&](int i) {
+      std::ranges::views::iota(0) | std::ranges::views::transform([&](int i) {
         return [&results, &flag, i = i]() {
           results[i] = i;
           ++flag;
@@ -132,6 +160,29 @@ TEST_F(CATEGORY, post_bulk_func) {
         };
       });
     tmc::post_bulk(ex(), ts.begin(), 2, 0);
+    flag.wait(0);
+    if (flag != 2) {
+      flag.wait(1);
+    }
+    EXPECT_EQ(flag, 2);
+    EXPECT_EQ(results[0], 0);
+    EXPECT_EQ(results[1], 1);
+  }
+}
+
+TEST_F(CATEGORY, post_bulk_func_begin_end) {
+  {
+    std::atomic<int> flag = 0;
+    std::array<int, 2> results = {5, 5};
+    auto ts = std::ranges::views::iota(0, 2) |
+              std::ranges::views::transform([&](int i) {
+                return [&results, &flag, i = i]() {
+                  results[i] = i;
+                  ++flag;
+                  flag.notify_all();
+                };
+              });
+    tmc::post_bulk(ex(), ts.begin(), ts.end(), 0);
     flag.wait(0);
     if (flag != 2) {
       flag.wait(1);
