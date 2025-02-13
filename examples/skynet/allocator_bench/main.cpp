@@ -66,10 +66,10 @@ tmc::task<int> bench_async_main() {
   }
 
   auto endTime = std::chrono::high_resolution_clock::now();
-  size_t totalTimeNs =
+  size_t totalTimeUs =
     std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime)
       .count();
-  std::printf("%zu", totalTimeNs / NRUNS);
+  std::printf("%zu", totalTimeUs / NRUNS);
 
   co_return 0;
 }
