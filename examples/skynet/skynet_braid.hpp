@@ -1,4 +1,5 @@
 #pragma once
+#include "skynet_shared.hpp"
 #include "tmc/ex_braid.hpp"
 #include "tmc/ex_cpu.hpp"
 #include "tmc/spawn_many.hpp"
@@ -7,7 +8,6 @@
 
 #include <atomic>
 #include <chrono>
-#include <cinttypes>
 #include <cstdio>
 
 namespace skynet {
@@ -35,8 +35,8 @@ tmc::task<size_t> skynet_one(size_t BaseNum, size_t Depth) {
 
 template <size_t DepthMax> tmc::task<void> skynet() {
   size_t count = co_await skynet_one<DepthMax>(0, 0);
-  if (count != 499999500000) {
-    std::printf("%" PRIu64 "\n", count);
+  if (count != EXPECTED_RESULT) {
+    std::printf("%zu\n", count);
   }
   done.store(true);
 }
@@ -54,12 +54,12 @@ template <size_t Depth = 6> void run_skynet() {
     std::printf("skynet_coro_single did not finish!\n");
   }
 
-  auto execDur =
-    std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - startTime);
+  size_t execDur =
+    std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - startTime)
+      .count();
   std::printf(
-    "executed skynet in %" PRIu64 " ns: %" PRIu64 " thread-ns\n",
-    execDur.count(),
-    executor.thread_count() * static_cast<size_t>(execDur.count())
+    "executed skynet in %zu ns: %zu thread-ns\n", execDur,
+    executor.thread_count() * execDur
   );
 }
 } // namespace single
@@ -98,8 +98,8 @@ template <size_t DepthMax> tmc::task<void> skynet() {
     co_await tmc::enter(braid_ptr);
     co_return co_await skynet_one<DepthMax>(0, 0);
   }(&br);
-  if (count != 499999500000) {
-    std::printf("%" PRIu64 "\n", count);
+  if (count != EXPECTED_RESULT) {
+    std::printf("%zu\n", count);
   }
   done.store(true);
 }
@@ -116,12 +116,12 @@ template <size_t Depth = 6> void run_skynet() {
     std::printf("skynet_coro_bulk did not finish!\n");
   }
 
-  auto execDur =
-    std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - startTime);
+  size_t execDur =
+    std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - startTime)
+      .count();
   std::printf(
-    "executed skynet in %" PRIu64 " ns: %" PRIu64 " thread-ns\n",
-    execDur.count(),
-    executor.thread_count() * static_cast<size_t>(execDur.count())
+    "executed skynet in %zu ns: %zu thread-ns\n", execDur,
+    executor.thread_count() * execDur
   );
 }
 } // namespace bulk
@@ -170,8 +170,8 @@ template <size_t DepthMax> tmc::task<void> skynet() {
   for (size_t idx = 0; idx < 10; ++idx) {
     count += results[idx];
   }
-  if (count != 499999500000) {
-    std::printf("%" PRIu64 "\n", count);
+  if (count != EXPECTED_RESULT) {
+    std::printf("%zu\n", count);
   }
   done.store(true);
 }
@@ -188,12 +188,12 @@ template <size_t Depth = 6> void run_skynet() {
     std::printf("skynet_coro_bulk did not finish!\n");
   }
 
-  auto execDur =
-    std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - startTime);
+  size_t execDur =
+    std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - startTime)
+      .count();
   std::printf(
-    "executed skynet in %" PRIu64 " ns: %" PRIu64 " thread-ns\n",
-    execDur.count(),
-    executor.thread_count() * static_cast<size_t>(execDur.count())
+    "executed skynet in %zu ns: %zu thread-ns\n", execDur,
+    executor.thread_count() * execDur
   );
 }
 } // namespace fork

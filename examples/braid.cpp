@@ -10,7 +10,6 @@
 #include "tmc/task.hpp"
 
 #include <chrono>
-#include <cinttypes>
 #include <cstdio>
 #include <ranges>
 #include <vector>
@@ -19,14 +18,14 @@ using namespace tmc;
 
 template <size_t Count> tmc::task<void> large_task_spawn_bench_lazy_bulk() {
   ex_braid br;
-  std::array<uint64_t, Count> data;
+  std::array<size_t, Count> data;
   for (size_t i = 0; i < Count; ++i) {
     data[i] = 0;
   }
   auto pre = std::chrono::high_resolution_clock::now();
   auto tasks =
-    std::ranges::views::transform(data, [](uint64_t& elem) -> task<void> {
-      return [](uint64_t* Elem) -> task<void> {
+    std::ranges::views::transform(data, [](size_t& elem) -> task<void> {
+      return [](size_t* Elem) -> task<void> {
         int a = 0;
         int b = 1;
         for (int i = 0; i < 1000; ++i) {
@@ -42,80 +41,75 @@ template <size_t Count> tmc::task<void> large_task_spawn_bench_lazy_bulk() {
   co_await spawn_many<Count>(tasks.begin()).run_on(br);
   auto done = std::chrono::high_resolution_clock::now();
 
-  auto execDur =
-    std::chrono::duration_cast<std::chrono::nanoseconds>(done - pre);
+  size_t execDur =
+    std::chrono::duration_cast<std::chrono::nanoseconds>(done - pre).count();
   std::printf(
-    "executed %" PRIu64 " tasks in %" PRIu64 " ns: %" PRIu64
-    " ns/task (wall), %" PRIu64 " "
+    "executed %zu tasks in %zu ns: %zu ns/task (wall), %zu "
     "ns/task/thread\n",
-    Count, execDur.count(), execDur.count() / Count,
-    (16) * execDur.count() / Count
+    Count, execDur, execDur / Count,
+    tmc::cpu_executor().thread_count() * execDur / Count
   );
 }
 
 template <size_t Count> tmc::task<void> braid_lock() {
   ex_braid br;
-  std::array<uint64_t, Count> data;
+  std::array<size_t, Count> data;
   for (size_t i = 0; i < Count; ++i) {
     data[i] = 0;
   }
-  uint64_t value = 0;
+  size_t value = 0;
   auto pre = std::chrono::high_resolution_clock::now();
   auto tasks = std::ranges::views::transform(
     data,
-    [&br, &value](uint64_t& elem) -> task<void> {
-      return
-        [](uint64_t* Elem, ex_braid* Braid, uint64_t* Value) -> task<void> {
-          int a = 0;
-          int b = 1;
-          for (int i = 0; i < 1000; ++i) {
-            for (int j = 0; j < 500; ++j) {
-              a = a + b;
-              b = b + a;
-            }
+    [&br, &value](size_t& elem) -> task<void> {
+      return [](size_t* Elem, ex_braid* Braid, size_t* Value) -> task<void> {
+        int a = 0;
+        int b = 1;
+        for (int i = 0; i < 1000; ++i) {
+          for (int j = 0; j < 500; ++j) {
+            a = a + b;
+            b = b + a;
           }
-          *Elem = b;
-          co_await tmc::enter(Braid);
-          *Value = *Value + b;
-          // not necessary to exit the braid scope, since the task has ended
-        }(&elem, &br, &value);
+        }
+        *Elem = b;
+        co_await tmc::enter(Braid);
+        *Value = *Value + b;
+        // not necessary to exit the braid scope, since the task has ended
+      }(&elem, &br, &value);
     }
   );
   co_await spawn_many<Count>(tasks.begin());
   auto done = std::chrono::high_resolution_clock::now();
 
   if (value != data[0] * Count) {
-    std::printf(
-      "FAIL: expected %" PRIu64 " but got %" PRIu64 "\n", data[0] * Count, value
-    );
+    std::printf("FAIL: expected %zu but got %zu\n", data[0] * Count, value);
   }
-  auto execDur =
-    std::chrono::duration_cast<std::chrono::nanoseconds>(done - pre);
+  size_t execDur =
+    std::chrono::duration_cast<std::chrono::nanoseconds>(done - pre).count();
   std::printf(
-    "executed %" PRIu64 " tasks in %" PRIu64 " ns: %" PRIu64
-    " ns/task (wall), %" PRIu64 " "
+    "executed %zu tasks in %zu ns: %zu ns/task (wall), %zu "
     "ns/task/thread\n",
-    Count, execDur.count(), execDur.count() / Count,
-    (16) * execDur.count() / Count
+    Count, execDur, execDur / Count,
+    tmc::cpu_executor().thread_count() * execDur / Count
   );
 }
 
 template <size_t Count> tmc::task<void> braid_lock_middle() {
   ex_braid br;
-  std::array<uint64_t, Count> data;
+  std::array<size_t, Count> data;
   for (size_t i = 0; i < Count; ++i) {
     data[i] = 0;
   }
-  uint64_t value = 0;
-  uint64_t lockCount = 0;
+  size_t value = 0;
+  size_t lockCount = 0;
   auto pre = std::chrono::high_resolution_clock::now();
   std::vector<tmc::task<void>> tasks;
   tasks.resize(Count);
   {
-    for (uint64_t slot = 0; slot < Count; ++slot) {
+    for (size_t slot = 0; slot < Count; ++slot) {
       tasks[slot] = [](
-                      auto* DataSlot, ex_braid* Braid, uint64_t* Value,
-                      uint64_t* LockCount
+                      auto* DataSlot, ex_braid* Braid, size_t* Value,
+                      size_t* LockCount
                     ) -> task<void> {
         int a = 0;
         int b = 1;
@@ -148,43 +142,38 @@ template <size_t Count> tmc::task<void> braid_lock_middle() {
   auto done = std::chrono::high_resolution_clock::now();
 
   if (value != data[0] * Count) {
-    std::printf(
-      "FAIL: expected %" PRIu64 " but got %" PRIu64 "\n", data[0] * Count, value
-    );
+    std::printf("FAIL: expected %zu but got %zu\n", data[0] * Count, value);
   }
   if (lockCount != Count) {
-    std::printf(
-      "FAIL: expected %" PRIu64 " but got %" PRIu64 "\n", data[0] * Count, value
-    );
+    std::printf("FAIL: expected %zu but got %zu\n", data[0] * Count, value);
   }
 
-  auto execDur =
-    std::chrono::duration_cast<std::chrono::nanoseconds>(done - pre);
+  size_t execDur =
+    std::chrono::duration_cast<std::chrono::nanoseconds>(done - pre).count();
   std::printf(
-    "executed %" PRIu64 " tasks in %" PRIu64 " ns: %" PRIu64
-    " ns/task (wall), %" PRIu64 " "
+    "executed %zu tasks in %zu ns: %zu ns/task (wall), %zu "
     "ns/task/thread\n",
-    Count, execDur.count(), execDur.count() / Count,
-    (16) * execDur.count() / Count
+    Count, execDur, execDur / Count,
+    tmc::cpu_executor().thread_count() * execDur / Count
   );
 }
 
 template <size_t Count> tmc::task<void> braid_lock_middle_resume_on() {
   ex_braid br;
-  std::array<uint64_t, Count> data;
+  std::array<size_t, Count> data;
   for (size_t i = 0; i < Count; ++i) {
     data[i] = 0;
   }
-  uint64_t value = 0;
-  uint64_t lockCount = 0;
+  size_t value = 0;
+  size_t lockCount = 0;
   auto pre = std::chrono::high_resolution_clock::now();
   std::vector<tmc::task<void>> tasks;
   tasks.resize(Count);
   {
-    for (uint64_t slot = 0; slot < Count; ++slot) {
+    for (size_t slot = 0; slot < Count; ++slot) {
       tasks[slot] = [](
-                      auto* DataSlot, ex_braid* Braid, uint64_t* Value,
-                      uint64_t* LockCount
+                      auto* DataSlot, ex_braid* Braid, size_t* Value,
+                      size_t* LockCount
                     ) -> task<void> {
         int a = 0;
         int b = 1;
@@ -216,47 +205,42 @@ template <size_t Count> tmc::task<void> braid_lock_middle_resume_on() {
   auto done = std::chrono::high_resolution_clock::now();
 
   if (value != data[0] * Count) {
-    std::printf(
-      "FAIL: expected %" PRIu64 " but got %" PRIu64 "\n", data[0] * Count, value
-    );
+    std::printf("FAIL: expected %zu but got %zu\n", data[0] * Count, value);
   }
   if (lockCount != Count) {
-    std::printf(
-      "FAIL: expected %" PRIu64 " but got %" PRIu64 "\n", data[0] * Count, value
-    );
+    std::printf("FAIL: expected %zu but got %zu\n", data[0] * Count, value);
   }
-  auto execDur =
-    std::chrono::duration_cast<std::chrono::nanoseconds>(done - pre);
+  size_t execDur =
+    std::chrono::duration_cast<std::chrono::nanoseconds>(done - pre).count();
   std::printf(
-    "executed %" PRIu64 " tasks in %" PRIu64 " ns: %" PRIu64
-    " ns/task (wall), %" PRIu64 " "
+    "executed %zu tasks in %zu ns: %zu ns/task (wall), %zu "
     "ns/task/thread\n",
-    Count, execDur.count(), execDur.count() / Count,
-    (16) * execDur.count() / Count
+    Count, execDur, execDur / Count,
+    tmc::cpu_executor().thread_count() * execDur / Count
   );
 }
 
-tmc::task<void> increment(uint64_t* Value) {
+tmc::task<void> increment(size_t* Value) {
   (*Value)++;
   co_return;
 }
 
 template <size_t Count> tmc::task<void> braid_lock_middle_child_task() {
   ex_braid br;
-  std::array<uint64_t, Count> data;
+  std::array<size_t, Count> data;
   for (size_t i = 0; i < Count; ++i) {
     data[i] = 0;
   }
-  uint64_t value = 0;
-  uint64_t lockCount = 0;
+  size_t value = 0;
+  size_t lockCount = 0;
   auto pre = std::chrono::high_resolution_clock::now();
   std::vector<tmc::task<void>> tasks;
   tasks.resize(Count);
   {
-    for (uint64_t slot = 0; slot < Count; ++slot) {
+    for (size_t slot = 0; slot < Count; ++slot) {
       tasks[slot] = [](
-                      auto* DataSlot, ex_braid* Braid, uint64_t* Value,
-                      uint64_t* LockCount
+                      auto* DataSlot, ex_braid* Braid, size_t* Value,
+                      size_t* LockCount
                     ) -> task<void> {
         int a = 0;
         int b = 1;
@@ -287,24 +271,19 @@ template <size_t Count> tmc::task<void> braid_lock_middle_child_task() {
   auto done = std::chrono::high_resolution_clock::now();
 
   if (value != data[0] * Count) {
-    std::printf(
-      "FAIL: expected %" PRIu64 " but got %" PRIu64 "\n", data[0] * Count, value
-    );
+    std::printf("FAIL: expected %zu but got %zu\n", data[0] * Count, value);
   }
   if (lockCount != Count) {
-    std::printf(
-      "FAIL: expected %" PRIu64 " but got %" PRIu64 "\n", data[0] * Count, value
-    );
+    std::printf("FAIL: expected %zu but got %zu\n", data[0] * Count, value);
   }
 
-  auto execDur =
-    std::chrono::duration_cast<std::chrono::nanoseconds>(done - pre);
+  size_t execDur =
+    std::chrono::duration_cast<std::chrono::nanoseconds>(done - pre).count();
   std::printf(
-    "executed %" PRIu64 " tasks in %" PRIu64 " ns: %" PRIu64
-    " ns/task (wall), %" PRIu64 " "
+    "executed %zu tasks in %zu ns: %zu ns/task (wall), %zu "
     "ns/task/thread\n",
-    Count, execDur.count(), execDur.count() / Count,
-    (16) * execDur.count() / Count
+    Count, execDur, execDur / Count,
+    tmc::cpu_executor().thread_count() * execDur / Count
   );
 }
 static tmc::task<int> async_main() {

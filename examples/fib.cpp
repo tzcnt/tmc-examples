@@ -7,7 +7,6 @@
 #include "tmc/all_headers.hpp"
 
 #include <chrono>
-#include <cinttypes>
 #include <cstdio>
 
 using namespace tmc;
@@ -53,7 +52,7 @@ static task<size_t> fib(size_t n) {
 
 static task<void> top_fib(size_t n) {
   auto result = co_await fib(n);
-  std::printf("%" PRIu64 "\n", result);
+  std::printf("%zu\n", result);
   co_return;
 }
 
@@ -82,10 +81,10 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
     }
 
     auto endTime = std::chrono::high_resolution_clock::now();
-    auto totalTimeUs = std::chrono::duration_cast<std::chrono::microseconds>(
-      endTime - startTime
-    );
-    std::printf("%" PRIu64 " us\n", totalTimeUs.count() / NRUNS);
+    size_t totalTimeUs =
+      std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime)
+        .count();
+    std::printf("%zu us\n", totalTimeUs / NRUNS);
     co_return 0;
   }(n));
 }

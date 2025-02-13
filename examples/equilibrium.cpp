@@ -7,7 +7,6 @@
 #include "tmc/sync.hpp"
 
 #include <chrono>
-#include <cinttypes>
 #include <cstdio>
 #include <future>
 #include <ranges>
@@ -24,7 +23,7 @@ struct bench_result {
   std::chrono::duration<long, std::ratio<1, 1000000000>> dur_ns;
 };
 
-[[maybe_unused]] static task<void> make_task(uint64_t& DataSlot) {
+[[maybe_unused]] static task<void> make_task(size_t& DataSlot) {
   int a = 0;
   int b = 1;
 #pragma unroll 1
@@ -43,7 +42,7 @@ struct bench_result {
 static bench_result find_equilibrium(size_t Count, size_t ThreadCount) {
   auto& executor = tmc::cpu_executor();
   executor.set_thread_count(ThreadCount).init();
-  std::vector<uint64_t> data;
+  std::vector<size_t> data;
   data.resize(Count);
   std::future<void> future;
 #ifdef USE_ITERATOR
@@ -96,16 +95,16 @@ int main() {
     results[i] = find_equilibrium(count, i + 1);
   }
 
-  std::printf("%" PRIu64 " tasks\n", count);
+  std::printf("%zu tasks\n", count);
   for (size_t i = 0; i < results.size(); ++i) {
     auto benchResult = results[i];
+    size_t postDur = benchResult.post_dur_ns.count();
+    size_t execDur = benchResult.dur_ns.count();
     std::printf(
-      "%" PRIu64 " thr, %ld post ns, %ld tot ns: %" PRIu64
-      " ns/task (wall), %" PRIu64 " "
+      "%zu thr, %zu post ns, %zu tot ns: %zu ns/task (wall), %zu "
       "thread-ns/task\n",
-      benchResult.thread_count, benchResult.post_dur_ns.count(),
-      benchResult.dur_ns.count(), benchResult.dur_ns.count() / count,
-      (benchResult.thread_count) * benchResult.dur_ns.count() / count
+      benchResult.thread_count, postDur, execDur, execDur / count,
+      benchResult.thread_count * execDur / count
     );
   }
   //}

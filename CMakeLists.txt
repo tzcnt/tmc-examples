@@ -25,24 +25,17 @@ add_definitions(
     # Debug / testing options
     # "-DTMC_USE_MUTEXQ"
     # "-DTMC_QUEUE_NO_LIFO"
-
-    # To clean warnings
-    # "-Weverything"
-    # "-Wno-c++98-compat"
-    # "-Wno-c++98-compat-pedantic"
-    # "-Wno-c++20-compat"
-    # "-Wno-padded"
-    # "-Wno-unsafe-buffer-usage"
-    # "-Wno-global-constructors"
-    # "-Wno-exit-time-destructors"
-    # "-Wno-sign-conversion"
-    # "-Wno-deprecated-declarations"
 )
 
 # Optional flags can be passed at the command line. Used by GitHub Actions workflow.
-if(CMD_FLAGS)
-    message(STATUS "CMD_FLAGS: ${CMD_FLAGS}")
-    add_definitions(${CMD_FLAGS})
+if(CMD_COMPILE_FLAGS)
+    message(STATUS "CMD_COMPILE_FLAGS: ${CMD_COMPILE_FLAGS}")
+    add_compile_options(${CMD_COMPILE_FLAGS})
+endif()
+
+if(CMD_LINK_FLAGS)
+    message(STATUS "CMD_LINK_FLAGS: ${CMD_LINK_FLAGS}")
+    add_link_options(${CMD_LINK_FLAGS})
 endif()
 
 include(cmake/CPM.cmake)
@@ -60,13 +53,13 @@ else()
     CPMAddPackage(
         NAME TooManyCooks
         GIT_REPOSITORY https://github.com/tzcnt/TooManyCooks.git
-        GIT_TAG d384a3730cee1536f2cb42ad6629dfd9cff3139e
+        GIT_TAG 2ba2b3465996ca18af65b1a14277c84b3ed0cf8d
         DOWNLOAD_ONLY)
 
     CPMAddPackage(
         NAME tmc_asio
         GIT_REPOSITORY https://github.com/tzcnt/tmc-asio.git
-        GIT_TAG d97cbdba3d77a65238bf4ddf6d1748cb8040cfe1
+        GIT_TAG ca7982610d2262d2e69784659ef72fb34dae84c5
         DOWNLOAD_ONLY)
 
     set(TMC_INCLUDE_PATH ${TooManyCooks_SOURCE_DIR}/include CACHE STRING "" FORCE)

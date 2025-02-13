@@ -15,7 +15,6 @@
 
 #include <array>
 #include <asio/steady_timer.hpp>
-#include <cinttypes>
 #include <cstdio>
 #include <cstdlib>
 
@@ -33,8 +32,8 @@ void check_exec_prio(Exec& ExpectedExecutor, size_t ExpectedPriority) {
 
   if (!tmc::detail::this_thread::prio_is(ExpectedPriority)) {
     std::printf(
-      "FAIL | expected priority %" PRIu64 " but got priority %" PRIu64 "\n",
-      ExpectedPriority, tmc::detail::this_thread::this_task.prio
+      "FAIL | expected priority %zu but got priority %zu\n", ExpectedPriority,
+      tmc::detail::this_thread::this_task.prio
     );
   }
 }
