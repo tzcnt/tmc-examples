@@ -227,6 +227,10 @@ make_exe(fib
     examples/fib.cpp
 )
 
+make_exe(queue
+    examples/queue.cpp
+)
+
 make_exe(sync
     examples/sync.cpp
 )
