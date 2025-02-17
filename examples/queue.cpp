@@ -21,7 +21,7 @@ tmc::task<void> consumer(tmc::fixed_queue<int, Size>& q) {
   auto data = co_await q.pull();
 
   while (data.index() == OK) {
-    // std::printf("%d", std::get<0>(data));
+    // std::printf("%d ", std::get<0>(data));
     data = co_await q.pull();
   }
   // queue should be closed, not some other error
@@ -34,8 +34,8 @@ int main() {
     for (size_t prodCount = 1; prodCount <= 10; ++prodCount) {
       for (size_t consCount = 1; consCount <= 10; ++consCount) {
         tmc::fixed_queue<int, QUEUE_SIZE> q;
-        size_t per_task = NELEMS / QUEUE_SIZE;
-        size_t rem = NELEMS % QUEUE_SIZE;
+        size_t per_task = NELEMS / prodCount;
+        size_t rem = NELEMS % prodCount;
         std::vector<tmc::task<void>> prod(prodCount);
         for (size_t i = 0; i < prodCount; ++i) {
           size_t count = i < rem ? per_task + 1 : per_task;
