@@ -6,7 +6,7 @@
 #include <cstdio>
 
 #define NELEMS 1000
-#define QUEUE_SIZE 2
+#define QUEUE_SIZE 512
 
 template <size_t Size>
 tmc::task<void> producer(tmc::fixed_queue<int, Size>& q, size_t count) {
