@@ -231,6 +231,10 @@ make_exe(queue
     examples/queue.cpp
 )
 
+make_exe(queue_braid
+    examples/queue_braid.cpp
+)
+
 make_exe(sync
     examples/sync.cpp
 )
