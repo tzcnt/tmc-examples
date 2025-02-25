@@ -7,7 +7,7 @@
 #include <numeric>
 
 #define NELEMS 10000
-#define QUEUE_SIZE 1000
+#define QUEUE_SIZE 16
 
 using tmc::queue_error::CLOSED;
 using tmc::queue_error::OK;
@@ -40,7 +40,7 @@ tmc::task<size_t> consumer(tmc::ticket_queue<int, Size>& q) {
 int main() {
   tmc::cpu_executor().init();
   return tmc::async_main([]() -> tmc::task<int> {
-    for (size_t i = 0; i < 10; ++i)
+    for (size_t i = 0; i < 1000; ++i)
       for (size_t prodCount = 10; prodCount <= 10; ++prodCount) {
         for (size_t consCount = 10; consCount <= 10; ++consCount) {
           tmc::ticket_queue<int, QUEUE_SIZE> q;
@@ -61,6 +61,7 @@ int main() {
           co_await tmc::spawn_many(prod.data(), prod.size());
           // std::this_thread::sleep_for(std::chrono::milliseconds(100));
           q.close();
+          q.drain_sync();
           // std::printf(
           //   "allocs: %zu\tfails: %zu\n", q.allocs.load(), q.fails.load()
           // );
