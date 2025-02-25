@@ -120,14 +120,33 @@ static tmc::task<void> accept(uint16_t Port) {
   }
 }
 
+static tmc::task<void> accept_private(uint16_t Port) {
+  tcp::acceptor acceptor(tmc::asio_executor(), {tcp::v4(), Port});
+  while (true) {
+    auto [error, sock] = co_await acceptor.async_accept(tmc::aw_asio);
+    if (error) {
+      break;
+    }
+    tmc::spawn(handler(std::move(sock).go_private())).detach();
+  }
+}
+
 int main() {
   tmc::cpu_executor().set_priority_count(2).init();
   tmc::asio_executor().init();
   return tmc::async_main([]() -> tmc::task<int> {
-    std::printf("serving low priority on http://localhost::55551/\n");
-    tmc::spawn(accept(55551)).with_priority(1).detach();
-    std::printf("serving high priority on http://localhost::55550/\n");
-    co_await accept(55550);
+    std::printf("serving low priority on http://localhost::55550/\n");
+    tmc::spawn(accept(55550)).with_priority(1).detach();
+
+    std::printf("serving high priority on http://localhost::55551/\n");
+    tmc::spawn(accept(55551)).detach();
+
+    std::printf("serving low priority (private) on http://localhost::55552/\n");
+    tmc::spawn(accept_private(55552)).with_priority(1).detach();
+
+    std::printf("serving high priority (private) on http://localhost::55553/\n"
+    );
+    co_await accept_private(55553);
     co_return 0;
   }());
 }
