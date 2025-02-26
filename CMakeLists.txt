@@ -230,6 +230,7 @@ make_exe(fib
 make_exe(queue
     examples/queue.cpp
 )
+target_compile_options(queue PRIVATE -fcoro-aligned-allocation)
 
 make_exe(queue_braid
     examples/queue_braid.cpp

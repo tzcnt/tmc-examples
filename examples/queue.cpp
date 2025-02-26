@@ -59,12 +59,12 @@ int main() {
           auto startTime = std::chrono::high_resolution_clock::now();
           auto c = tmc::spawn_many(cons.data(), cons.size()).run_early();
           co_await tmc::spawn_many(prod.data(), prod.size());
-          // std::this_thread::sleep_for(std::chrono::milliseconds(100));
+          std::this_thread::sleep_for(std::chrono::milliseconds(10000));
           q.close();
-          q.drain_sync();
-          // std::printf(
-          //   "allocs: %zu\tfails: %zu\n", q.allocs.load(), q.fails.load()
-          // );
+          // q.drain_sync();
+          //  std::printf(
+          //    "allocs: %zu\tfails: %zu\n", q.allocs.load(), q.fails.load()
+          //  );
           auto counts = co_await std::move(c);
 
           auto endTime = std::chrono::high_resolution_clock::now();
