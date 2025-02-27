@@ -11,7 +11,6 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS "1")
 set(CMAKE_CXX_STANDARD 20)
 
 add_definitions(
-
     # Performance tuning options
     # "-DTMC_WORK_ITEM=CORO" # one of: CORO, FUNC, FUNCORO
     "-DTMC_CUSTOM_CORO_ALLOC"
@@ -26,6 +25,8 @@ add_definitions(
     # "-DTMC_USE_MUTEXQ"
     # "-DTMC_QUEUE_NO_LIFO"
 )
+add_definitions("-fsanitize=address")
+add_link_options("-fsanitize=address")
 
 # Optional flags can be passed at the command line. Used by GitHub Actions workflow.
 if(CMD_COMPILE_FLAGS)
@@ -147,7 +148,7 @@ else()
     endif()
 endif()
 
-link_libraries(${MALLOC_LIB})
+#link_libraries(${MALLOC_LIB})
 
 option(TMC_CHECK_WARNINGS_CLANG "exhaustive warning checks with clang's -Weverything" OFF)
 

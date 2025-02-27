@@ -40,9 +40,9 @@ tmc::task<size_t> consumer(tmc::ticket_queue<int, Size>& q) {
 int main() {
   tmc::cpu_executor().init();
   return tmc::async_main([]() -> tmc::task<int> {
-    for (size_t i = 0; i < 1000; ++i)
-      for (size_t prodCount = 10; prodCount <= 10; ++prodCount) {
-        for (size_t consCount = 10; consCount <= 10; ++consCount) {
+    for (size_t i = 0; i < 100; ++i)
+      for (size_t prodCount = 5; prodCount <= 5; ++prodCount) {
+        for (size_t consCount = 5; consCount <= 5; ++consCount) {
           tmc::ticket_queue<int, QUEUE_SIZE> q;
           size_t per_task = NELEMS / prodCount;
           size_t rem = NELEMS % prodCount;
@@ -59,12 +59,9 @@ int main() {
           auto startTime = std::chrono::high_resolution_clock::now();
           auto c = tmc::spawn_many(cons.data(), cons.size()).run_early();
           co_await tmc::spawn_many(prod.data(), prod.size());
-          std::this_thread::sleep_for(std::chrono::milliseconds(10000));
+          // std::this_thread::sleep_for(std::chrono::milliseconds(100));
           q.close();
-          // q.drain_sync();
-          //  std::printf(
-          //    "allocs: %zu\tfails: %zu\n", q.allocs.load(), q.fails.load()
-          //  );
+          q.drain_sync();
           auto counts = co_await std::move(c);
 
           auto endTime = std::chrono::high_resolution_clock::now();
