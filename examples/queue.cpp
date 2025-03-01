@@ -13,28 +13,34 @@ using tmc::queue_error::CLOSED;
 using tmc::queue_error::OK;
 
 template <size_t Size>
-tmc::task<void> producer(tmc::ticket_queue<int, Size>& q, size_t count) {
+tmc::task<void>
+producer(tmc::ticket_queue<int, Size>& q, size_t count, size_t base) {
   for (size_t i = 0; i < count; ++i) {
-    auto err = q.push(i);
+    auto err = q.push(base + i);
     assert(!err);
   }
   co_return;
 }
 
+struct result {
+  size_t count;
+  size_t sum;
+};
+
 template <size_t Size>
-tmc::task<size_t> consumer(tmc::ticket_queue<int, Size>& q) {
+tmc::task<result> consumer(tmc::ticket_queue<int, Size>& q) {
   size_t count = 0;
+  size_t sum = 0;
   auto data = co_await q.pull();
 
   while (data.index() == OK) {
     ++count;
-    // std::printf("%d ", std::get<0>(data));
-    // std::fflush(stdout);
+    sum += std::get<0>(data);
     data = co_await q.pull();
   }
   // queue should be closed, not some other error
   assert(data.index() == CLOSED);
-  co_return count;
+  co_return result{count, sum};
 }
 
 int main() {
@@ -47,11 +53,13 @@ int main() {
           size_t per_task = NELEMS / prodCount;
           size_t rem = NELEMS % prodCount;
           std::vector<tmc::task<void>> prod(prodCount);
+          size_t base = 0;
           for (size_t i = 0; i < prodCount; ++i) {
             size_t count = i < rem ? per_task + 1 : per_task;
-            prod[i] = producer(q, count);
+            prod[i] = producer(q, count, base);
+            base += count;
           }
-          std::vector<tmc::task<size_t>> cons(consCount);
+          std::vector<tmc::task<result>> cons(consCount);
           for (size_t i = 0; i < consCount; ++i) {
             cons[i] = consumer(q);
           }
@@ -62,17 +70,30 @@ int main() {
           // std::this_thread::sleep_for(std::chrono::milliseconds(100));
           q.close();
           q.drain_sync();
-          auto counts = co_await std::move(c);
+          auto results = co_await std::move(c);
 
           auto endTime = std::chrono::high_resolution_clock::now();
 
-          size_t total = std::accumulate(
-            counts.begin(), counts.end(), static_cast<size_t>(0)
-          );
-          if (total != NELEMS) {
+          size_t count = 0;
+          size_t sum = 0;
+          for (size_t i = 0; i < results.size(); ++i) {
+            count += results[i].count;
+            sum += results[i].sum;
+          }
+          if (count != NELEMS) {
             std::printf(
-              "FAIL: Expected %zu elements but consumed %zu elements\n", total,
-              static_cast<size_t>(NELEMS)
+              "FAIL: Expected %zu elements but consumed %zu elements\n",
+              static_cast<size_t>(NELEMS), count
+            );
+          }
+
+          size_t expectedSum = 0;
+          for (size_t i = 0; i < NELEMS; ++i) {
+            expectedSum += i;
+          }
+          if (sum != expectedSum) {
+            std::printf(
+              "FAIL: Expected %zu sum but got %zu sum\n", expectedSum, sum
             );
           }
 
