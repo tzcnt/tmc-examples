@@ -18,8 +18,6 @@ producer(tmc::ticket_queue<int, Size>& q, size_t count, size_t base) {
     auto err = q.push(base + i);
     assert(!err);
   }
-  std::printf("WRITE FINISHED\n");
-  std::fflush(stdout);
   co_return;
 }
 
@@ -38,8 +36,6 @@ tmc::task<result> consumer(tmc::ticket_queue<int, Size>& q) {
     sum += std::get<0>(data);
     data = co_await q.pull();
   }
-  std::printf("FINISHED\n");
-  std::fflush(stdout);
   // queue should be closed, not some other error
   assert(data.index() == CLOSED);
   co_return result{count, sum};
@@ -48,7 +44,7 @@ tmc::task<result> consumer(tmc::ticket_queue<int, Size>& q) {
 int main() {
   tmc::cpu_executor().init();
   return tmc::async_main([]() -> tmc::task<int> {
-    for (size_t i = 0; i < 1; ++i)
+    for (size_t i = 0; i < 100; ++i)
       for (size_t prodCount = 5; prodCount <= 5; ++prodCount) {
         for (size_t consCount = 5; consCount <= 5; ++consCount) {
           tmc::ticket_queue<int, QUEUE_SIZE> q;
@@ -69,7 +65,7 @@ int main() {
           auto startTime = std::chrono::high_resolution_clock::now();
           auto c = tmc::spawn_many(cons.data(), cons.size()).run_early();
           co_await tmc::spawn_many(prod.data(), prod.size());
-          std::this_thread::sleep_for(std::chrono::milliseconds(100));
+          // std::this_thread::sleep_for(std::chrono::milliseconds(100));
           q.close();
           q.drain_sync();
           auto results = co_await std::move(c);
