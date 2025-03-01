@@ -25,8 +25,8 @@ add_definitions(
     # "-DTMC_USE_MUTEXQ"
     # "-DTMC_QUEUE_NO_LIFO"
 )
-add_definitions("-fsanitize=address")
-add_link_options("-fsanitize=address")
+# add_definitions("-fsanitize=address")
+# add_link_options("-fsanitize=address")
 
 # Optional flags can be passed at the command line. Used by GitHub Actions workflow.
 if(CMD_COMPILE_FLAGS)
