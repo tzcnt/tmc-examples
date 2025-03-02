@@ -44,9 +44,11 @@ tmc::task<result> consumer(tmc::ticket_queue<int, Size>& q) {
 int main() {
   tmc::cpu_executor().init();
   return tmc::async_main([]() -> tmc::task<int> {
-    for (size_t i = 0; i < 100; ++i)
-      for (size_t prodCount = 5; prodCount <= 5; ++prodCount) {
-        for (size_t consCount = 5; consCount <= 5; ++consCount) {
+    tmc::ex_cpu st;
+    st.set_thread_count(1).init();
+    for (size_t i = 0; i < 100; ++i) {
+      for (size_t prodCount = 1; prodCount <= 10; ++prodCount) {
+        for (size_t consCount = 1; consCount <= 1; ++consCount) {
           tmc::ticket_queue<int, QUEUE_SIZE> q;
           size_t per_task = NELEMS / prodCount;
           size_t rem = NELEMS % prodCount;
@@ -63,7 +65,8 @@ int main() {
           }
 
           auto startTime = std::chrono::high_resolution_clock::now();
-          auto c = tmc::spawn_many(cons.data(), cons.size()).run_early();
+          auto c =
+            tmc::spawn_many(cons.data(), cons.size()).run_on(st).run_early();
           co_await tmc::spawn_many(prod.data(), prod.size());
           // std::this_thread::sleep_for(std::chrono::milliseconds(100));
           q.close();
@@ -105,6 +108,7 @@ int main() {
           );
         }
       }
+    }
     co_return 0;
   }());
 }
