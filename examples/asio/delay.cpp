@@ -19,7 +19,10 @@
 
 int main() {
   hook_init_ex_cpu_thread_name(tmc::cpu_executor());
+  hook_teardown_thread_name(tmc::cpu_executor());
   hook_init_ex_asio_thread_name(tmc::asio_executor());
+  hook_teardown_thread_name(tmc::asio_executor());
+
   tmc::asio_executor().init();
   return tmc::async_main([]() -> tmc::task<int> {
     print_thread_name();
