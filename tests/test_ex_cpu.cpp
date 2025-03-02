@@ -14,6 +14,7 @@ protected:
 };
 
 #include "test_executors.ipp"
+#include "test_nested_executors.ipp"
 #include "test_spawn_composition.ipp"
 #include "test_spawn_func_many.ipp"
 #include "test_spawn_func_many_detach.ipp"
