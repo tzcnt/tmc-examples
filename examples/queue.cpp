@@ -6,14 +6,14 @@
 #include <cstdio>
 
 #define NELEMS 10000
-#define QUEUE_SIZE 1000
+#define QUEUE_SIZE 1024
 
 using tmc::queue_error::CLOSED;
 using tmc::queue_error::OK;
 
 template <size_t Size>
 tmc::task<void>
-producer(tmc::ticket_queue<int, Size>& q, size_t count, size_t base) {
+producer(tmc::queue_handle<int, Size> q, size_t count, size_t base) {
   for (size_t i = 0; i < count; ++i) {
     auto err = q.push(base + i);
     assert(!err);
@@ -27,7 +27,7 @@ struct result {
 };
 
 template <size_t Size>
-tmc::task<result> consumer(tmc::ticket_queue<int, Size>& q) {
+tmc::task<result> consumer(tmc::queue_handle<int, Size> q) {
   size_t count = 0;
   size_t sum = 0;
   auto data = co_await q.pull();
@@ -44,12 +44,10 @@ tmc::task<result> consumer(tmc::ticket_queue<int, Size>& q) {
 int main() {
   tmc::cpu_executor().init();
   return tmc::async_main([]() -> tmc::task<int> {
-    tmc::ex_cpu st;
-    st.set_thread_count(1).init();
-    for (size_t i = 0; i < 100; ++i) {
+    for (size_t i = 0; i < 1; ++i) {
       for (size_t prodCount = 1; prodCount <= 10; ++prodCount) {
-        for (size_t consCount = 1; consCount <= 1; ++consCount) {
-          tmc::ticket_queue<int, QUEUE_SIZE> q;
+        for (size_t consCount = 1; consCount <= 10; ++consCount) {
+          auto q = tmc::queue_handle<int, QUEUE_SIZE>::make();
           size_t per_task = NELEMS / prodCount;
           size_t rem = NELEMS % prodCount;
           std::vector<tmc::task<void>> prod(prodCount);
@@ -65,8 +63,7 @@ int main() {
           }
 
           auto startTime = std::chrono::high_resolution_clock::now();
-          auto c =
-            tmc::spawn_many(cons.data(), cons.size()).run_on(st).run_early();
+          auto c = tmc::spawn_many(cons.data(), cons.size()).run_early();
           co_await tmc::spawn_many(prod.data(), prod.size());
           // std::this_thread::sleep_for(std::chrono::milliseconds(100));
           q.close();
