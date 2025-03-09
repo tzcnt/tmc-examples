@@ -54,8 +54,8 @@
         "CMAKE_BUILD_TYPE": "RelWithDebInfo",
         "CMAKE_C_COMPILER": "clang",
         "CMAKE_CXX_COMPILER": "clang++",
-        "CMAKE_CXX_FLAGS": "-march=native",
-        "CMAKE_C_FLAGS": "-march=native",
+        "CMAKE_CXX_FLAGS": "-march=native -g",
+        "CMAKE_C_FLAGS": "-march=native -g",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
       },
       "condition": {
