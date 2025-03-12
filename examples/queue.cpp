@@ -34,22 +34,22 @@ tmc::task<void> producer(
     }
     assert(!err);
   }
-  {
-    tmc::tiny_lock_guard lg(print_lock);
+  // {
+  //   tmc::tiny_lock_guard lg(print_lock);
 
-    std::printf(
-      "PRODUCER local: %zu distant: %zu  |  ", localMigrations,
-      distantMigrations
-    );
-    for (size_t j = 0; j < 64; ++j) {
-      std::printf("push tids: ");
-      for (size_t i = 0; i < 64; ++i) {
-        std::printf("%zu ", tids[i]);
-      }
-      std::printf("\n");
-      break;
-    }
-  }
+  //   std::printf(
+  //     "PRODUCER local: %zu distant: %zu  |  ", localMigrations,
+  //     distantMigrations
+  //   );
+  //   for (size_t j = 0; j < 64; ++j) {
+  //     std::printf("push tids: ");
+  //     for (size_t i = 0; i < 64; ++i) {
+  //       std::printf("%zu ", tids[i]);
+  //     }
+  //     std::printf("\n");
+  //     break;
+  //   }
+  // }
   co_return;
 }
 
@@ -107,22 +107,22 @@ consumer(tmc::queue_handle<int, Size> q, tmc::tiny_lock& print_lock) {
   assert(data.index() == CLOSED);
   // std::printf("DONE\n");
   // std::fflush(stdout);
-  {
-    tmc::tiny_lock_guard lg(print_lock);
-    std::printf(
-      "CONSUMER local: %zu distant: %zu  |  ", localMigrations,
-      distantMigrations
-    );
-    std::printf("succeeded: %zu suspended: %zu  |  ", succeeded, suspended);
-    for (size_t j = 0; j < 64; ++j) {
-      std::printf("pull tids: ");
-      for (size_t i = 0; i < 64; ++i) {
-        std::printf("%zu ", tids[i]);
-      }
-      std::printf("\n");
-      break;
-    }
-  }
+  // {
+  //   tmc::tiny_lock_guard lg(print_lock);
+  //   std::printf(
+  //     "CONSUMER local: %zu distant: %zu  |  ", localMigrations,
+  //     distantMigrations
+  //   );
+  //   std::printf("succeeded: %zu suspended: %zu  |  ", succeeded, suspended);
+  //   for (size_t j = 0; j < 64; ++j) {
+  //     std::printf("pull tids: ");
+  //     for (size_t i = 0; i < 64; ++i) {
+  //       std::printf("%zu ", tids[i]);
+  //     }
+  //     std::printf("\n");
+  //     break;
+  //   }
+  // }
   co_return result{count, sum};
 }
 
@@ -155,9 +155,9 @@ int main() {
           }
           tmc::spawn_many(dummy.begin(), dummy.end()).detach();
           auto c = tmc::spawn_many(cons.data(), cons.size()).run_early();
-          // std::this_thread::sleep_for(std::chrono::milliseconds(100));
           co_await tmc::spawn_many(prod.data(), prod.size());
 
+          // std::this_thread::sleep_for(std::chrono::milliseconds(100));
           q.close();
           q.drain_sync();
           auto results = co_await std::move(c);

@@ -27,8 +27,8 @@ add_definitions(
     # "-DTMC_QUEUE_NO_LIFO"
 )
 
-# add_definitions("-fsanitize=address")
-# add_link_options("-fsanitize=address")
+add_definitions("-fsanitize=address")
+add_link_options("-fsanitize=address")
 
 # Optional flags can be passed at the command line. Used by GitHub Actions workflow.
 if(CMD_COMPILE_FLAGS)
@@ -127,8 +127,7 @@ endif()
 # Any of tcmalloc, mimalloc, or jemalloc provide
 # greatly superior performance to the default glibc malloc.
 # Try to find any of these 3 before falling back to default.
-find_package(libtcmalloc)
-
+# find_package(libtcmalloc)
 if(LIBTCMALLOC_FOUND)
     set(MALLOC_LIB "${LIBTCMALLOC_LIBRARY}")
     message(STATUS "Using malloc: ${MALLOC_LIB}")
@@ -150,8 +149,7 @@ else()
     endif()
 endif()
 
-link_libraries(${MALLOC_LIB})
-
+# link_libraries(${MALLOC_LIB})
 option(TMC_CHECK_WARNINGS_CLANG "exhaustive warning checks with clang's -Weverything" OFF)
 
 if(TMC_CHECK_WARNINGS_CLANG)
