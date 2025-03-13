@@ -1,28 +1,29 @@
+#include "tmc/channel.hpp"
 #define TMC_IMPL
 
 #include "tmc/all_headers.hpp"
-#include "tmc/ticket_queue.hpp"
 
 #include <cstdio>
 
 #define NELEMS 1000000
-#define QUEUE_SIZE 4096
 
-using tmc::queue_error::CLOSED;
-using tmc::queue_error::OK;
+struct channel_config : tmc::channel_default_config {
+  // static inline constexpr size_t BlockSize = 4096;
+  // static inline constexpr size_t ReuseBlocks = true;
+  // static inline constexpr size_t ConsumerSpins = 100;
+  // static inline constexpr size_t PackingLevel = 0;
+};
+using token = tmc::channel_token<int, channel_config>;
 
-template <size_t Size>
-tmc::task<void> producer(
-  tmc::queue_handle<int, Size> q, size_t count, size_t base,
-  tmc::tiny_lock& print_lock
-) {
+tmc::task<void>
+producer(token chan, size_t count, size_t base, tmc::tiny_lock& print_lock) {
   std::array<size_t, 64> tids{};
   size_t localMigrations = 0;
   size_t distantMigrations = 0;
   size_t before = tmc::detail::this_thread::thread_index;
   for (size_t i = 0; i < count; ++i) {
     tids[before]++;
-    auto err = q.push(base + i);
+    auto err = chan.push(base + i);
     size_t after = tmc::detail::this_thread::thread_index;
     if (after != before) {
       if ((after & 0xFFC0) != (before & 0xFFC0)) {
@@ -32,7 +33,7 @@ tmc::task<void> producer(
       }
       before = after;
     }
-    assert(!err);
+    assert(err == tmc::channel_error::OK);
   }
   // {
   //   tmc::tiny_lock_guard lg(print_lock);
@@ -58,9 +59,7 @@ struct result {
   size_t sum;
 };
 
-template <size_t Size>
-tmc::task<result>
-consumer(tmc::queue_handle<int, Size> q, tmc::tiny_lock& print_lock) {
+tmc::task<result> consumer(token chan, tmc::tiny_lock& print_lock) {
   size_t count = 0;
   size_t sum = 0;
   size_t suspended = 0;
@@ -70,7 +69,7 @@ consumer(tmc::queue_handle<int, Size> q, tmc::tiny_lock& print_lock) {
   std::array<size_t, 64> tids{};
   size_t before = tmc::detail::this_thread::thread_index;
   tids[before]++;
-  auto data = co_await q.pull();
+  auto data = co_await chan.pull();
   {
     size_t after = tmc::detail::this_thread::thread_index;
     if (after != before) {
@@ -82,7 +81,7 @@ consumer(tmc::queue_handle<int, Size> q, tmc::tiny_lock& print_lock) {
       before = after;
     }
   }
-  while (data.index() == OK) {
+  while (data.index() == 0) {
     ++count;
     int val = std::get<0>(data);
     sum += val & ~((1 << 31));
@@ -92,7 +91,7 @@ consumer(tmc::queue_handle<int, Size> q, tmc::tiny_lock& print_lock) {
       ++succeeded;
     }
     tids[before]++;
-    data = co_await q.pull();
+    data = co_await chan.pull();
     size_t after = tmc::detail::this_thread::thread_index;
     if (after != before) {
       if ((after & 0xFFFC) != (before & 0xFFFC)) {
@@ -104,9 +103,7 @@ consumer(tmc::queue_handle<int, Size> q, tmc::tiny_lock& print_lock) {
     }
   }
   // queue should be closed, not some other error
-  assert(data.index() == CLOSED);
-  // std::printf("DONE\n");
-  // std::fflush(stdout);
+  assert(std::get<1>(data) == tmc::channel_error::CLOSED);
   // {
   //   tmc::tiny_lock_guard lg(print_lock);
   //   std::printf(
@@ -130,36 +127,36 @@ int main() {
   tmc::cpu_executor().init();
   return tmc::async_main([]() -> tmc::task<int> {
     tmc::tiny_lock print_lock;
-    for (size_t i = 0; i < 1; ++i) {
+    for (size_t i = 0; i < 100; ++i) {
       for (size_t prodCount = 2; prodCount <= 2; ++prodCount) {
         for (size_t consCount = 10; consCount <= 10; ++consCount) {
-          auto q = tmc::queue_handle<int, QUEUE_SIZE>::make();
+          auto chan = tmc::make_channel<int, channel_config>();
           size_t per_task = NELEMS / prodCount;
           size_t rem = NELEMS % prodCount;
           std::vector<tmc::task<void>> prod(prodCount);
           size_t base = 0;
           for (size_t i = 0; i < prodCount; ++i) {
             size_t count = i < rem ? per_task + 1 : per_task;
-            prod[i] = producer(q, count, base, print_lock);
+            prod[i] = producer(chan, count, base, print_lock);
             base += count;
           }
           std::vector<tmc::task<result>> cons(consCount);
           for (size_t i = 0; i < consCount; ++i) {
-            cons[i] = consumer(q, print_lock);
+            cons[i] = consumer(chan, print_lock);
           }
 
           auto startTime = std::chrono::high_resolution_clock::now();
-          std::array<tmc::task<void>, 100> dummy;
-          for (size_t j = 0; j < dummy.size(); ++j) {
-            dummy[j] = []() -> tmc::task<void> { co_return; }();
-          }
-          tmc::spawn_many(dummy.begin(), dummy.end()).detach();
+          // std::array<tmc::task<void>, 100> dummy;
+          // for (size_t j = 0; j < dummy.size(); ++j) {
+          //   dummy[j] = []() -> tmc::task<void> { co_return; }();
+          // }
+          // tmc::spawn_many(dummy.begin(), dummy.end()).detach();
           auto c = tmc::spawn_many(cons.data(), cons.size()).run_early();
           co_await tmc::spawn_many(prod.data(), prod.size());
 
           // std::this_thread::sleep_for(std::chrono::milliseconds(100));
-          q.close();
-          q.drain_sync();
+          chan.close();
+          chan.drain_sync();
           auto results = co_await std::move(c);
 
           auto endTime = std::chrono::high_resolution_clock::now();
