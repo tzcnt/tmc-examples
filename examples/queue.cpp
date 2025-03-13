@@ -10,7 +10,7 @@
 struct channel_config : tmc::channel_default_config {
   // static inline constexpr size_t BlockSize = 4096;
   // static inline constexpr size_t ReuseBlocks = true;
-  // static inline constexpr size_t ConsumerSpins = 100;
+  // static inline constexpr size_t ConsumerSpins = 0;
   // static inline constexpr size_t PackingLevel = 0;
 };
 using token = tmc::channel_token<int, channel_config>;
