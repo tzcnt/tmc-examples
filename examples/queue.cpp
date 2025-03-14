@@ -1,4 +1,3 @@
-#include "tmc/channel.hpp"
 #define TMC_IMPL
 
 #include "tmc/all_headers.hpp"
@@ -127,9 +126,9 @@ int main() {
   tmc::cpu_executor().init();
   return tmc::async_main([]() -> tmc::task<int> {
     tmc::tiny_lock print_lock;
-    for (size_t i = 0; i < 100; ++i) {
-      for (size_t prodCount = 2; prodCount <= 2; ++prodCount) {
-        for (size_t consCount = 10; consCount <= 10; ++consCount) {
+    for (size_t i = 0; i < 1; ++i) {
+      for (size_t prodCount = 1; prodCount <= 10; ++prodCount) {
+        for (size_t consCount = 1; consCount <= 10; ++consCount) {
           auto chan = tmc::make_channel<int, channel_config>();
           size_t per_task = NELEMS / prodCount;
           size_t rem = NELEMS % prodCount;
@@ -144,7 +143,6 @@ int main() {
           for (size_t i = 0; i < consCount; ++i) {
             cons[i] = consumer(chan, print_lock);
           }
-
           auto startTime = std::chrono::high_resolution_clock::now();
           // std::array<tmc::task<void>, 100> dummy;
           // for (size_t j = 0; j < dummy.size(); ++j) {
@@ -152,11 +150,11 @@ int main() {
           // }
           // tmc::spawn_many(dummy.begin(), dummy.end()).detach();
           auto c = tmc::spawn_many(cons.data(), cons.size()).run_early();
+          // std::this_thread::sleep_for(std::chrono::milliseconds(100));
           co_await tmc::spawn_many(prod.data(), prod.size());
 
-          // std::this_thread::sleep_for(std::chrono::milliseconds(100));
           chan.close();
-          chan.drain_sync();
+          co_await chan.drain();
           auto results = co_await std::move(c);
 
           auto endTime = std::chrono::high_resolution_clock::now();
