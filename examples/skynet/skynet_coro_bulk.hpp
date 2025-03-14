@@ -1,5 +1,7 @@
 #pragma once
 #include "skynet_shared.hpp"
+#include "tmc/detail/thread_layout.hpp"
+#include "tmc/detail/thread_locals.hpp"
 #include "tmc/ex_cpu.hpp"
 #include "tmc/spawn_many.hpp"
 #include "tmc/sync.hpp"
@@ -35,13 +37,18 @@ tmc::task<size_t> skynet_one(size_t BaseNum, size_t Depth) {
   // tmc::spawn_many<10>(children.data());
 
   /// Construction from a sized iterator has slightly better performance
-  std::array<size_t, 10> results = co_await tmc::spawn_many<10>(
+  auto ts = tmc::spawn_many<10>(
     (std::ranges::views::iota(0UL) |
      std::ranges::views::transform([=](size_t idx) {
        return skynet_one<DepthMax>(BaseNum + depthOffset * idx, Depth + 1);
      })
     ).begin()
   );
+  // Prevent thread migration on lowest 2 levels (100 tasks per)
+  if (Depth >= DepthMax - 2) {
+    ts.set_thread_hint(tmc::detail::this_thread::thread_index);
+  }
+  std::array<size_t, 10> results = co_await std::move(ts);
 
   for (size_t idx = 0; idx < 10; ++idx) {
     count += results[idx];
