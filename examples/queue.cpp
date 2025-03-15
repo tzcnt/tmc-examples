@@ -34,22 +34,22 @@ producer(token chan, size_t count, size_t base, tmc::tiny_lock& print_lock) {
     }
     assert(err == tmc::channel_error::OK);
   }
-  {
-    tmc::tiny_lock_guard lg(print_lock);
+  // {
+  //   tmc::tiny_lock_guard lg(print_lock);
 
-    std::printf(
-      "PRODUCER local: %zu distant: %zu  |  ", localMigrations,
-      distantMigrations
-    );
-    for (size_t j = 0; j < 64; ++j) {
-      std::printf("push tids: ");
-      for (size_t i = 0; i < 64; ++i) {
-        std::printf("%zu ", tids[i]);
-      }
-      std::printf("\n");
-      break;
-    }
-  }
+  //   std::printf(
+  //     "PRODUCER local: %zu distant: %zu  |  ", localMigrations,
+  //     distantMigrations
+  //   );
+  //   for (size_t j = 0; j < 64; ++j) {
+  //     std::printf("push tids: ");
+  //     for (size_t i = 0; i < 64; ++i) {
+  //       std::printf("%zu ", tids[i]);
+  //     }
+  //     std::printf("\n");
+  //     break;
+  //   }
+  // }
   co_return;
 }
 
@@ -103,22 +103,22 @@ tmc::task<result> consumer(token chan, tmc::tiny_lock& print_lock) {
   }
   // queue should be closed, not some other error
   // assert(std::get<1>(data) == tmc::channel_error::CLOSED);
-  {
-    tmc::tiny_lock_guard lg(print_lock);
-    std::printf(
-      "CONSUMER local: %zu distant: %zu  |  ", localMigrations,
-      distantMigrations
-    );
-    std::printf("succeeded: %zu suspended: %zu  |  ", succeeded, suspended);
-    for (size_t j = 0; j < 64; ++j) {
-      std::printf("pull tids: ");
-      for (size_t i = 0; i < 64; ++i) {
-        std::printf("%zu ", tids[i]);
-      }
-      std::printf("\n");
-      break;
-    }
-  }
+  // {
+  //   tmc::tiny_lock_guard lg(print_lock);
+  //   std::printf(
+  //     "CONSUMER local: %zu distant: %zu  |  ", localMigrations,
+  //     distantMigrations
+  //   );
+  //   std::printf("succeeded: %zu suspended: %zu  |  ", succeeded, suspended);
+  //   for (size_t j = 0; j < 64; ++j) {
+  //     std::printf("pull tids: ");
+  //     for (size_t i = 0; i < 64; ++i) {
+  //       std::printf("%zu ", tids[i]);
+  //     }
+  //     std::printf("\n");
+  //     break;
+  //   }
+  // }
   co_return result{count, sum};
 }
 
@@ -127,8 +127,8 @@ int main() {
   return tmc::async_main([]() -> tmc::task<int> {
     tmc::tiny_lock print_lock;
     for (size_t i = 0; i < 1; ++i) {
-      for (size_t prodCount = 2; prodCount <= 2; ++prodCount) {
-        for (size_t consCount = 10; consCount <= 10; ++consCount) {
+      for (size_t prodCount = 1; prodCount <= 10; ++prodCount) {
+        for (size_t consCount = 1; consCount <= 10; ++consCount) {
           auto chan = tmc::make_channel<int, channel_config>();
           size_t per_task = NELEMS / prodCount;
           size_t rem = NELEMS % prodCount;

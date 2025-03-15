@@ -128,6 +128,7 @@ endif()
 # greatly superior performance to the default glibc malloc.
 # Try to find any of these 3 before falling back to default.
 find_package(libtcmalloc)
+
 if(LIBTCMALLOC_FOUND)
     set(MALLOC_LIB "${LIBTCMALLOC_LIBRARY}")
     message(STATUS "Using malloc: ${MALLOC_LIB}")
@@ -148,7 +149,7 @@ else()
         endif()
     endif()
 endif()
- 
+
 link_libraries(${MALLOC_LIB})
 option(TMC_CHECK_WARNINGS_CLANG "exhaustive warning checks with clang's -Weverything" OFF)
 
