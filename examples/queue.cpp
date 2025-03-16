@@ -59,18 +59,27 @@ tmc::task<result> producer(token chan, size_t count, size_t base) {
   result res{};
   size_t localMigrations = 0;
   size_t distantMigrations = 0;
-  size_t before = tmc::detail::this_thread::thread_index;
+  size_t before;
+
+  if constexpr (PRINT) {
+    before = tmc::detail::this_thread::thread_index;
+  }
   for (size_t i = 0; i < count; ++i) {
-    res.tids[before]++;
+    if constexpr (PRINT) {
+      res.tids[before]++;
+    }
     auto err = co_await chan.push(base + i);
-    size_t after = tmc::detail::this_thread::thread_index;
-    if (after != before) {
-      if ((after & 0xFFFC) != (before & 0xFFFC)) {
-        distantMigrations++;
-      } else {
-        localMigrations++;
+
+    if constexpr (PRINT) {
+      size_t after = tmc::detail::this_thread::thread_index;
+      if (after != before) {
+        if ((after & 0xFFFC) != (before & 0xFFFC)) {
+          distantMigrations++;
+        } else {
+          localMigrations++;
+        }
+        before = after;
       }
-      before = after;
     }
     assert(err == tmc::channel_error::OK);
   }
@@ -89,11 +98,14 @@ tmc::task<result> consumer(token chan) {
   size_t succeeded = 0;
   size_t localMigrations = 0;
   size_t distantMigrations = 0;
-  size_t before = tmc::detail::this_thread::thread_index;
   result res{};
-  res.tids[before]++;
+  size_t before;
+  if constexpr (PRINT) {
+    before = tmc::detail::this_thread::thread_index;
+    res.tids[before]++;
+  }
   auto data = co_await chan.pull();
-  {
+  if constexpr (PRINT) {
     size_t after = tmc::detail::this_thread::thread_index;
     if (after != before) {
       if ((after & 0xFFFC) != (before & 0xFFFC)) {
@@ -108,21 +120,25 @@ tmc::task<result> consumer(token chan) {
     ++count;
     int val = std::get<0>(data);
     sum += val & ~((1 << 31));
-    if ((val & (1 << 31)) != 0) {
-      ++suspended;
-    } else {
-      ++succeeded;
-    }
-    res.tids[before]++;
-    data = co_await chan.pull();
-    size_t after = tmc::detail::this_thread::thread_index;
-    if (after != before) {
-      if ((after & 0xFFFC) != (before & 0xFFFC)) {
-        distantMigrations++;
+    if constexpr (PRINT) {
+      if ((val & (1 << 31)) != 0) {
+        ++suspended;
       } else {
-        localMigrations++;
+        ++succeeded;
       }
-      before = after;
+      res.tids[before]++;
+    }
+    data = co_await chan.pull();
+    if constexpr (PRINT) {
+      size_t after = tmc::detail::this_thread::thread_index;
+      if (after != before) {
+        if ((after & 0xFFFC) != (before & 0xFFFC)) {
+          distantMigrations++;
+        } else {
+          localMigrations++;
+        }
+        before = after;
+      }
     }
   }
   // queue should be closed, not some other error
