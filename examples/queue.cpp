@@ -3,8 +3,11 @@
 #include "tmc/all_headers.hpp"
 
 #include <cstdio>
+#include <thread>
 
 #define NELEMS 1000000
+
+static inline constexpr bool PRINT = true;
 
 struct channel_config : tmc::channel_default_config {
   // static inline constexpr size_t BlockSize = 4096;
@@ -14,14 +17,51 @@ struct channel_config : tmc::channel_default_config {
 };
 using token = tmc::channel_token<int, channel_config>;
 
-tmc::task<void>
-producer(token chan, size_t count, size_t base, tmc::tiny_lock& print_lock) {
-  std::array<size_t, 64> tids{};
+enum kind { CONS, PROD };
+struct result {
+  size_t count;
+  size_t sum;
+  size_t suspended = 0;
+  size_t succeeded = 0;
+  size_t localMigrations = 0;
+  size_t distantMigrations = 0;
+  kind kind;
+  std::array<size_t, 64> tids;
+  result() : count{}, sum{}, tids{} {}
+
+  void print() {
+    std::printf(
+      "%s local: %zu distant: %zu  |  ", kind == CONS ? "CONSUMER" : "PRODUCER",
+      localMigrations, distantMigrations
+    );
+    if (kind == CONS) {
+      std::printf("succeeded: %zu suspended: %zu  |  ", succeeded, suspended);
+    }
+    size_t modeCount = 0;
+    size_t mode = 0;
+    for (size_t j = 0; j < 64; ++j) {
+      std::printf("tids: ");
+      for (size_t i = 0; i < 64; ++i) {
+        std::printf("%zu ", tids[i]);
+        if (tids[i] > modeCount) {
+          mode = i;
+          modeCount = tids[i];
+        }
+      }
+      std::printf("mode: %zu", mode);
+      std::printf("\n");
+      break;
+    }
+  }
+};
+
+tmc::task<result> producer(token chan, size_t count, size_t base) {
+  result res{};
   size_t localMigrations = 0;
   size_t distantMigrations = 0;
   size_t before = tmc::detail::this_thread::thread_index;
   for (size_t i = 0; i < count; ++i) {
-    tids[before]++;
+    res.tids[before]++;
     auto err = co_await chan.push(base + i);
     size_t after = tmc::detail::this_thread::thread_index;
     if (after != before) {
@@ -34,40 +74,24 @@ producer(token chan, size_t count, size_t base, tmc::tiny_lock& print_lock) {
     }
     assert(err == tmc::channel_error::OK);
   }
-  // {
-  //   tmc::tiny_lock_guard lg(print_lock);
 
-  //   std::printf(
-  //     "PRODUCER local: %zu distant: %zu  |  ", localMigrations,
-  //     distantMigrations
-  //   );
-  //   for (size_t j = 0; j < 64; ++j) {
-  //     std::printf("push tids: ");
-  //     for (size_t i = 0; i < 64; ++i) {
-  //       std::printf("%zu ", tids[i]);
-  //     }
-  //     std::printf("\n");
-  //     break;
-  //   }
-  // }
-  co_return;
+  res.count = count;
+  res.localMigrations = localMigrations;
+  res.distantMigrations = distantMigrations;
+  res.kind = PROD;
+  co_return res;
 }
 
-struct result {
-  size_t count;
-  size_t sum;
-};
-
-tmc::task<result> consumer(token chan, tmc::tiny_lock& print_lock) {
+tmc::task<result> consumer(token chan) {
   size_t count = 0;
   size_t sum = 0;
   size_t suspended = 0;
   size_t succeeded = 0;
   size_t localMigrations = 0;
   size_t distantMigrations = 0;
-  std::array<size_t, 64> tids{};
   size_t before = tmc::detail::this_thread::thread_index;
-  tids[before]++;
+  result res{};
+  res.tids[before]++;
   auto data = co_await chan.pull();
   {
     size_t after = tmc::detail::this_thread::thread_index;
@@ -89,7 +113,7 @@ tmc::task<result> consumer(token chan, tmc::tiny_lock& print_lock) {
     } else {
       ++succeeded;
     }
-    tids[before]++;
+    res.tids[before]++;
     data = co_await chan.pull();
     size_t after = tmc::detail::this_thread::thread_index;
     if (after != before) {
@@ -102,46 +126,38 @@ tmc::task<result> consumer(token chan, tmc::tiny_lock& print_lock) {
     }
   }
   // queue should be closed, not some other error
-  // assert(std::get<1>(data) == tmc::channel_error::CLOSED);
-  // {
-  //   tmc::tiny_lock_guard lg(print_lock);
-  //   std::printf(
-  //     "CONSUMER local: %zu distant: %zu  |  ", localMigrations,
-  //     distantMigrations
-  //   );
-  //   std::printf("succeeded: %zu suspended: %zu  |  ", succeeded, suspended);
-  //   for (size_t j = 0; j < 64; ++j) {
-  //     std::printf("pull tids: ");
-  //     for (size_t i = 0; i < 64; ++i) {
-  //       std::printf("%zu ", tids[i]);
-  //     }
-  //     std::printf("\n");
-  //     break;
-  //   }
-  // }
-  co_return result{count, sum};
+  assert(std::get<1>(data) == tmc::channel_error::CLOSED);
+
+  res.count = count;
+  res.sum = sum;
+  res.suspended = suspended;
+  res.succeeded = succeeded;
+  res.localMigrations = localMigrations;
+  res.distantMigrations = distantMigrations;
+  res.kind = CONS;
+  co_return res;
 }
 
 int main() {
   tmc::cpu_executor().init();
   return tmc::async_main([]() -> tmc::task<int> {
-    tmc::tiny_lock print_lock;
-    for (size_t i = 0; i < 1; ++i) {
-      for (size_t prodCount = 1; prodCount <= 10; ++prodCount) {
-        for (size_t consCount = 1; consCount <= 10; ++consCount) {
+    for (size_t i = 0; i < 1000; ++i) {
+      // std::this_thread::sleep_for(std::chrono::milliseconds(100));
+      for (size_t prodCount = 2; prodCount <= 2; ++prodCount) {
+        for (size_t consCount = 10; consCount <= 10; ++consCount) {
           auto chan = tmc::make_channel<int, channel_config>();
           size_t per_task = NELEMS / prodCount;
           size_t rem = NELEMS % prodCount;
-          std::vector<tmc::task<void>> prod(prodCount);
+          std::vector<tmc::task<result>> prod(prodCount);
           size_t base = 0;
           for (size_t i = 0; i < prodCount; ++i) {
             size_t count = i < rem ? per_task + 1 : per_task;
-            prod[i] = producer(chan, count, base, print_lock);
+            prod[i] = producer(chan, count, base);
             base += count;
           }
           std::vector<tmc::task<result>> cons(consCount);
           for (size_t i = 0; i < consCount; ++i) {
-            cons[i] = consumer(chan, print_lock);
+            cons[i] = consumer(chan);
           }
           auto startTime = std::chrono::high_resolution_clock::now();
           // std::array<tmc::task<void>, 100> dummy;
@@ -151,19 +167,19 @@ int main() {
           // tmc::spawn_many(dummy.begin(), dummy.end()).detach();
           auto c = tmc::spawn_many(cons.data(), cons.size()).run_early();
           // std::this_thread::sleep_for(std::chrono::milliseconds(100));
-          co_await tmc::spawn_many(prod.data(), prod.size());
+          auto prodResults = co_await tmc::spawn_many(prod.data(), prod.size());
 
           chan.close();
           co_await chan.drain();
-          auto results = co_await std::move(c);
+          auto consResults = co_await std::move(c);
 
           auto endTime = std::chrono::high_resolution_clock::now();
 
           size_t count = 0;
           size_t sum = 0;
-          for (size_t i = 0; i < results.size(); ++i) {
-            count += results[i].count;
-            sum += results[i].sum;
+          for (size_t i = 0; i < consResults.size(); ++i) {
+            count += consResults[i].count;
+            sum += consResults[i].sum;
           }
           if (count != NELEMS) {
             std::printf(
@@ -190,6 +206,17 @@ int main() {
           std::printf(
             "%zu prod\t%zu cons\t %zu us\n", prodCount, consCount, execDur
           );
+          // if (execDur > 100000) {
+          if constexpr (PRINT) {
+            for (size_t i = 0; i < prodResults.size(); ++i) {
+              prodResults[i].print();
+            }
+            for (size_t i = 0; i < consResults.size(); ++i) {
+              consResults[i].print();
+            }
+          }
+          co_return 0;
+          //}
         }
       }
     }
