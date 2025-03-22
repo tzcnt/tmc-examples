@@ -5,15 +5,16 @@
 #include <cstdio>
 #include <thread>
 
-#define NELEMS 1000000
+#define NELEMS 10000000
 
-static inline constexpr bool PRINT = true;
+static inline constexpr bool PRINT = false;
 
 struct channel_config : tmc::channel_default_config {
   // static inline constexpr size_t BlockSize = 4096;
   // static inline constexpr size_t ReuseBlocks = true;
   // static inline constexpr size_t ConsumerSpins = 0;
   // static inline constexpr size_t PackingLevel = 0;
+  // static inline constexpr size_t HeavyLoadThreshold = 2000000;
 };
 using token = tmc::channel_token<int, channel_config>;
 
@@ -157,10 +158,10 @@ tmc::task<result> consumer(token chan) {
 int main() {
   tmc::cpu_executor().init();
   return tmc::async_main([]() -> tmc::task<int> {
-    for (size_t i = 0; i < 1000; ++i) {
+    for (size_t i = 0; i < 10; ++i) {
       // std::this_thread::sleep_for(std::chrono::milliseconds(100));
-      for (size_t prodCount = 2; prodCount <= 2; ++prodCount) {
-        for (size_t consCount = 10; consCount <= 10; ++consCount) {
+      for (size_t prodCount = 1; prodCount <= 10; ++prodCount) {
+        for (size_t consCount = 1; consCount <= 10; ++consCount) {
           auto chan = tmc::make_channel<int, channel_config>();
           size_t per_task = NELEMS / prodCount;
           size_t rem = NELEMS % prodCount;
@@ -223,15 +224,15 @@ int main() {
             "%zu prod\t%zu cons\t %zu us\n", prodCount, consCount, execDur
           );
           // if (execDur > 100000) {
-          if constexpr (PRINT) {
-            for (size_t i = 0; i < prodResults.size(); ++i) {
-              prodResults[i].print();
-            }
-            for (size_t i = 0; i < consResults.size(); ++i) {
-              consResults[i].print();
-            }
-          }
-          co_return 0;
+          // if constexpr (PRINT) {
+          //   for (size_t i = 0; i < prodResults.size(); ++i) {
+          //     prodResults[i].print();
+          //   }
+          //   for (size_t i = 0; i < consResults.size(); ++i) {
+          //     consResults[i].print();
+          //   }
+          // }
+          // co_return 0;
           //}
         }
       }
