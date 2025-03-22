@@ -159,6 +159,7 @@ int main() {
   tmc::cpu_executor().init();
   return tmc::async_main([]() -> tmc::task<int> {
     for (size_t i = 0; i < 10; ++i) {
+      auto overallStart = std::chrono::high_resolution_clock::now();
       // std::this_thread::sleep_for(std::chrono::milliseconds(100));
       for (size_t prodCount = 1; prodCount <= 10; ++prodCount) {
         for (size_t consCount = 1; consCount <= 10; ++consCount) {
@@ -236,6 +237,13 @@ int main() {
           //}
         }
       }
+
+      auto overallEnd = std::chrono::high_resolution_clock::now();
+      size_t overallDur = std::chrono::duration_cast<std::chrono::microseconds>(
+                            overallEnd - overallStart
+      )
+                            .count();
+      std::printf("overall: %zu us\n", overallDur);
     }
     co_return 0;
   }());
