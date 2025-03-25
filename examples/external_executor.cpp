@@ -5,12 +5,11 @@
 
 #define TMC_IMPL
 
-#include "util/thread_name.hpp"
-
 #include "tmc/detail/concepts.hpp"
 #include "tmc/ex_cpu.hpp"
 #include "tmc/spawn_task.hpp"
 #include "tmc/sync.hpp"
+#include "util/thread_name.hpp"
 
 #include <coroutine>
 #include <string>
@@ -25,8 +24,8 @@ public:
 
   template <typename Functor>
   void post(
-    Functor&& Func, [[maybe_unused]] size_t Priority,
-    [[maybe_unused]] size_t ThreadHint
+    Functor&& Func, [[maybe_unused]] size_t Priority = 0,
+    [[maybe_unused]] size_t ThreadHint = TMC_ALL_ONES
   ) {
     std::thread([this, func = std::forward<Functor>(Func)] {
       // Thread locals must be setup for each new executor thread
@@ -37,8 +36,9 @@ public:
 
   template <typename FunctorIterator>
   void post_bulk(
-    FunctorIterator FuncIter, size_t Count, [[maybe_unused]] size_t Priority,
-    [[maybe_unused]] size_t ThreadHint
+    FunctorIterator FuncIter, size_t Count,
+    [[maybe_unused]] size_t Priority = 0,
+    [[maybe_unused]] size_t ThreadHint = TMC_ALL_ONES
   ) {
     for (size_t i = 0; i < Count; ++i) {
       std::thread([this, func = std::move(*FuncIter)] {
@@ -56,16 +56,16 @@ public:
 // A complete, minimal implementation of executor_traits.
 template <> struct tmc::detail::executor_traits<external_executor> {
   static inline void post(
-    external_executor& ex, tmc::work_item&& Item, size_t Priority,
-    size_t ThreadHint
+    external_executor& ex, tmc::work_item&& Item, size_t Priority = 0,
+    size_t ThreadHint = TMC_ALL_ONES
   ) {
     ex.post(std::move(Item), Priority, ThreadHint);
   }
 
   template <typename It>
   static inline void post_bulk(
-    external_executor& ex, It&& Items, size_t Count, size_t Priority,
-    size_t ThreadHint
+    external_executor& ex, It&& Items, size_t Count, size_t Priority = 0,
+    size_t ThreadHint = TMC_ALL_ONES
   ) {
     ex.post_bulk(std::forward<It>(Items), Count, Priority, ThreadHint);
   }
@@ -78,7 +78,7 @@ template <> struct tmc::detail::executor_traits<external_executor> {
   static inline std::coroutine_handle<> task_enter_context(
     external_executor& ex, std::coroutine_handle<> Outer, size_t Priority
   ) {
-    ex.post(Outer, Priority, TMC_ALL_ONES);
+    ex.post(Outer, Priority);
     return std::noop_coroutine();
   }
 };
