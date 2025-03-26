@@ -11,10 +11,7 @@
 
 struct chan_config : tmc::chan_default_config {
   // static inline constexpr size_t BlockSize = 4096;
-  // static inline constexpr size_t ReuseBlocks = true;
-  // static inline constexpr size_t ConsumerSpins = 0;
   // static inline constexpr size_t PackingLevel = 0;
-  // static inline constexpr size_t HeavyLoadThreshold = 2000000;
 };
 using token = tmc::chan_tok<size_t, chan_config>;
 
