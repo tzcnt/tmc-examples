@@ -9,20 +9,20 @@
 
 #define NELEMS 10000000
 
-struct channel_config : tmc::channel_default_config {
+struct chan_config : tmc::chan_default_config {
   // static inline constexpr size_t BlockSize = 4096;
   // static inline constexpr size_t ReuseBlocks = true;
   // static inline constexpr size_t ConsumerSpins = 0;
   // static inline constexpr size_t PackingLevel = 0;
   // static inline constexpr size_t HeavyLoadThreshold = 2000000;
 };
-using token = tmc::channel_token<size_t, channel_config>;
+using token = tmc::chan_tok<size_t, chan_config>;
 
 tmc::task<void> producer(token chan, size_t count, size_t base) {
   for (size_t i = 0; i < count; ++i) {
     auto err = co_await chan.push(base + i);
 
-    assert(err == tmc::channel_error::OK);
+    assert(err == tmc::chan_err::OK);
   }
 }
 
@@ -41,7 +41,7 @@ tmc::task<result> consumer(token chan) {
     data = co_await chan.pull();
   }
   // queue should be closed, not some other error
-  assert(std::get<1>(data) == tmc::channel_error::CLOSED);
+  assert(std::get<1>(data) == tmc::chan_err::CLOSED);
   co_return result{count, sum};
 }
 
@@ -66,7 +66,7 @@ int main() {
 
     for (size_t prodCount = 1; prodCount <= 10; ++prodCount) {
       for (size_t consCount = 1; consCount <= 10; ++consCount) {
-        auto chan = tmc::make_channel<size_t, channel_config>();
+        auto chan = tmc::make_channel<size_t, chan_config>();
         size_t per_task = NELEMS / prodCount;
         size_t rem = NELEMS % prodCount;
         std::vector<tmc::task<void>> prod(prodCount);
