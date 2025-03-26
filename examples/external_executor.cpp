@@ -104,8 +104,7 @@ int main() {
       co_await tmc::spawn(child_task()).run_on(external);
       std::printf("coro resumed on %s\n", get_thread_name().c_str());
       co_return;
-    }(),
-    0
+    }()
   )
     .wait();
 
@@ -119,8 +118,7 @@ int main() {
       co_await tmc::spawn(child_task()).run_on(tmc::cpu_executor());
       std::printf("coro resumed on %s\n", get_thread_name().c_str());
       co_return;
-    }(),
-    0
+    }()
   )
     .wait();
 }

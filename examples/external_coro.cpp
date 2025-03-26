@@ -36,7 +36,7 @@ static external_coro<int> external(int Count, int Max) {
 
 static void run_internal_first(int max) {
   std::future<int> result_future =
-    tmc::post_waitable(tmc::cpu_executor(), internal(0, max), 0);
+    tmc::post_waitable(tmc::cpu_executor(), internal(0, max));
   int result = result_future.get();
   if (result != max) {
     std::printf("wrong result from result_future\n");
@@ -49,7 +49,7 @@ static void run_internal_first(int max) {
 
 // void run_external_first(int max) {
 //   std::future<int> result_future =
-//     tmc::post_waitable(tmc::cpu_executor(), external(0, max), 0);
+//     tmc::post_waitable(tmc::cpu_executor(), external(0, max));
 //   int result = result_future.get();
 //   if (result != max) {
 //     std::printf("wrong result from result_future\n");
@@ -78,7 +78,7 @@ static void run_external_first_by_promise(int max) {
   // as a void() functor and invoked (resumed) once.
   tmc::post(
     tmc::cpu_executor(),
-    external_result_by_promise(0, max, std::move(result_promise)), 0
+    external_result_by_promise(0, max, std::move(result_promise))
   );
   int result = result_future.get();
   if (result != max) {

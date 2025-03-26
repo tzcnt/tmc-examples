@@ -48,13 +48,13 @@ static bench_result find_equilibrium(size_t Count, size_t ThreadCount) {
 #ifdef USE_ITERATOR
   for (size_t i = 0; i < WARMUP_COUNT; ++i) {
     future = post_bulk_waitable(
-      executor, std::ranges::views::transform(data, make_task).begin(), Count, 0
+      executor, std::ranges::views::transform(data, make_task).begin(), Count
     );
     future.wait();
   }
   auto beforePostTime = std::chrono::high_resolution_clock::now();
   future = post_bulk_waitable(
-    executor, std::ranges::views::transform(data, make_task).begin(), Count, 0
+    executor, std::ranges::views::transform(data, make_task).begin(), Count
   );
 #else
   std::vector<task<void>> tasks;
@@ -63,14 +63,14 @@ static bench_result find_equilibrium(size_t Count, size_t ThreadCount) {
     for (size_t taskidx = 0; taskidx < Count; ++taskidx) {
       tasks[taskidx] = make_task(data[taskidx]);
     }
-    future = post_bulk_waitable(executor, tasks.begin(), Count, 0);
+    future = post_bulk_waitable(executor, tasks.begin(), Count);
     future.wait();
   }
   auto beforePostTime = std::chrono::high_resolution_clock::now();
   for (size_t taskidx = 0; taskidx < Count; ++taskidx) {
     tasks[taskidx] = make_task(data[taskidx]);
   }
-  future = post_bulk_waitable(executor, tasks.begin(), Count, 0);
+  future = post_bulk_waitable(executor, tasks.begin(), Count);
 #endif
 
   auto afterPostTime = std::chrono::high_resolution_clock::now();
