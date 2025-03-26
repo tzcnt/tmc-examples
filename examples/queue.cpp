@@ -68,7 +68,7 @@ int main() {
           co_await tmc::spawn_many(prod.data(), prod.size());
 
           chan.close();
-          co_await chan.drain();
+          chan.drain_wait();
           auto consResults = co_await std::move(c);
 
           auto endTime = std::chrono::high_resolution_clock::now();
