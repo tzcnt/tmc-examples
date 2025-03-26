@@ -229,13 +229,12 @@ make_exe(fib
     examples/fib.cpp
 )
 
-make_exe(queue
-    examples/queue.cpp
+make_exe(chan_bench
+    examples/chan_bench.cpp
 )
-target_compile_options(queue PRIVATE -fcoro-aligned-allocation)
 
-make_exe(queue_braid
-    examples/queue_braid.cpp
+make_exe(braid_bench
+    examples/braid_bench.cpp
 )
 
 make_exe(sync
