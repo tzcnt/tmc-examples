@@ -6,6 +6,7 @@
 
 #include "tmc/detail/concepts.hpp"
 #include "tmc/detail/thread_locals.hpp"
+#include "tmc/detail/tiny_lock.hpp"
 #include "tmc/task.hpp"
 
 #include <atomic>
@@ -14,11 +15,15 @@
 
 struct AtomicAwaitableTag {};
 
+// A one-shot awaitable that creates a thread to (blocking) wait until the
+// atomic variable reaches the desired variable.
 template <typename T> struct atomic_awaitable : private AtomicAwaitableTag {
   std::atomic<T> value;
   T until;
   tmc::detail::awaitable_customizer<void> customizer;
   size_t prio;
+  std::thread thread;
+  tmc::tiny_lock lock;
 
   atomic_awaitable(T begin, T wait_until) : value(begin), until(wait_until) {
     if (tmc::detail::this_thread::executor != nullptr) {
@@ -33,7 +38,11 @@ template <typename T> struct atomic_awaitable : private AtomicAwaitableTag {
   T load() { return value.load(); }
 
   void async_initiate() {
-    std::thread([this]() {
+    // In the event that the continuation runs immediately, the lock here
+    // prevents it from running the destructor until after the thread variable
+    // has been populated, and the effects are visible to the resuming thread.
+    tmc::tiny_lock_guard lg{lock};
+    thread = std::thread([this]() {
       auto old = value.load();
       while (old != until) {
         value.wait(old);
@@ -41,7 +50,7 @@ template <typename T> struct atomic_awaitable : private AtomicAwaitableTag {
       }
       auto next = customizer.resume_continuation(prio);
       assert(next == std::noop_coroutine());
-    }).detach();
+    });
   }
 
   bool await_ready() { return value.load() == until; }
@@ -53,6 +62,11 @@ template <typename T> struct atomic_awaitable : private AtomicAwaitableTag {
   }
 
   void await_resume() noexcept {}
+
+  ~atomic_awaitable() {
+    tmc::tiny_lock_guard lg{lock};
+    thread.join();
+  }
 };
 
 namespace tmc::detail {
