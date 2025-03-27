@@ -27,9 +27,6 @@ add_definitions(
     # "-DTMC_QUEUE_NO_LIFO"
 )
 
-# add_definitions("-fsanitize=address")
-# add_link_options("-fsanitize=address")
-
 # Optional flags can be passed at the command line. Used by GitHub Actions workflow.
 if(CMD_COMPILE_FLAGS)
     message(STATUS "CMD_COMPILE_FLAGS: ${CMD_COMPILE_FLAGS}")
@@ -151,27 +148,35 @@ else()
 endif()
 
 link_libraries(${MALLOC_LIB})
-option(TMC_CHECK_WARNINGS_CLANG "exhaustive warning checks with clang's -Weverything" OFF)
 
-if(TMC_CHECK_WARNINGS_CLANG)
-    add_definitions(
-        "-Weverything"
+# Safety / warnings checks
 
-        # Ignore these (from the library)
-        "-Wno-c++98-compat"
-        "-Wno-c++98-compat-pedantic"
-        "-Wno-c++20-compat"
-        "-Wno-padded"
-        "-Wno-unsafe-buffer-usage"
-        "-Wno-global-constructors"
-        "-Wno-exit-time-destructors"
+# add_definitions("-fsanitize=address")
+# add_link_options("-fsanitize=address")
 
-        # Ignore these (from some quick and dirty examples)
-        "-Wno-sign-conversion"
-        "-Wno-missing-prototypes"
-        "-Wno-missing-variable-declarations"
-    )
-endif()
+# add_definitions("-fsanitize=thread")
+# add_link_options("-fsanitize=thread")
+
+# add_definitions("-fsanitize=undefined -fno-sanitize-recover")
+# add_link_options("-fsanitize=undefined")
+
+# add_definitions(
+# "-Weverything"
+
+# # Ignore these (from the library)
+# "-Wno-c++98-compat"
+# "-Wno-c++98-compat-pedantic"
+# "-Wno-c++20-compat"
+# "-Wno-padded"
+# "-Wno-unsafe-buffer-usage"
+# "-Wno-global-constructors"
+# "-Wno-exit-time-destructors"
+
+# # Ignore these (from some quick and dirty examples)
+# "-Wno-sign-conversion"
+# "-Wno-missing-prototypes"
+# "-Wno-missing-variable-declarations"
+# )
 
 # copy compile_commands.json to the build directory after build so clangd can find it
 # clangd won't look in the /build/{config} directory, only in the top-level /build directory

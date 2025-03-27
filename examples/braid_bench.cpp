@@ -33,7 +33,7 @@ std::string formatWithCommas(size_t n) {
 int main() {
   tmc::cpu_executor().init();
   std::printf(
-    "braid_bench: %zu threads | %s elements",
+    "braid_bench: %zu threads | %s elements\n",
     tmc::cpu_executor().thread_count(), formatWithCommas(NELEMS).c_str()
   );
   return tmc::async_main([]() -> tmc::task<int> {
