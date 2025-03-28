@@ -17,9 +17,8 @@ using token = tmc::chan_tok<size_t, chan_config>;
 
 tmc::task<void> producer(token chan, size_t count, size_t base) {
   for (size_t i = 0; i < count; ++i) {
-    auto err = co_await chan.push(base + i);
-
-    assert(err == tmc::chan_err::OK);
+    bool ok = co_await chan.push(base + i);
+    assert(ok);
   }
 }
 
@@ -32,13 +31,11 @@ tmc::task<result> consumer(token chan) {
   size_t count = 0;
   size_t sum = 0;
   auto data = co_await chan.pull();
-  while (data.index() == 0) {
+  while (data.has_value()) {
     ++count;
-    sum += std::get<0>(data);
+    sum += data.value();
     data = co_await chan.pull();
   }
-  // queue should be closed, not some other error
-  assert(std::get<1>(data) == tmc::chan_err::CLOSED);
   co_return result{count, sum};
 }
 
@@ -61,8 +58,8 @@ int main() {
   return tmc::async_main([]() -> tmc::task<int> {
     auto overallStart = std::chrono::high_resolution_clock::now();
 
-    for (size_t prodCount = 1; prodCount <= 10; ++prodCount) {
-      for (size_t consCount = 1; consCount <= 10; ++consCount) {
+    for (size_t consCount = 1; consCount <= 10; ++consCount) {
+      for (size_t prodCount = 1; prodCount <= 10; ++prodCount) {
         auto chan = tmc::make_channel<size_t, chan_config>();
         size_t per_task = NELEMS / prodCount;
         size_t rem = NELEMS % prodCount;
