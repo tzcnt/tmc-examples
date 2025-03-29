@@ -1,5 +1,6 @@
 #include "test_common.hpp"
 #include "tmc/channel.hpp"
+#include "tmc/detail/compat.hpp"
 
 #include <gtest/gtest.h>
 
@@ -79,10 +80,12 @@ TEST_F(CATEGORY, push) {
   do_chan_test<1>(ex(), 0, true);
   do_chan_test<1>(ex(), 1, false);
   do_chan_test<1>(ex(), 1, true);
-  do_chan_test<2>(ex(), 0, false);
-  do_chan_test<2>(ex(), 0, true);
-  do_chan_test<2>(ex(), 1, false);
-  do_chan_test<2>(ex(), 1, true);
+  if constexpr (TMC_PLATFORM_BITS == 64) {
+    do_chan_test<2>(ex(), 0, false);
+    do_chan_test<2>(ex(), 0, true);
+    do_chan_test<2>(ex(), 1, false);
+    do_chan_test<2>(ex(), 1, true);
+  }
 }
 
 TEST_F(CATEGORY, push_single_threaded) {
