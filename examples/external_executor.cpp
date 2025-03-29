@@ -5,6 +5,7 @@
 
 #define TMC_IMPL
 
+#include "tmc/detail/compat.hpp"
 #include "tmc/detail/concepts.hpp"
 #include "tmc/ex_cpu.hpp"
 #include "tmc/spawn_task.hpp"
@@ -25,7 +26,7 @@ public:
   template <typename Functor>
   void post(
     Functor&& Func, [[maybe_unused]] size_t Priority = 0,
-    [[maybe_unused]] size_t ThreadHint = TMC_ALL_ONES
+    [[maybe_unused]] size_t ThreadHint = NO_HINT
   ) {
     std::thread([this, func = std::forward<Functor>(Func)] {
       // Thread locals must be setup for each new executor thread
@@ -38,7 +39,7 @@ public:
   void post_bulk(
     FunctorIterator FuncIter, size_t Count,
     [[maybe_unused]] size_t Priority = 0,
-    [[maybe_unused]] size_t ThreadHint = TMC_ALL_ONES
+    [[maybe_unused]] size_t ThreadHint = NO_HINT
   ) {
     for (size_t i = 0; i < Count; ++i) {
       std::thread([this, func = std::move(*FuncIter)] {
