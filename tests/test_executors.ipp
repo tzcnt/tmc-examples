@@ -3,8 +3,6 @@
 #include <gtest/gtest.h>
 #include <ranges>
 
-#define CAT_TEST(CATEGORY, NAME) TEST_F(CATEGORY, NAME)
-
 TEST_F(CATEGORY, post_coro) {
   std::atomic<int> x = 0;
   tmc::post(

@@ -42,6 +42,7 @@ make_exe(
   test_ex_asio.cpp
   test_ex_braid.cpp
   test_prio.cpp
+  test_channel.cpp
 )
 
 target_link_libraries(
