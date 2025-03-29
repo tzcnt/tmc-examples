@@ -37,7 +37,7 @@ TEST_F(CATEGORY, post) {
           bool ok = co_await Chan.push(i);
           EXPECT_EQ(true, ok);
         }
-        Chan.drain_wait();
+        co_await Chan.drain();
         co_return i;
       }(chan),
       [](auto Chan) -> tmc::task<result> {

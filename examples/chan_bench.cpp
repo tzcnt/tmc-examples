@@ -78,8 +78,10 @@ int main() {
         auto c = tmc::spawn_many(cons.data(), cons.size()).run_early();
         co_await tmc::spawn_many(prod.data(), prod.size());
 
+        // The call to close() is not necessary, but is included here for
+        // exposition.
         chan.close();
-        chan.drain_wait();
+        co_await chan.drain();
         auto consResults = co_await std::move(c);
 
         auto endTime = std::chrono::high_resolution_clock::now();
