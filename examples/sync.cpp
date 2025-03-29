@@ -31,23 +31,23 @@ static int func_value() {
 }
 
 static void wait_one_coro_void() {
-  auto fut = tmc::post_waitable(tmc::cpu_executor(), coro_void(0), 0);
+  auto fut = tmc::post_waitable(tmc::cpu_executor(), coro_void(0));
   fut.get();
 }
 
 static void wait_one_func_void() {
-  auto fut = tmc::post_waitable(tmc::cpu_executor(), func_void, 0);
+  auto fut = tmc::post_waitable(tmc::cpu_executor(), func_void);
   fut.get();
 }
 
 static void wait_one_coro_value() {
-  auto fut = tmc::post_waitable(tmc::cpu_executor(), coro_value(0), 0);
+  auto fut = tmc::post_waitable(tmc::cpu_executor(), coro_value(0));
   auto value = fut.get();
   std::printf("got value %d\n", value);
 }
 
 static void wait_one_func_value() {
-  auto fut = tmc::post_waitable(tmc::cpu_executor(), func_value, 0);
+  auto fut = tmc::post_waitable(tmc::cpu_executor(), func_value);
   auto value = fut.get();
   std::printf("got value %d\n", value);
 }
@@ -57,7 +57,7 @@ static void wait_many_coro_void() {
     tmc::cpu_executor(),
     (std::ranges::views::iota(0) | std::ranges::views::transform(coro_void))
       .begin(),
-    10, 0
+    10
   );
   fut.get();
 }
@@ -68,17 +68,17 @@ static void wait_many_func_void() {
     (std::ranges::views::iota(0) |
      std::ranges::views::transform([](int) { return func_void; })
     ).begin(),
-    10, 0
+    10
   );
   fut.get();
 }
 
 static void nowait_one_coro_void() {
-  tmc::post(tmc::cpu_executor(), coro_void(0), 0);
+  tmc::post(tmc::cpu_executor(), coro_void(0));
 }
 
 static void nowait_one_func_void() {
-  tmc::post(tmc::cpu_executor(), func_void, 0);
+  tmc::post(tmc::cpu_executor(), func_void);
 }
 
 static void nowait_many_coro_void() {
@@ -86,7 +86,7 @@ static void nowait_many_coro_void() {
     tmc::cpu_executor(),
     (std::ranges::views::iota(0) | std::ranges::views::transform(coro_void))
       .begin(),
-    10, 0
+    10
   );
 }
 
@@ -96,7 +96,7 @@ static void nowait_many_func_void() {
     (std::ranges::views::iota(0) |
      std::ranges::views::transform([](int) { return func_void; })
     ).begin(),
-    10, 0
+    10
   );
 }
 
@@ -104,15 +104,15 @@ static void nowait_many_func_void() {
 // post_waitable(). You cannot post(), post_bulk(), or post_bulk_waitable()
 // these types; therefore, none of the below statements will compile.
 static void disallowed_operations() {
-  // tmc::post(tmc::cpu_executor(), func_value, 0);
+  // tmc::post(tmc::cpu_executor(), func_value);
 
-  // tmc::post(tmc::cpu_executor(), coro_value(0), 0);
+  // tmc::post(tmc::cpu_executor(), coro_value(0));
 
   // tmc::post_bulk(
   //   tmc::cpu_executor(),
   //   (std::ranges::views::iota(0) | std::ranges::views::transform(coro_value))
   //     .begin(),
-  //   10, 0
+  //   10
   // );
 
   // tmc::post_bulk(
@@ -120,14 +120,14 @@ static void disallowed_operations() {
   //   (std::ranges::views::iota(0) |
   //    std::ranges::views::transform([](int) { return func_value; })
   //   ).begin(),
-  //   10, 0
+  //   10
   // );
 
   // tmc::post_bulk_waitable(
   //   tmc::cpu_executor(),
   //   (std::ranges::views::iota(0) | std::ranges::views::transform(coro_value))
   //     .begin(),
-  //   10, 0
+  //   10
   // )
   //   .get();
 
@@ -136,7 +136,7 @@ static void disallowed_operations() {
   //   (std::ranges::views::iota(0) |
   //    std::ranges::views::transform([](int) { return func_value; })
   //   ).begin(),
-  //   10, 0
+  //   10
   // )
   //   .get();
 }

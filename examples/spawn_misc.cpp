@@ -26,7 +26,7 @@ template <size_t Count, size_t ThreadCount> void small_func_spawn_bench_lazy() {
   for (size_t i = 0; i < Count; ++i) {
     // because this is a functor and not a coroutine,
     // it is OK to capture the loop variables
-    results[i] = post_waitable(executor, [i, &data]() { data[i] = i; }, 0);
+    results[i] = post_waitable(executor, [i, &data]() { data[i] = i; });
   }
   auto postTime = std::chrono::high_resolution_clock::now();
   for (auto& f : results) {
@@ -72,22 +72,18 @@ template <size_t Count, size_t nthreads> void large_task_spawn_bench_lazy() {
     // because this is a coroutine and not a functor, it is not safe to capture
     // https://clang.llvm.org/extra/clang-tidy/checks/cppcoreguidelines/avoid-capturing-lambda-coroutines.html
     // variables must be passed as parameters instead
-    results[slot] = post_waitable(
-      executor,
-      [](size_t* DataSlot) -> task<void> {
-        int a = 0;
-        int b = 1;
-        for (int i = 0; i < 1000; ++i) {
-          for (int j = 0; j < 500; ++j) {
-            a = a + b;
-            b = b + a;
-          }
-          co_await yield_if_requested();
+    results[slot] = post_waitable(executor, [](size_t* DataSlot) -> task<void> {
+      int a = 0;
+      int b = 1;
+      for (int i = 0; i < 1000; ++i) {
+        for (int j = 0; j < 500; ++j) {
+          a = a + b;
+          b = b + a;
         }
-        *DataSlot = b;
-      }(&data[slot]),
-      0
-    );
+        co_await yield_if_requested();
+      }
+      *DataSlot = b;
+    }(&data[slot]));
   }
   auto postTime = std::chrono::high_resolution_clock::now();
   for (auto& f : results) {
@@ -136,7 +132,7 @@ void large_task_spawn_bench_lazy_bulk() {
       }
       DataSlot = b;
     });
-  auto future = post_bulk_waitable(executor, tasks.begin(), Count, 0);
+  auto future = post_bulk_waitable(executor, tasks.begin(), Count);
   auto postTime = std::chrono::high_resolution_clock::now();
   future.wait();
   auto doneTime = std::chrono::high_resolution_clock::now();

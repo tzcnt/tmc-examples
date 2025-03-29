@@ -31,22 +31,36 @@ template <typename Result> class external_awaitable {
   Result result;
   std::coroutine_handle<> outer;
 
+  tmc::tiny_lock lock;
+  std::thread thread;
+
 public:
   external_awaitable() = default;
   bool await_ready() { return false; }
 
   void await_suspend(std::coroutine_handle<> Outer) noexcept {
     outer = Outer;
+    // In the event that the continuation runs immediately, the lock here
+    // prevents it from running the destructor until after the thread variable
+    // has been populated, and the effects are visible to the resuming thread.
+    tmc::tiny_lock_guard lg{lock};
     // Resume the awaiting task on a new thread.
-    std::thread([this]() {
+    thread = std::thread([this]() {
       std::this_thread::sleep_for(std::chrono::seconds(1));
       result = 42;
       outer.resume();
-    }).detach();
+    });
   }
 
   Result& await_resume() & noexcept { return result; }
   Result&& await_resume() && noexcept { return std::move(result); }
+
+  ~external_awaitable() {
+    tmc::tiny_lock_guard lg{lock};
+    if (thread.joinable()) {
+      thread.join();
+    }
+  }
 };
 
 static tmc::task<int> await_external_coro() {
@@ -56,7 +70,8 @@ static tmc::task<int> await_external_coro() {
   );
   int result;
   std::printf("co_awaiting external awaitable...\n");
-  result = co_await external_awaitable<int>{};
+  auto exAw = external_awaitable<int>{};
+  result = co_await exAw;
   std::printf(
     "resumed on %s at priority %zu\n", get_thread_name().c_str(),
     tmc::current_priority()
@@ -85,7 +100,7 @@ void test_spawn_on_external_thread() {
     tmc::current_priority()
   );
   std::atomic_bool ready(false);
-  std::thread([&ready]() {
+  std::thread thread([&ready]() {
     tmc::spawn([](std::atomic_bool& Ready) -> tmc::task<void> {
       std::printf(
         "child task running on %s at priority %zu\n", get_thread_name().c_str(),
@@ -96,8 +111,9 @@ void test_spawn_on_external_thread() {
       co_return;
     }(ready))
       .detach();
-  }).detach();
+  });
   ready.wait(false);
+  thread.join();
 }
 
 int main() {

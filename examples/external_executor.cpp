@@ -5,12 +5,12 @@
 
 #define TMC_IMPL
 
-#include "util/thread_name.hpp"
-
+#include "tmc/detail/compat.hpp"
 #include "tmc/detail/concepts.hpp"
 #include "tmc/ex_cpu.hpp"
 #include "tmc/spawn_task.hpp"
 #include "tmc/sync.hpp"
+#include "util/thread_name.hpp"
 
 #include <coroutine>
 #include <string>
@@ -24,7 +24,10 @@ public:
   external_executor() : type_erased_this(this) {}
 
   template <typename Functor>
-  void post(Functor&& Func, [[maybe_unused]] size_t Priority) {
+  void post(
+    Functor&& Func, [[maybe_unused]] size_t Priority = 0,
+    [[maybe_unused]] size_t ThreadHint = NO_HINT
+  ) {
     std::thread([this, func = std::forward<Functor>(Func)] {
       // Thread locals must be setup for each new executor thread
       tmc::detail::this_thread::executor = &type_erased_this; // mandatory
@@ -34,7 +37,9 @@ public:
 
   template <typename FunctorIterator>
   void post_bulk(
-    FunctorIterator FuncIter, size_t Count, [[maybe_unused]] size_t Priority
+    FunctorIterator FuncIter, size_t Count,
+    [[maybe_unused]] size_t Priority = 0,
+    [[maybe_unused]] size_t ThreadHint = NO_HINT
   ) {
     for (size_t i = 0; i < Count; ++i) {
       std::thread([this, func = std::move(*FuncIter)] {
@@ -51,15 +56,19 @@ public:
 
 // A complete, minimal implementation of executor_traits.
 template <> struct tmc::detail::executor_traits<external_executor> {
-  static inline void
-  post(external_executor& ex, tmc::work_item&& Item, size_t Priority) {
-    ex.post(std::move(Item), Priority);
+  static inline void post(
+    external_executor& ex, tmc::work_item&& Item, size_t Priority,
+    size_t ThreadHint
+  ) {
+    ex.post(std::move(Item), Priority, ThreadHint);
   }
 
   template <typename It>
-  static inline void
-  post_bulk(external_executor& ex, It&& Items, size_t Count, size_t Priority) {
-    ex.post_bulk(std::forward<It>(Items), Count, Priority);
+  static inline void post_bulk(
+    external_executor& ex, It&& Items, size_t Count, size_t Priority,
+    size_t ThreadHint
+  ) {
+    ex.post_bulk(std::forward<It>(Items), Count, Priority, ThreadHint);
   }
 
   static inline tmc::detail::type_erased_executor*
@@ -96,8 +105,7 @@ int main() {
       co_await tmc::spawn(child_task()).run_on(external);
       std::printf("coro resumed on %s\n", get_thread_name().c_str());
       co_return;
-    }(),
-    0
+    }()
   )
     .wait();
 
@@ -111,8 +119,7 @@ int main() {
       co_await tmc::spawn(child_task()).run_on(tmc::cpu_executor());
       std::printf("coro resumed on %s\n", get_thread_name().c_str());
       co_return;
-    }(),
-    0
+    }()
   )
     .wait();
 }

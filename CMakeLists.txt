@@ -53,13 +53,13 @@ else()
     CPMAddPackage(
         NAME TooManyCooks
         GIT_REPOSITORY https://github.com/tzcnt/TooManyCooks.git
-        GIT_TAG aef10eda86157b716c43b2ff599f9c3ecf25daca
+        GIT_TAG 43dbaecb1cc61e6f14a0e61f4983f187f2f51124
         DOWNLOAD_ONLY)
 
     CPMAddPackage(
         NAME tmc_asio
         GIT_REPOSITORY https://github.com/tzcnt/tmc-asio.git
-        GIT_TAG 9003fc368d3967a9fab8ecd95d50715d9ab78ce0
+        GIT_TAG 7ab5b6064b16b5b58d2dd020adeaed0298f749f2
         DOWNLOAD_ONLY)
 
     set(TMC_INCLUDE_PATH ${TooManyCooks_SOURCE_DIR}/include CACHE STRING "" FORCE)
@@ -149,27 +149,34 @@ endif()
 
 link_libraries(${MALLOC_LIB})
 
-option(TMC_CHECK_WARNINGS_CLANG "exhaustive warning checks with clang's -Weverything" OFF)
+# Safety / warnings checks
 
-if(TMC_CHECK_WARNINGS_CLANG)
-    add_definitions(
-        "-Weverything"
+# add_definitions("-fsanitize=address")
+# add_link_options("-fsanitize=address")
 
-        # Ignore these (from the library)
-        "-Wno-c++98-compat"
-        "-Wno-c++98-compat-pedantic"
-        "-Wno-c++20-compat"
-        "-Wno-padded"
-        "-Wno-unsafe-buffer-usage"
-        "-Wno-global-constructors"
-        "-Wno-exit-time-destructors"
+# add_definitions("-fsanitize=thread")
+# add_link_options("-fsanitize=thread")
 
-        # Ignore these (from some quick and dirty examples)
-        "-Wno-sign-conversion"
-        "-Wno-missing-prototypes"
-        "-Wno-missing-variable-declarations"
-    )
-endif()
+# add_definitions("-fsanitize=undefined -fno-sanitize-recover")
+# add_link_options("-fsanitize=undefined")
+
+# add_definitions(
+# "-Weverything"
+
+# # Ignore these (from the library)
+# "-Wno-c++98-compat"
+# "-Wno-c++98-compat-pedantic"
+# "-Wno-c++20-compat"
+# "-Wno-padded"
+# "-Wno-unsafe-buffer-usage"
+# "-Wno-global-constructors"
+# "-Wno-exit-time-destructors"
+
+# # Ignore these (from some quick and dirty examples)
+# "-Wno-sign-conversion"
+# "-Wno-missing-prototypes"
+# "-Wno-missing-variable-declarations"
+# )
 
 # copy compile_commands.json to the build directory after build so clangd can find it
 # clangd won't look in the /build/{config} directory, only in the top-level /build directory
@@ -225,6 +232,14 @@ target_include_directories(skynet PRIVATE examples/skynet)
 
 make_exe(fib
     examples/fib.cpp
+)
+
+make_exe(chan_bench
+    examples/chan_bench.cpp
+)
+
+make_exe(braid_bench
+    examples/braid_bench.cpp
 )
 
 make_exe(sync
