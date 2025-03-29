@@ -10,6 +10,7 @@
 #include "tmc/task.hpp"
 
 #include <atomic>
+#include <cassert>
 #include <coroutine>
 #include <thread>
 
