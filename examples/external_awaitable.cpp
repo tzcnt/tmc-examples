@@ -57,7 +57,9 @@ public:
 
   ~external_awaitable() {
     tmc::tiny_lock_guard lg{lock};
-    thread.join();
+    if (thread.joinable()) {
+      thread.join();
+    }
   }
 };
 

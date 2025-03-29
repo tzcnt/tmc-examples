@@ -66,7 +66,9 @@ template <typename T> struct atomic_awaitable : private AtomicAwaitableTag {
 
   ~atomic_awaitable() {
     tmc::tiny_lock_guard lg{lock};
-    thread.join();
+    if (thread.joinable()) {
+      thread.join();
+    }
   }
 };
 
