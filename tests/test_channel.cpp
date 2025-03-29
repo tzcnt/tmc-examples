@@ -25,19 +25,19 @@ void do_chan_test(Executor& Exec, size_t Threshold, bool ReuseBlocks) {
   test_async_main(
     Exec,
     [](size_t Threshold, bool ReuseBlocks) -> tmc::task<void> {
-      static constexpr int NITEMS = 1000;
+      static constexpr size_t NITEMS = 1000;
       struct result {
-        int count;
-        int sum;
+        size_t count;
+        size_t sum;
       };
 
-      auto chan = tmc::make_channel<int, chan_config<PackingLevel>>()
+      auto chan = tmc::make_channel<size_t, chan_config<PackingLevel>>()
                     .set_reuse_blocks(ReuseBlocks)
                     .set_heavy_load_threshold(Threshold);
 
       auto results = co_await tmc::spawn_tuple(
-        [](auto Chan) -> tmc::task<int> {
-          int i = 0;
+        [](auto Chan) -> tmc::task<size_t> {
+          size_t i = 0;
           for (; i < NITEMS; ++i) {
             bool ok = co_await Chan.push(i);
             EXPECT_EQ(true, ok);
@@ -46,9 +46,9 @@ void do_chan_test(Executor& Exec, size_t Threshold, bool ReuseBlocks) {
           co_return i;
         }(chan),
         [](auto Chan) -> tmc::task<result> {
-          int count = 0;
-          int sum = 0;
-          std::optional<int> v = co_await Chan.pull();
+          size_t count = 0;
+          size_t sum = 0;
+          std::optional<size_t> v = co_await Chan.pull();
           while (v.has_value()) {
             sum += v.value();
             ++count;
@@ -61,8 +61,8 @@ void do_chan_test(Executor& Exec, size_t Threshold, bool ReuseBlocks) {
       auto& cons = std::get<1>(results);
       EXPECT_EQ(NITEMS, prod);
       EXPECT_EQ(NITEMS, cons.count);
-      int expectedSum = 0;
-      for (int i = 0; i < NITEMS; ++i) {
+      size_t expectedSum = 0;
+      for (size_t i = 0; i < NITEMS; ++i) {
         expectedSum += i;
       }
       EXPECT_EQ(expectedSum, cons.sum);
@@ -89,16 +89,16 @@ TEST_F(CATEGORY, push_single_threaded) {
   tmc::ex_cpu ex;
   ex.set_thread_count(1).init();
   test_async_main(ex, []() -> tmc::task<void> {
-    static constexpr int NITEMS = 100000;
-    auto chan = tmc::make_channel<int>();
+    static constexpr size_t NITEMS = 100000;
+    auto chan = tmc::make_channel<size_t>();
     struct result {
-      int count;
-      int sum;
+      size_t count;
+      size_t sum;
     };
 
     auto results = co_await tmc::spawn_tuple(
-      [](auto Chan) -> tmc::task<int> {
-        int i = 0;
+      [](auto Chan) -> tmc::task<size_t> {
+        size_t i = 0;
         for (; i < NITEMS; ++i) {
           bool ok = co_await Chan.push(i);
           EXPECT_EQ(true, ok);
@@ -107,9 +107,9 @@ TEST_F(CATEGORY, push_single_threaded) {
         co_return i;
       }(chan),
       [](auto Chan) -> tmc::task<result> {
-        int count = 0;
-        int sum = 0;
-        std::optional<int> v = co_await Chan.pull();
+        size_t count = 0;
+        size_t sum = 0;
+        std::optional<size_t> v = co_await Chan.pull();
         while (v.has_value()) {
           sum += v.value();
           ++count;
@@ -122,8 +122,8 @@ TEST_F(CATEGORY, push_single_threaded) {
     auto& cons = std::get<1>(results);
     EXPECT_EQ(NITEMS, prod);
     EXPECT_EQ(NITEMS, cons.count);
-    int expectedSum = 0;
-    for (int i = 0; i < NITEMS; ++i) {
+    size_t expectedSum = 0;
+    for (size_t i = 0; i < NITEMS; ++i) {
       expectedSum += i;
     }
     EXPECT_EQ(expectedSum, cons.sum);
