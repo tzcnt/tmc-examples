@@ -5,6 +5,7 @@
 
 #include "tmc/all_headers.hpp"
 
+#include <chrono>
 #include <cstdio>
 
 #define NELEMS 10000000
