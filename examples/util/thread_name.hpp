@@ -38,3 +38,10 @@ inline std::string get_thread_name() {
 inline void print_thread_name() {
   std::printf("%s\n", get_thread_name().c_str());
 }
+
+/// This must be called before calling init() on the executor.
+template <typename Exec> inline void hook_teardown_thread_name(Exec& Executor) {
+  Executor.set_thread_teardown_hook([](size_t Slot) {
+    std::printf("destroying %s\n", get_thread_name().c_str());
+  });
+}

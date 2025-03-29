@@ -23,5 +23,5 @@ Windows:
 MSVC has an open bug with symmetric transfer and final awaiters that destroy the coroutine frame. The code will compile but crashes at runtime. ([bug link](https://developercommunity.visualstudio.com/t/Incorrect-code-generation-for-symmetric/1659260?scope=follow&viewtype=all))
 
 ### Supported Hardware
-- x86_64 with support for POPCNT / LZCNT
+- x86 (32- or 64-bit)
 - AArch64
