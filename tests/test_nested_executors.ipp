@@ -4,6 +4,34 @@
 
 #include <gtest/gtest.h>
 
+// All 3 of the tests in this file produce TSan false positives in the same way:
+// 1. Inner coro enter()s the nested executor (this is the "racing read" to
+// TSan)
+// 2. Inner coro exit()s the nested executor
+// 3. Inner coro finishes
+// 4. Outer coro destroys the nested executor (this is the "racing write" to
+// TSan)
+
+// Because the read and write happen on different threads, TSan sees this as a
+// race. However, we know that the executor cannot be destroyed before the coro
+// has exited.
+
+// I tried a few different ways to counteract this:
+// - using __tsan_acquire() / __tsan_release() annotations in enter(), exit()
+//   and the executor destructor
+// - using __attribute__((no_sanitize("thread")))
+// - using the compile-time blacklist
+// - using the runtime blacklist
+// Unfortunately none of these approaches worked. Perhaps the coroutine
+// nature of the functions confuses the name-matching behavior of TSan.
+// For now I have simply disabled these tests under TSan.
+#if defined(__has_feature)
+#if __has_feature(thread_sanitizer)
+#define TSAN_ENABLED
+#endif
+#endif
+
+#ifndef TSAN_ENABLED
 template <typename Executor> tmc::task<int> bounce(Executor& Exec) {
   size_t result = 0;
   for (size_t i = 0; i < 100; ++i) {
@@ -49,3 +77,5 @@ TEST_F(CATEGORY, nested_ex_braid) {
     EXPECT_EQ(result, 200);
   }());
 }
+
+#endif
