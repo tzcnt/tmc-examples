@@ -151,7 +151,7 @@ TEST_F(CATEGORY, post_bulk_func_begin_count) {
     std::array<int, 2> results = {5, 5};
     auto ts =
       std::ranges::views::iota(0) | std::ranges::views::transform([&](int i) {
-        return [&results, &flag, i = i]() {
+        return [&results, &flag, i]() {
           results[i] = i;
           ++flag;
           flag.notify_all();
@@ -174,7 +174,7 @@ TEST_F(CATEGORY, post_bulk_func_begin_end) {
     std::array<int, 2> results = {5, 5};
     auto ts = std::ranges::views::iota(0, 2) |
               std::ranges::views::transform([&](int i) {
-                return [&results, &flag, i = i]() {
+                return [&results, &flag, i]() {
                   results[i] = i;
                   ++flag;
                   flag.notify_all();
@@ -193,8 +193,7 @@ TEST_F(CATEGORY, post_bulk_func_begin_end) {
 
 TEST_F(CATEGORY, post_bulk_waitable_coro) {
   tmc::post_bulk_waitable(
-    ex(), tmc::iter_adapter(0, [](int i) -> tmc::task<void> { co_return; }), 10,
-    0
+    ex(), tmc::iter_adapter(0, [](int) -> tmc::task<void> { co_return; }), 10, 0
   )
     .get();
 
@@ -223,7 +222,7 @@ TEST_F(CATEGORY, post_bulk_waitable_func) {
     std::array<int, 2> results = {5, 5};
     auto ts =
       std::ranges::views::iota(0UL) | std::ranges::views::transform([&](int i) {
-        return [&results, i = i]() { results[i] = i; };
+        return [&results, i]() { results[i] = i; };
       });
     tmc::post_bulk_waitable(ex(), ts.begin(), 2, 0).wait();
     EXPECT_EQ(results[0], 0);
@@ -234,8 +233,8 @@ TEST_F(CATEGORY, post_bulk_waitable_func) {
 TEST_F(CATEGORY, async_main) {
   test_async_main(ex(), []() -> tmc::task<void> { co_await empty_task(); }());
   int x = test_async_main_int(ex(), []() -> tmc::task<int> {
-    int x = co_await int_task();
-    co_return x;
+    int y = co_await int_task();
+    co_return y;
   }());
   EXPECT_EQ(x, 1);
 }
@@ -457,7 +456,7 @@ TEST_F(CATEGORY, spawn_many_small) {
 // This will simply behave as if a std::function<void()> was passed.
 static inline std::coroutine_handle<>
 external_coro_as_std_function_test_task(int I) {
-  return [](int i) -> tmc::task<void> { co_return; }(I);
+  return [](int) -> tmc::task<void> { co_return; }(I);
 }
 
 TEST_F(CATEGORY, external_coro_as_std_function) {

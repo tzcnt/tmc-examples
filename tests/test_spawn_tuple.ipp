@@ -36,7 +36,7 @@ static inline tmc::task<void> spawn_tuple_task_lambda() {
     // capturing lambda that forwards to non-capturing lambda coroutine
     int i = 0;
     auto f = [&i]() -> tmc::task<int> {
-      return [](int i) -> tmc::task<int> { co_return 1 << i; }(i++);
+      return [](int j) -> tmc::task<int> { co_return 1 << j; }(i++);
     };
     std::tuple<int, int, int> results =
       co_await tmc::spawn_tuple(f(), f(), f());
