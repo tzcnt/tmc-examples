@@ -32,7 +32,7 @@
 #endif
 
 #ifndef TSAN_ENABLED
-template <typename Executor> tmc::task<int> bounce(Executor& Exec) {
+template <typename Executor> tmc::task<size_t> bounce(Executor& Exec) {
   size_t result = 0;
   for (size_t i = 0; i < 100; ++i) {
     auto scope = co_await tmc::enter(Exec);

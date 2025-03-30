@@ -28,7 +28,7 @@ template <typename Arr> tmc::task<void> inc_task(Arr& arr, size_t& idx) {
   co_return;
 };
 
-template <typename Arr> tmc::task<int> inc_task_int(Arr& arr, size_t idx) {
+template <typename Arr> tmc::task<size_t> inc_task_int(Arr& arr, size_t idx) {
   arr[idx] = idx;
   ++idx;
   co_return idx;
