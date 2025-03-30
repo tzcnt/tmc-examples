@@ -176,6 +176,7 @@ link_libraries(${MALLOC_LIB})
 # "-Wno-sign-conversion"
 # "-Wno-missing-prototypes"
 # "-Wno-missing-variable-declarations"
+# "-Wno-double-promotion"
 # )
 
 # copy compile_commands.json to the build directory after build so clangd can find it
