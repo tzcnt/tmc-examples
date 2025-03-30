@@ -178,7 +178,7 @@ template <IsAwCallback Awaitable> struct awaitable_traits<Awaitable> {
   // such as tmc::spawn_*()
   static constexpr configure_mode mode = ASYNC_INITIATE;
   static void async_initiate(
-    self_type&& awaitable, [[maybe_unused]] tmc::detail::ex_any* Executor,
+    self_type&& awaitable, [[maybe_unused]] tmc::ex_any* Executor,
     [[maybe_unused]] size_t Priority
   ) {
     awaitable.async_initiate();
