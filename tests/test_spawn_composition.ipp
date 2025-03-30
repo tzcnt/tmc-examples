@@ -211,8 +211,8 @@ static inline tmc::task<void> spawn_many_compose_spawn_func_many() {
       std::ranges::views::iota(0) | std::ranges::views::transform([](int i) {
         return tmc::spawn_func_many<2>(
           (std::ranges::views::iota(i * 2) |
-           std::ranges::views::transform([](int i) -> auto {
-             return [i]() -> int { return 1 << i; };
+           std::ranges::views::transform([](int j) -> auto {
+             return [j]() -> int { return 1 << j; };
            })
           ).begin()
         );
@@ -238,8 +238,8 @@ static inline tmc::task<void> spawn_many_compose_spawn_func_many() {
       std::ranges::views::iota(0) | std::ranges::views::transform([&](int i) {
         return tmc::spawn_func_many<2>(
           (std::ranges::views::iota(void_results.data() + (i * 2)) |
-           std::ranges::views::transform([](int* i) -> auto {
-             return [i]() { *i = (1 << *i); };
+           std::ranges::views::transform([](int* j) -> auto {
+             return [j]() { *j = (1 << *j); };
            })
           ).begin()
         );

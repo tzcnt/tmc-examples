@@ -41,7 +41,7 @@ inline void print_thread_name() {
 
 /// This must be called before calling init() on the executor.
 template <typename Exec> inline void hook_teardown_thread_name(Exec& Executor) {
-  Executor.set_thread_teardown_hook([](size_t Slot) {
+  Executor.set_thread_teardown_hook([]([[maybe_unused]] size_t Slot) {
     std::printf("destroying %s\n", get_thread_name().c_str());
   });
 }

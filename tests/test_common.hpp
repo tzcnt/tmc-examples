@@ -28,7 +28,7 @@ template <typename Arr> tmc::task<void> inc_task(Arr& arr, size_t& idx) {
   co_return;
 };
 
-template <typename Arr> tmc::task<int> inc_task_int(Arr& arr, size_t idx) {
+template <typename Arr> tmc::task<size_t> inc_task_int(Arr& arr, size_t idx) {
   arr[idx] = idx;
   ++idx;
   co_return idx;
@@ -37,7 +37,7 @@ template <typename Arr> tmc::task<int> inc_task_int(Arr& arr, size_t idx) {
 // test_async_main_int is similar to tmc::async_main
 // it returns an int value to be used as an "exit code"
 template <typename Executor>
-static inline tmc::task<void> _test_async_main_int_task(
+static inline tmc::task<void> test_async_main_int_task_(
   Executor& Exec, tmc::task<int> ClientMainTask, std::atomic<int>* ExitCode_out
 ) {
   int exitCode = co_await std::move(ClientMainTask.resume_on(Exec));
@@ -51,7 +51,7 @@ test_async_main_int(Executor& Exec, tmc::task<int>&& ClientMainTask) {
   // test setup should call init() beforehand
   std::atomic<int> exitCode(std::numeric_limits<int>::min());
   post(
-    Exec, _test_async_main_int_task(Exec, std::move(ClientMainTask), &exitCode),
+    Exec, test_async_main_int_task_(Exec, std::move(ClientMainTask), &exitCode),
     0
   );
   exitCode.wait(std::numeric_limits<int>::min());
@@ -60,7 +60,7 @@ test_async_main_int(Executor& Exec, tmc::task<int>&& ClientMainTask) {
 
 // test_async_main doesn't return a value
 template <typename Executor>
-static inline tmc::task<void> _test_async_main_task(
+static inline tmc::task<void> test_async_main_task_(
   Executor& Exec, tmc::task<void> ClientMainTask, std::atomic<int>* ExitCode_out
 ) {
   co_await std::move(ClientMainTask.resume_on(Exec));
@@ -74,7 +74,7 @@ test_async_main(Executor& Exec, tmc::task<void>&& ClientMainTask) {
   // test setup should call init() beforehand
   std::atomic<int> exitCode(std::numeric_limits<int>::min());
   post(
-    Exec, _test_async_main_task(Exec, std::move(ClientMainTask), &exitCode), 0
+    Exec, test_async_main_task_(Exec, std::move(ClientMainTask), &exitCode), 0
   );
   exitCode.wait(std::numeric_limits<int>::min());
 }

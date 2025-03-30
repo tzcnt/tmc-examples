@@ -53,7 +53,7 @@ else()
     CPMAddPackage(
         NAME TooManyCooks
         GIT_REPOSITORY https://github.com/tzcnt/TooManyCooks.git
-        GIT_TAG 989c480a35662bfe36e8e5cb8ce6ce415b306cea
+        GIT_TAG acb6ec63952911b1082219855c48ee8e9c957aa5
         DOWNLOAD_ONLY)
 
     CPMAddPackage(
@@ -176,6 +176,7 @@ link_libraries(${MALLOC_LIB})
 # "-Wno-sign-conversion"
 # "-Wno-missing-prototypes"
 # "-Wno-missing-variable-declarations"
+# "-Wno-double-promotion"
 # )
 
 # copy compile_commands.json to the build directory after build so clangd can find it
