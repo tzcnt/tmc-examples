@@ -12,7 +12,7 @@
 
 #define NELEMS 10000000
 
-tmc::task<void> consumer(int i) {
+tmc::task<void> consumer([[maybe_unused]] int i) {
   // std::printf("%d", i);
   co_return;
 }
@@ -23,7 +23,7 @@ tmc::task<void> producer(tmc::ex_braid& q, size_t count) {
 
 std::string formatWithCommas(size_t n) {
   auto s = std::to_string(n);
-  int i = s.length() - 3;
+  int i = static_cast<int>(s.length()) - 3;
   while (i > 0) {
     s.insert(i, ",");
     i -= 3;

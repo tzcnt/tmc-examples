@@ -42,7 +42,7 @@ tmc::task<result> consumer(token chan) {
 
 std::string formatWithCommas(size_t n) {
   auto s = std::to_string(n);
-  int i = s.length() - 3;
+  int i = static_cast<int>(s.length()) - 3;
   while (i > 0) {
     s.insert(i, ",");
     i -= 3;
