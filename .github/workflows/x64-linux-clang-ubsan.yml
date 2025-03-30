@@ -1,4 +1,4 @@
-name: x64-linux-clang
+name: x64-linux-clang-ubsan
 
 on:
   push:
