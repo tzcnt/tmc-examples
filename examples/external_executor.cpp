@@ -18,7 +18,7 @@
 
 // A terrible executor that creates a new thread for every task.
 class external_executor {
-  tmc::detail::type_erased_executor type_erased_this;
+  tmc::ex_any type_erased_this;
 
 public:
   external_executor() : type_erased_this(this) {}
@@ -51,7 +51,11 @@ public:
     }
   }
 
-  tmc::detail::type_erased_executor* type_erased() { return &type_erased_this; }
+  /// Returns a pointer to the type erased `ex_any` version of this executor.
+  /// This object shares a lifetime with this executor, and can be used for
+  /// pointer-based equality comparison against the thread-local
+  /// `tmc::current_executor()`.
+  tmc::ex_any* type_erased() { return &type_erased_this; }
 };
 
 // A complete, minimal implementation of executor_traits.
@@ -71,8 +75,7 @@ template <> struct tmc::detail::executor_traits<external_executor> {
     ex.post_bulk(std::forward<It>(Items), Count, Priority, ThreadHint);
   }
 
-  static inline tmc::detail::type_erased_executor*
-  type_erased(external_executor& ex) {
+  static inline tmc::ex_any* type_erased(external_executor& ex) {
     return ex.type_erased();
   }
 
