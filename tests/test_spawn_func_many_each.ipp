@@ -15,7 +15,7 @@ template <int N> tmc::task<void> spawn_func_many_each_static_sized_iterator() {
   // Provide the template parameter N to spawn_func_many, so that tasks and
   // results can be statically allocated in std::array.
   std::array<int, N> results;
-  auto ts = tmc::spawn_func_many<N>(iter.begin()).each();
+  auto ts = tmc::spawn_func_many<N>(iter.begin()).result_each();
   for (auto idx = co_await ts; idx != ts.end(); idx = co_await ts) {
     results[idx] = ts[idx];
   }
@@ -45,7 +45,7 @@ tmc::task<void> spawn_func_many_each_static_bounded_iterator() {
                   return t;
                 });
     std::array<int, N> results;
-    auto ts = tmc::spawn_func_many<N>(iter.begin(), iter.end()).each();
+    auto ts = tmc::spawn_func_many<N>(iter.begin(), iter.end()).result_each();
     for (auto idx = co_await ts; idx != ts.end(); idx = co_await ts) {
       results[idx] = ts[idx];
     }
@@ -71,7 +71,7 @@ tmc::task<void> spawn_func_many_each_static_bounded_iterator() {
                 });
 
     std::array<int, N> results;
-    auto ts = tmc::spawn_func_many<N>(iter.begin(), iter.end()).each();
+    auto ts = tmc::spawn_func_many<N>(iter.begin(), iter.end()).result_each();
     for (auto idx = co_await ts; idx != ts.end(); idx = co_await ts) {
       results[idx] = ts[idx];
     }
@@ -93,7 +93,7 @@ tmc::task<void> spawn_func_many_each_dynamic_known_sized_iterator() {
   // This overload will produce a right-sized output vector
   // (internally calculated from tasks.end() - tasks.begin())
   std::vector<int> results;
-  auto ts = tmc::spawn_func_many(iter.begin(), iter.end()).each();
+  auto ts = tmc::spawn_func_many(iter.begin(), iter.end()).result_each();
   for (auto idx = co_await ts; idx != ts.end(); idx = co_await ts) {
     results.push_back(ts[idx]);
   }
@@ -124,7 +124,7 @@ tmc::task<void> spawn_func_many_each_dynamic_unknown_sized_iterator() {
   // reallocating as needed), and after the number of tasks has been determined,
   // a right-sized result vector will be constructed.
   std::vector<int> results;
-  auto ts = tmc::spawn_func_many(iter.begin(), iter.end()).each();
+  auto ts = tmc::spawn_func_many(iter.begin(), iter.end()).result_each();
   for (auto idx = co_await ts; idx != ts.end(); idx = co_await ts) {
     results.push_back(ts[idx]);
   }
@@ -153,7 +153,8 @@ tmc::task<void> spawn_func_many_each_dynamic_bounded_iterator() {
                   return t;
                 });
     std::vector<int> results;
-    auto ts = tmc::spawn_func_many(iter.begin(), iter.end(), MaxTasks).each();
+    auto ts =
+      tmc::spawn_func_many(iter.begin(), iter.end(), MaxTasks).result_each();
     for (auto idx = co_await ts; idx != ts.end(); idx = co_await ts) {
       results.push_back(ts[idx]);
     }
@@ -178,7 +179,8 @@ tmc::task<void> spawn_func_many_each_dynamic_bounded_iterator() {
                   return t;
                 });
     std::vector<int> results;
-    auto ts = tmc::spawn_func_many(iter.begin(), iter.end(), MaxTasks).each();
+    auto ts =
+      tmc::spawn_func_many(iter.begin(), iter.end(), MaxTasks).result_each();
     for (auto idx = co_await ts; idx != ts.end(); idx = co_await ts) {
       results.push_back(ts[idx]);
     }

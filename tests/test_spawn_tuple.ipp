@@ -74,9 +74,9 @@ static inline tmc::task<void> spawn_tuple_task_fork() {
   EXPECT_EQ(sum, (1 << 3) - 1);
 }
 
-static inline tmc::task<void> spawn_tuple_task_each() {
+static inline tmc::task<void> spawn_tuple_task_result_each() {
   auto ts = tmc::spawn_tuple(work(0), work(1), work(2));
-  auto each = std::move(ts).each();
+  auto each = std::move(ts).result_each();
 
   int sum = 0;
   for (size_t i = co_await each; i != each.end(); i = co_await each) {
@@ -125,6 +125,6 @@ TEST_F(CATEGORY, spawn_tuple_task_fork) {
 
 TEST_F(CATEGORY, spawn_tuple_task_each) {
   test_async_main(ex(), []() -> tmc::task<void> {
-    co_await spawn_tuple_task_each();
+    co_await spawn_tuple_task_result_each();
   }());
 }

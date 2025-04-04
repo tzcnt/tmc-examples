@@ -1,7 +1,7 @@
-// Demonstrate how to use tmc::spawn_tuple().each() to await heterogeneous
-// operations that complete at different times. By submitting a long-running
-// operation and a short running timer, timeout-based cancellation can be
-// achieved.
+// Demonstrate how to use tmc::spawn_tuple().result_each() to await
+// heterogeneous operations that complete at different times. By submitting a
+// long-running operation and a short running timer, timeout-based cancellation
+// can be achieved.
 
 // The timeout nominally occurs after 100ms and the timestamps of the various
 // events are logged. Note that the this example signals the cancellation event
@@ -14,8 +14,8 @@
 // Note: Asio already exposes timeout functions for some operations which are
 // probably easier/more performant when available. Alternatively, you could
 // cancel the main operation directly from within the timeout operation. This
-// example serves to also demonstrate how to use the each() function when you
-// need the awaiting thread involved in the process.
+// example serves to also demonstrate how to use the result_each() function when
+// you need the awaiting thread involved in the process.
 #ifdef _WIN32
 #include <SDKDDKVer.h>
 #endif
@@ -85,14 +85,14 @@ int main() {
         co_return std::chrono::high_resolution_clock::now();
       }();
 
-      // Using the each() customizer allows us to receive each result
+      // Using the result_each() customizer allows us to receive each result
       // immediately as it becomes ready, even if the other tasks are still
       // running
       auto eachResult =
         tmc::spawn_tuple(
           mainOperationHandle.async_wait(tmc::aw_asio), std::move(timeoutTask)
         )
-          .each();
+          .result_each();
 
       for (auto readyIdx = co_await eachResult; readyIdx != eachResult.end();
            readyIdx = co_await eachResult) {
