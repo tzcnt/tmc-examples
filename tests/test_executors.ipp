@@ -294,8 +294,8 @@ TEST_F(CATEGORY, spawn_func) {
           EXPECT_EQ(idx, base + 8);
         }
         {
-          auto t = tmc::spawn_func([&Results, &idx]() { inc(Results, idx); }
-          ).run_early();
+          auto t =
+            tmc::spawn_func([&Results, &idx]() { inc(Results, idx); }).fork();
           co_await std::move(t);
           EXPECT_EQ(idx, base + 9);
         }
@@ -303,7 +303,7 @@ TEST_F(CATEGORY, spawn_func) {
           auto t = tmc::spawn_func([&Results, idx]() mutable {
                      inc(Results, idx);
                      return idx;
-                   }).run_early();
+                   }).fork();
           idx = co_await std::move(t);
           EXPECT_EQ(idx, base + 10);
         }
@@ -334,7 +334,7 @@ TEST_F(CATEGORY, spawn_coro) {
         co_await tmc::spawn(inc_task(Results, idx));
         EXPECT_EQ(idx, base + 2);
 
-        auto early = tmc::spawn(inc_task_int(Results, idx)).run_early();
+        auto early = tmc::spawn(inc_task_int(Results, idx)).fork();
         idx = co_await tmc::spawn(inc_task_int(Results, idx + 1));
         auto r = co_await std::move(early);
         EXPECT_EQ(r, base + 3);
@@ -412,7 +412,7 @@ TEST_F(CATEGORY, spawn_many_small) {
         auto t3 = [](int Value) -> tmc::task<int> {
           co_return Value + 1;
         }(value);
-        auto ts = spawn_many<1>(&t3).run_early();
+        auto ts = spawn_many<1>(&t3).fork();
         auto results = co_await std::move(ts);
         EXPECT_EQ(results[0], 3);
       }

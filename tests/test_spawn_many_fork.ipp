@@ -9,12 +9,12 @@
 
 // tests ported from examples/spawn_iterator.cpp
 
-template <int N> tmc::task<void> spawn_many_run_early_static_sized_iterator() {
+template <int N> tmc::task<void> spawn_many_fork_static_sized_iterator() {
   auto iter = iter_of_static_size<N>();
   // We know that the iterator produces exactly N tasks.
   // Provide the template parameter N to spawn_many, so that tasks and results
   // can be statically allocated in std::array.
-  auto ts = tmc::spawn_many<N>(iter.begin()).run_early();
+  auto ts = tmc::spawn_many<N>(iter.begin()).fork();
   co_await tmc::yield();
   std::array<int, N> results = co_await std::move(ts);
 
@@ -30,8 +30,7 @@ template <int N> tmc::task<void> spawn_many_run_early_static_sized_iterator() {
   co_return;
 }
 
-template <int N>
-tmc::task<void> spawn_many_run_early_static_bounded_iterator() {
+template <int N> tmc::task<void> spawn_many_fork_static_bounded_iterator() {
   // In this example, we do not know the exact number of tasks that iter could
   // produce. The template parameter N serves as an upper bound on the number
   // of tasks that will be spawned. We also need to manually count the number
@@ -45,7 +44,7 @@ tmc::task<void> spawn_many_run_early_static_bounded_iterator() {
                   return t;
                 });
 
-    auto ts = tmc::spawn_many<N>(iter.begin(), iter.end()).run_early();
+    auto ts = tmc::spawn_many<N>(iter.begin(), iter.end()).fork();
     co_await tmc::yield();
     std::array<int, N> results = co_await std::move(ts);
 
@@ -69,7 +68,7 @@ tmc::task<void> spawn_many_run_early_static_bounded_iterator() {
                   return t;
                 });
 
-    auto ts = tmc::spawn_many<N>(iter.begin(), iter.end()).run_early();
+    auto ts = tmc::spawn_many<N>(iter.begin(), iter.end()).fork();
     co_await tmc::yield();
     std::array<int, N> results = co_await std::move(ts);
 
@@ -84,13 +83,13 @@ tmc::task<void> spawn_many_run_early_static_bounded_iterator() {
 }
 
 template <int N>
-tmc::task<void> spawn_many_run_early_dynamic_known_sized_iterator() {
+tmc::task<void> spawn_many_fork_dynamic_known_sized_iterator() {
   auto iter = iter_of_dynamic_known_size<N>();
 
   // The template parameter N to spawn_many is not provided.
   // This overload will produce a right-sized output vector
   // (internally calculated from tasks.end() - tasks.begin())
-  auto ts = tmc::spawn_many(iter.begin(), iter.end()).run_early();
+  auto ts = tmc::spawn_many(iter.begin(), iter.end()).fork();
   co_await tmc::yield();
   std::vector<int> results = co_await std::move(ts);
 
@@ -110,7 +109,7 @@ tmc::task<void> spawn_many_run_early_dynamic_known_sized_iterator() {
 }
 
 template <int N>
-tmc::task<void> spawn_many_run_early_dynamic_unknown_sized_iterator() {
+tmc::task<void> spawn_many_fork_dynamic_unknown_sized_iterator() {
   auto iter = iter_of_dynamic_unknown_size<N>();
 
   // Due to unpredictable_filter(), we cannot know the exact number of tasks.
@@ -121,7 +120,7 @@ tmc::task<void> spawn_many_run_early_dynamic_unknown_sized_iterator() {
   // TooManyCooks will first internally construct a task vector (by appending /
   // reallocating as needed), and after the number of tasks has been determined,
   // a right-sized result vector will be constructed.
-  auto ts = tmc::spawn_many(iter.begin(), iter.end()).run_early();
+  auto ts = tmc::spawn_many(iter.begin(), iter.end()).fork();
   co_await tmc::yield();
   std::vector<int> results = co_await std::move(ts);
 
@@ -135,8 +134,7 @@ tmc::task<void> spawn_many_run_early_dynamic_unknown_sized_iterator() {
   co_return;
 }
 
-template <int N>
-tmc::task<void> spawn_many_run_early_dynamic_bounded_iterator() {
+template <int N> tmc::task<void> spawn_many_fork_dynamic_bounded_iterator() {
   // In this example, we do not know the exact number of tasks that iter could
   // produce. The 3rd parameter MaxTasks serves as an upper bound on the number
   // of tasks that will be spawned. We also need to manually count the number of
@@ -151,7 +149,7 @@ tmc::task<void> spawn_many_run_early_dynamic_bounded_iterator() {
                   return t;
                 });
 
-    auto ts = tmc::spawn_many(iter.begin(), iter.end(), MaxTasks).run_early();
+    auto ts = tmc::spawn_many(iter.begin(), iter.end(), MaxTasks).fork();
     co_await tmc::yield();
     std::vector<int> results = co_await std::move(ts);
 
@@ -175,7 +173,7 @@ tmc::task<void> spawn_many_run_early_dynamic_bounded_iterator() {
                   return t;
                 });
 
-    auto ts = tmc::spawn_many(iter.begin(), iter.end(), MaxTasks).run_early();
+    auto ts = tmc::spawn_many(iter.begin(), iter.end(), MaxTasks).fork();
     co_await tmc::yield();
     std::vector<int> results = co_await std::move(ts);
 
@@ -191,32 +189,32 @@ tmc::task<void> spawn_many_run_early_dynamic_bounded_iterator() {
   co_return;
 }
 
-TEST_F(CATEGORY, spawn_many_run_early_static_sized_iterator) {
+TEST_F(CATEGORY, spawn_many_fork_static_sized_iterator) {
   test_async_main(ex(), []() -> tmc::task<void> {
-    co_await spawn_many_run_early_static_sized_iterator<5>();
+    co_await spawn_many_fork_static_sized_iterator<5>();
   }());
 }
 
-TEST_F(CATEGORY, spawn_many_run_early_static_bounded_iterator) {
+TEST_F(CATEGORY, spawn_many_fork_static_bounded_iterator) {
   test_async_main(ex(), []() -> tmc::task<void> {
-    co_await spawn_many_run_early_static_bounded_iterator<5>();
+    co_await spawn_many_fork_static_bounded_iterator<5>();
   }());
 }
 
-TEST_F(CATEGORY, spawn_many_run_early_dynamic_known_sized_iterator) {
+TEST_F(CATEGORY, spawn_many_fork_dynamic_known_sized_iterator) {
   test_async_main(ex(), []() -> tmc::task<void> {
-    co_await spawn_many_run_early_dynamic_known_sized_iterator<5>();
+    co_await spawn_many_fork_dynamic_known_sized_iterator<5>();
   }());
 }
 
-TEST_F(CATEGORY, spawn_many_run_early_dynamic_unknown_sized_iterator) {
+TEST_F(CATEGORY, spawn_many_fork_dynamic_unknown_sized_iterator) {
   test_async_main(ex(), []() -> tmc::task<void> {
-    co_await spawn_many_run_early_dynamic_unknown_sized_iterator<5>();
+    co_await spawn_many_fork_dynamic_unknown_sized_iterator<5>();
   }());
 }
 
-TEST_F(CATEGORY, spawn_many_run_early_dynamic_bounded_iterator) {
+TEST_F(CATEGORY, spawn_many_fork_dynamic_bounded_iterator) {
   test_async_main(ex(), []() -> tmc::task<void> {
-    co_await spawn_many_run_early_dynamic_bounded_iterator<5>();
+    co_await spawn_many_fork_dynamic_bounded_iterator<5>();
   }());
 }
