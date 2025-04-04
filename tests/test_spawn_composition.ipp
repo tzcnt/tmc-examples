@@ -9,23 +9,23 @@
 #include <vector>
 
 static inline tmc::task<void> spawn_tuple_compose() {
-  // These run_early() types aren't move-constructible directly into the
+  // These fork() types aren't move-constructible directly into the
   // spawn_tuple, since they initiate their operations immediately. spawn_tuple
   // is able to take lvalues to these, pass them to safe_wrap which creates an
   // awaiting task. spawn_tuple also allows passing lvalue for a task, which is
   // something to fix later. This works and produces the correct output, but is
   // undesirable because it does not implement the linear type rules.
-  auto sre = tmc::spawn(work(2)).run_early();
-  auto tre = tmc::spawn_tuple(work(4)).run_early();
-  auto smare = tmc::spawn_many<1>(tmc::iter_adapter(6, work)).run_early();
-  auto smvre = tmc::spawn_many(tmc::iter_adapter(8, work), 1).run_early();
-  auto sfre = tmc::spawn_func([]() -> int { return 1 << 10; }).run_early();
+  auto sre = tmc::spawn(work(2)).fork();
+  auto tre = tmc::spawn_tuple(work(4)).fork();
+  auto smare = tmc::spawn_many<1>(tmc::iter_adapter(6, work)).fork();
+  auto smvre = tmc::spawn_many(tmc::iter_adapter(8, work), 1).fork();
+  auto sfre = tmc::spawn_func([]() -> int { return 1 << 10; }).fork();
   auto sfmare =
     tmc::spawn_func_many<1>(
       tmc::iter_adapter(
         12, [](int i) -> auto { return [i]() -> int { return 1 << i; }; }
       )
-    ).run_early();
+    ).fork();
   auto sfmvre =
     tmc::spawn_func_many(
       tmc::iter_adapter(
@@ -33,7 +33,7 @@ static inline tmc::task<void> spawn_tuple_compose() {
       ),
       1
     )
-      .run_early();
+      .fork();
 
   std::tuple<
     int, int, int, std::tuple<int>, std::tuple<int>, std::array<int, 1>,
@@ -83,12 +83,12 @@ static inline tmc::task<void> spawn_tuple_compose_void() {
   // spawn_tuple also allows passing lvalue for a task. This is something to
   // fix later. It's not broken, but it fails to implement the linear type
   // rules.
-  auto sre = tmc::spawn(set(results[2])).run_early();
-  auto tre = tmc::spawn_tuple(set(results[4])).run_early();
+  auto sre = tmc::spawn(set(results[2])).fork();
+  auto tre = tmc::spawn_tuple(set(results[4])).fork();
   auto t6 = set(results[6]);
-  auto smare = tmc::spawn_many<1>(&t6).run_early();
+  auto smare = tmc::spawn_many<1>(&t6).fork();
   auto t8 = set(results[8]);
-  auto smvre = tmc::spawn_many(&t8, 1).run_early();
+  auto smvre = tmc::spawn_many(&t8, 1).fork();
 
   auto t5 = set(results[5]);
   auto t7 = set(results[7]);
@@ -311,11 +311,11 @@ TEST_F(CATEGORY, spawn_many_compose_tuple) {
   }());
 }
 
-// Doesn't compile - as expected. run_early() types cannot be moved
-// static inline tmc::task<void> spawn_many_compose_run_early() {
+// Doesn't compile - as expected. fork() types cannot be moved
+// static inline tmc::task<void> spawn_many_compose_fork() {
 //   {
-//     std::array<tmc::aw_run_early<tmc::task<int>>, 2> ts{
-//       tmc::spawn(work(0)).run_early(), tmc::spawn(work(1)).run_early()
+//     std::array<tmc::aw_fork<tmc::task<int>>, 2> ts{
+//       tmc::spawn(work(0)).fork(), tmc::spawn(work(1)).fork()
 //     };
 //     std::array<int, 2> results =
 //       co_await tmc::spawn_many<2>(std::move(ts).data());
@@ -330,9 +330,9 @@ TEST_F(CATEGORY, spawn_many_compose_tuple) {
 //       i = (1 << i);
 //       co_return;
 //     };
-//     std::array<tmc::aw_run_early<tmc::task<void>>, 2> ts{
-//       tmc::spawn(set(void_results[0])).run_early(),
-//       tmc::spawn(set(void_results[1])).run_early()
+//     std::array<tmc::aw_fork<tmc::task<void>>, 2> ts{
+//       tmc::spawn(set(void_results[0])).fork(),
+//       tmc::spawn(set(void_results[1])).fork()
 //     };
 //     co_await tmc::spawn_many<2>(ts.data());
 
@@ -342,8 +342,8 @@ TEST_F(CATEGORY, spawn_many_compose_tuple) {
 //   }
 // }
 
-// TEST_F(CATEGORY, spawn_many_compose_run_early) {
+// TEST_F(CATEGORY, spawn_many_compose_fork) {
 //   test_async_main(ex(), []() -> tmc::task<void> {
-//     co_await spawn_many_compose_run_early();
+//     co_await spawn_many_compose_fork();
 //   }());
 // }

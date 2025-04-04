@@ -76,7 +76,7 @@ int main() {
           cons[i] = consumer(chan);
         }
         auto startTime = std::chrono::high_resolution_clock::now();
-        auto c = tmc::spawn_many(cons.data(), cons.size()).run_early();
+        auto c = tmc::spawn_many(cons.data(), cons.size()).fork();
         co_await tmc::spawn_many(prod.data(), prod.size());
 
         // The call to close() is not necessary, but is included here for
