@@ -11,8 +11,6 @@
 #include <cassert>
 #include <chrono>
 #include <concepts>
-#include <format>
-#include <iostream>
 #include <iterator>
 #include <random>
 #include <string>
@@ -67,11 +65,6 @@ public:
   /// @note  Required by the @c UniformRandomBitGenerator concept.
   static constexpr result_type max() noexcept {
     return std::numeric_limits<result_type>::max();
-  }
-
-  /// Returns a name for this generator.
-  static constexpr auto xso_name() {
-    return std::format("{}{}", State::xso_name(), Scrambler::xso_name());
   }
 
   /// @brief Default constructor seeds the full state randomly.
@@ -359,13 +352,6 @@ public:
     return N * std::numeric_limits<T>::digits;
   }
 
-  /// @brief Returns a name for this state.
-  static constexpr auto xso_name() {
-    return std::format(
-      "xoshiro<{}x{},{},{}>", N, std::numeric_limits<T>::digits, A, B
-    );
-  }
-
   /// @brief Read-only access to the i'th state word.
   constexpr T operator[](std::size_t i) const { return m_state[i]; }
 
@@ -474,13 +460,6 @@ public:
   /// @brief Returns the number of bits in the underlying state.
   static constexpr std::size_t bit_count() {
     return N * std::numeric_limits<T>::digits;
-  }
-
-  /// @brief Returns a name for this state.
-  static constexpr auto xso_name() {
-    return std::format(
-      "xoroshiro<{}x{},{},{},{}>", N, std::numeric_limits<T>::digits, A, B, C
-    );
   }
 
   /// @brief Read-only access to the i'th state word.
@@ -622,11 +601,6 @@ private:
 template <auto S, std::size_t w> struct star {
   /// @brief Reduces the state input to a single word of output.
   constexpr auto operator()(const auto& state) const { return state[w] * S; }
-
-  /// @brief Returns a name for this scrambler.
-  static constexpr auto xso_name() {
-    return std::format("star<{:x},{}>", S, w);
-  }
 };
 
 /// @brief  The "**" scrambler returns a scrambled version of one of the state
@@ -638,11 +612,6 @@ template <auto S, auto R, auto T, std::size_t w> struct star_star {
   constexpr auto operator()(const auto& state) const {
     return std::rotl(state[w] * S, R) * T;
   }
-
-  /// @brief Returns a name for this scrambler.
-  static constexpr auto xso_name() {
-    return std::format("star_star<{:x},{},{}>", S, R, w);
-  }
 };
 
 /// @brief  The "+" scrambler returns the sum of two of the state words.
@@ -651,11 +620,6 @@ template <std::size_t w0, std::size_t w1> struct plus {
   /// @brief Reduces the state input to a single word of output.
   constexpr auto operator()(const auto& state) const {
     return state[w0] + state[w1];
-  }
-
-  /// @brief Returns a name for this scrambler.
-  static constexpr auto xso_name() {
-    return std::format("plus<{},{}>", w0, w1);
   }
 };
 
@@ -667,11 +631,6 @@ template <auto R, std::size_t w0, std::size_t w1> struct plus_plus {
   /// @brief Reduces the state input to a single word of output.
   constexpr auto operator()(const auto& state) const {
     return std::rotl(state[w0] + state[w1], R) + state[w0];
-  }
-
-  /// @brief Returns a name for this scrambler.
-  static constexpr auto xso_name() {
-    return std::format("plus_plus<{},{},{}>", R, w0, w1);
   }
 };
 
@@ -1302,42 +1261,3 @@ void jump(State& state, const bit::polynomial<Block, Allocator>& jump_poly) {
 } // namespace xso
 
 #endif // BIT
-
-/// @brief A concept that matches any type that has an accessible `xso_name()`
-/// class `method.
-template <typename T>
-concept has_xso_name_class_method = requires {
-  { T::xso_name() } -> std::convertible_to<std::string>;
-};
-
-/// @brief Connect our classes to @c std::format and friends by specializing the
-/// @c std:formatter struct.
-/// @note  This uses the fact that our classes have a class method @c xso_name()
-/// that returns a string.
-/// @note  Specializations of @c std::formatter are always in the @c std
-/// namespace.
-template <has_xso_name_class_method T> struct std::formatter<T> {
-
-  /// @brief Parse the format specifier -- currently only handle the default
-  /// empty specifier
-  constexpr auto parse(const std::format_parse_context& ctx) {
-    auto it = ctx.begin();
-    assert(it == ctx.end() || *it == '}');
-    return it;
-  }
-
-  /// @brief Push out a formatted xso::generator using its @c xso_name(...)
-  /// method.
-  template <class FormatContext>
-  auto format(const T&, FormatContext& ctx) const {
-    return std::format_to(ctx.out(), "{}", T::xso_name());
-  }
-};
-
-/// @brief The usual output stream operator for an xso::generator, State, or
-/// Scrambler.
-template <has_xso_name_class_method T>
-std::ostream& operator<<(std::ostream& s, const T&) {
-  s << T::xso_name();
-  return s;
-}

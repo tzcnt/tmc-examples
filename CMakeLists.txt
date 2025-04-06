@@ -147,15 +147,14 @@ else()
     endif()
 endif()
 
-# link_libraries(${MALLOC_LIB})
+link_libraries(${MALLOC_LIB})
 
 # Safety / warnings checks
 
 # add_definitions("-fsanitize=address")
 # add_link_options("-fsanitize=address")
-add_definitions("-fsanitize=thread")
-add_link_options("-fsanitize=thread")
-
+# add_definitions("-fsanitize=thread")
+# add_link_options("-fsanitize=thread")
 # add_definitions("-fsanitize=undefined -fno-sanitize-recover")
 # add_link_options("-fsanitize=undefined")
 
