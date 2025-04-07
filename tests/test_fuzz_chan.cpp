@@ -10,16 +10,25 @@
 #include <atomic>
 #include <cstdio>
 
-constexpr size_t ELEMS_PER_TICK = 1000;
-constexpr size_t TICK_COUNT = 10000;
+constexpr size_t ELEMS_PER_ACTION = 1000;
+constexpr size_t ACTION_COUNT = 1000;
 
 xso::rng prng;
-size_t base = 0;
-std::atomic<size_t> full_sum = 0;
-std::atomic<size_t> producers_started = 0;
-std::atomic<size_t> producers_done = 0;
-std::atomic<size_t> consumers_started = 0;
-std::atomic<size_t> consumers_done = 0;
+size_t base;
+std::atomic<size_t> full_sum;
+std::atomic<size_t> producers_started;
+std::atomic<size_t> producers_done;
+std::atomic<size_t> consumers_started;
+std::atomic<size_t> consumers_done;
+
+void reset() {
+  base = 0;
+  full_sum = 0;
+  producers_started = 0;
+  producers_done = 0;
+  consumers_started = 0;
+  consumers_done = 0;
+}
 
 struct chan_config : tmc::chan_default_config {
   static inline constexpr size_t BlockSize = 128;
@@ -86,13 +95,14 @@ void wait_for_consumers_to_finish() {
   }
 }
 
-TEST(test_chan_fuzz, test_chan_fuzz) {
+TEST(test_fuzz_chan, test_fuzz_chan) {
+  reset();
   tmc::async_main([]() -> tmc::task<int> {
     auto chan = tmc::make_channel<size_t, chan_config>();
-    for (size_t tick = 0; tick < TICK_COUNT; ++tick) {
+    for (size_t tick = 0; tick < ACTION_COUNT; ++tick) {
       co_await do_action(chan);
     }
-    bool wait_on_producers = false; // (0 == prng.sample(0, 1));
+    bool wait_on_producers = (0 == prng.sample(0, 1));
     if (wait_on_producers) {
       wait_for_producers_to_finish();
     }
@@ -126,7 +136,5 @@ int main(int argc, char** argv) {
   prng.seed();
   tmc::cpu_executor().init();
   testing::InitGoogleTest(&argc, argv);
-
-  std::printf("OK\n");
   return RUN_ALL_TESTS();
 }
