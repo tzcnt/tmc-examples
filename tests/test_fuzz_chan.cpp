@@ -102,6 +102,8 @@ TEST(test_fuzz_chan, test_fuzz_chan) {
     for (size_t tick = 0; tick < ACTION_COUNT; ++tick) {
       co_await do_action(chan);
     }
+    // Requires re-running the test to get a different value.
+    // Pass --gtest_repeat=N on the command line.
     bool wait_on_producers = (0 == prng.sample(0, 1));
     if (wait_on_producers) {
       wait_for_producers_to_finish();
