@@ -26,6 +26,7 @@ include_directories(
 # clangd won't look in the /build/{config} directory, only in the top-level /build directory
 function(make_exe target_name)
   add_executable(${target_name} ${ARGN})
+  target_link_libraries(${target_name} GTest::gtest_main)
   add_custom_command(TARGET ${target_name} POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
     ${CMAKE_BINARY_DIR}/compile_commands.json
@@ -44,11 +45,7 @@ make_exe(
   test_prio.cpp
   test_channel.cpp
 )
-
-target_link_libraries(
-  tests
-  GTest::gtest_main
-)
+target_compile_definitions(tests PRIVATE TMC_NO_UNKNOWN_AWAITABLES)
 
 # GCC gives weird object linkage errors with the local lambdas used in some tests
 # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=114267
@@ -60,17 +57,14 @@ make_exe(
   test_fuzz_chan
   test_fuzz_chan.cpp
 )
+target_compile_definitions(test_fuzz_chan PRIVATE TMC_NO_UNKNOWN_AWAITABLES)
 
-target_link_libraries(
-  test_fuzz_chan
-  GTest::gtest_main
-)
-
-target_compile_definitions(tests PRIVATE TMC_NO_UNKNOWN_AWAITABLES)
+make_exe(test_exceptions test_exceptions.cpp)
 
 if(TMC_USE_HWLOC AND LIBHWLOC_FOUND)
   target_link_libraries(tests ${LIBHWLOC_LIBRARY})
   target_link_libraries(test_fuzz_chan ${LIBHWLOC_LIBRARY})
+  target_link_libraries(test_exceptions ${LIBHWLOC_LIBRARY})
 endif()
 
 if(USE_IO_URING AND LIBURING_FOUND)
