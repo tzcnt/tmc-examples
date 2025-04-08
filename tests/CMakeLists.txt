@@ -26,6 +26,7 @@ include_directories(
 # clangd won't look in the /build/{config} directory, only in the top-level /build directory
 function(make_exe target_name)
   add_executable(${target_name} ${ARGN})
+  target_link_libraries(${target_name} GTest::gtest_main)
   add_custom_command(TARGET ${target_name} POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
     ${CMAKE_BINARY_DIR}/compile_commands.json
@@ -45,11 +46,6 @@ make_exe(
   test_channel.cpp
 )
 
-target_link_libraries(
-  tests
-  GTest::gtest_main
-)
-
 # GCC gives weird object linkage errors with the local lambdas used in some tests
 # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=114267
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
@@ -61,10 +57,7 @@ make_exe(
   test_fuzz_chan.cpp
 )
 
-target_link_libraries(
-  test_fuzz_chan
-  GTest::gtest_main
-)
+make_exe(test_exceptions test_exceptions.cpp)
 
 target_compile_definitions(tests PRIVATE TMC_NO_UNKNOWN_AWAITABLES)
 
