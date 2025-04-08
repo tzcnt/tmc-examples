@@ -34,6 +34,9 @@ public:
 };
 
 template <typename Result> struct external_coro_promise {
+  std::coroutine_handle<> continuation;
+  Result* result_ptr = nullptr;
+
   external_coro_promise() {}
   inline std::suspend_always initial_suspend() const noexcept { return {}; }
   inline aw_external_coro_final_suspend<Result> final_suspend() const noexcept {
@@ -45,11 +48,11 @@ template <typename Result> struct external_coro_promise {
   [[noreturn]] void unhandled_exception() { std::terminate(); }
   void return_value(Result&& Value) { *result_ptr = std::move(Value); }
   void return_value(const Result& Value) { *result_ptr = Value; }
-  std::coroutine_handle<> continuation;
-  Result* result_ptr;
 };
 
 template <> struct external_coro_promise<void> {
+  std::coroutine_handle<> continuation;
+
   external_coro_promise() {}
   inline std::suspend_always initial_suspend() const noexcept { return {}; }
   inline std::suspend_never final_suspend() const noexcept { return {}; }
@@ -58,7 +61,6 @@ template <> struct external_coro_promise<void> {
   }
   [[noreturn]] void unhandled_exception() { std::terminate(); }
   void return_void() {}
-  std::coroutine_handle<> continuation;
 };
 
 template <typename Result> class aw_external_coro {

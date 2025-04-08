@@ -4,12 +4,17 @@
 /// This is the test for exceptions
 
 #include "tmc/all_headers.hpp" // IWYU pragma: keep
+#include "tmc/detail/compat.hpp"
 #include "tmc/detail/concepts.hpp"
 #include "tmc/detail/thread_locals.hpp"
 
+#include <coroutine>
 #include <cstdio>
 #include <cstring>
+#include <exception>
 #include <stdexcept>
+#include <type_traits>
+#include <utility>
 
 #include "test_common.hpp"
 

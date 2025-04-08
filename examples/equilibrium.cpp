@@ -5,11 +5,15 @@
 
 #include "tmc/ex_cpu.hpp"
 #include "tmc/sync.hpp"
+#include "tmc/task.hpp"
 
+#include <array>
 #include <chrono>
 #include <cstdio>
 #include <future>
 #include <ranges>
+#include <ratio>
+#include <vector>
 
 #define USE_ITERATOR
 constexpr int WARMUP_COUNT = 10;

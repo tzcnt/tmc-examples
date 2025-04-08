@@ -15,14 +15,18 @@
 
 #include "util/thread_name.hpp"
 
-#include "tmc/aw_yield.hpp"
+#include "tmc/detail/thread_locals.hpp"
+#include "tmc/detail/tiny_lock.hpp"
 #include "tmc/ex_cpu.hpp"
 #include "tmc/external.hpp"
 #include "tmc/spawn_task.hpp"
 #include "tmc/sync.hpp"
+#include "tmc/task.hpp"
 
+#include <atomic>
 #include <chrono>
 #include <coroutine>
+#include <cstdio>
 #include <future>
 #include <thread>
 #include <utility>

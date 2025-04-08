@@ -20,11 +20,14 @@
 #include "tmc/asio/ex_asio.hpp"
 #include "tmc/ex_cpu.hpp"
 #include "tmc/spawn_many.hpp"
+#include "tmc/task.hpp"
 
 #include <asio/steady_timer.hpp>
 #include <chrono>
+#include <cstddef>
 #include <cstdio>
 #include <ranges>
+#include <vector>
 
 asio::steady_timer sleep_timer(ptrdiff_t seconds) {
   return asio::steady_timer{

@@ -2,6 +2,9 @@
 #include "tmc/channel.hpp"
 #include "tmc/detail/compat.hpp"
 
+#include <cstddef>
+#include <optional>
+
 #include <gtest/gtest.h>
 
 #define CATEGORY test_channel

@@ -2,7 +2,6 @@
 // Connections to http://localhost:55551/ will be served at lower priority
 // Connections on http://localhost:55550/ will be served at higher priority
 // Try load testing both sockets at the same time and observe
-#include "tmc/detail/compat.hpp"
 #ifdef _WIN32
 #include <SDKDDKVer.h>
 #endif
@@ -14,20 +13,21 @@
 #include "tmc/ex_cpu.hpp"
 #include "tmc/spawn_many.hpp"
 #include "tmc/spawn_task.hpp"
+#include "tmc/task.hpp"
 
 #include <array>
 #include <asio/buffer.hpp>
-#include <asio/detached.hpp>
-#include <asio/io_context.hpp>
 #include <asio/ip/tcp.hpp>
-#include <asio/signal_set.hpp>
 #include <asio/streambuf.hpp>
 #include <asio/write.hpp>
 #include <chrono>
 #include <cstddef>
+#include <cstdio>
+#include <ostream>
 #include <ranges>
 #include <sstream>
 #include <string>
+#include <utility>
 
 // The proper sum of skynet (1M tasks) is 499999500000.
 // 32-bit platforms can't hold the full sum, but signed integer overflow is

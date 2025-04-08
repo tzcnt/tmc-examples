@@ -8,7 +8,10 @@
 #include <gtest/gtest.h>
 
 #include <atomic>
+#include <chrono>
 #include <cstdio>
+#include <exception>
+#include <thread>
 
 constexpr size_t ELEMS_PER_ACTION = 1000;
 constexpr size_t ACTION_COUNT = 1000;
