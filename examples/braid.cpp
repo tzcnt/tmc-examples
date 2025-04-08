@@ -14,18 +14,16 @@
 #include <ranges>
 #include <vector>
 
-using namespace tmc;
-
 template <size_t Count> tmc::task<void> large_task_spawn_bench_lazy_bulk() {
-  ex_braid br;
+  tmc::ex_braid br;
   std::array<size_t, Count> data;
   for (size_t i = 0; i < Count; ++i) {
     data[i] = 0;
   }
   auto pre = std::chrono::high_resolution_clock::now();
   auto tasks =
-    std::ranges::views::transform(data, [](size_t& elem) -> task<void> {
-      return [](size_t* Elem) -> task<void> {
+    std::ranges::views::transform(data, [](size_t& elem) -> tmc::task<void> {
+      return [](size_t* Elem) -> tmc::task<void> {
         int a = 0;
         int b = 1;
         for (int i = 0; i < 1000; ++i) {
@@ -38,7 +36,7 @@ template <size_t Count> tmc::task<void> large_task_spawn_bench_lazy_bulk() {
         co_return;
       }(&elem);
     });
-  co_await spawn_many<Count>(tasks.begin()).run_on(br);
+  co_await tmc::spawn_many<Count>(tasks.begin()).run_on(br);
   auto done = std::chrono::high_resolution_clock::now();
 
   size_t execDur =
@@ -52,7 +50,7 @@ template <size_t Count> tmc::task<void> large_task_spawn_bench_lazy_bulk() {
 }
 
 template <size_t Count> tmc::task<void> braid_lock() {
-  ex_braid br;
+  tmc::ex_braid br;
   std::array<size_t, Count> data;
   for (size_t i = 0; i < Count; ++i) {
     data[i] = 0;
@@ -61,8 +59,10 @@ template <size_t Count> tmc::task<void> braid_lock() {
   auto pre = std::chrono::high_resolution_clock::now();
   auto tasks = std::ranges::views::transform(
     data,
-    [&br, &value](size_t& elem) -> task<void> {
-      return [](size_t* Elem, ex_braid* Braid, size_t* Value) -> task<void> {
+    [&br, &value](size_t& elem) -> tmc::task<void> {
+      return [](
+               size_t* Elem, tmc::ex_braid* Braid, size_t* Value
+             ) -> tmc::task<void> {
         int a = 0;
         int b = 1;
         for (int i = 0; i < 1000; ++i) {
@@ -78,7 +78,7 @@ template <size_t Count> tmc::task<void> braid_lock() {
       }(&elem, &br, &value);
     }
   );
-  co_await spawn_many<Count>(tasks.begin());
+  co_await tmc::spawn_many<Count>(tasks.begin());
   auto done = std::chrono::high_resolution_clock::now();
 
   if (value != data[0] * Count) {
@@ -95,7 +95,7 @@ template <size_t Count> tmc::task<void> braid_lock() {
 }
 
 template <size_t Count> tmc::task<void> braid_lock_middle() {
-  ex_braid br;
+  tmc::ex_braid br;
   std::array<size_t, Count> data;
   for (size_t i = 0; i < Count; ++i) {
     data[i] = 0;
@@ -108,9 +108,9 @@ template <size_t Count> tmc::task<void> braid_lock_middle() {
   {
     for (size_t slot = 0; slot < Count; ++slot) {
       tasks[slot] = [](
-                      auto* DataSlot, ex_braid* Braid, size_t* Value,
+                      auto* DataSlot, tmc::ex_braid* Braid, size_t* Value,
                       size_t* LockCount
-                    ) -> task<void> {
+                    ) -> tmc::task<void> {
         int a = 0;
         int b = 1;
         for (int i = 0; i < 499; ++i) {
@@ -159,7 +159,7 @@ template <size_t Count> tmc::task<void> braid_lock_middle() {
 }
 
 template <size_t Count> tmc::task<void> braid_lock_middle_resume_on() {
-  ex_braid br;
+  tmc::ex_braid br;
   std::array<size_t, Count> data;
   for (size_t i = 0; i < Count; ++i) {
     data[i] = 0;
@@ -172,9 +172,9 @@ template <size_t Count> tmc::task<void> braid_lock_middle_resume_on() {
   {
     for (size_t slot = 0; slot < Count; ++slot) {
       tasks[slot] = [](
-                      auto* DataSlot, ex_braid* Braid, size_t* Value,
+                      auto* DataSlot, tmc::ex_braid* Braid, size_t* Value,
                       size_t* LockCount
-                    ) -> task<void> {
+                    ) -> tmc::task<void> {
         int a = 0;
         int b = 1;
         for (int i = 0; i < 499; ++i) {
@@ -226,7 +226,7 @@ tmc::task<void> increment(size_t* Value) {
 }
 
 template <size_t Count> tmc::task<void> braid_lock_middle_child_task() {
-  ex_braid br;
+  tmc::ex_braid br;
   std::array<size_t, Count> data;
   for (size_t i = 0; i < Count; ++i) {
     data[i] = 0;
@@ -239,9 +239,9 @@ template <size_t Count> tmc::task<void> braid_lock_middle_child_task() {
   {
     for (size_t slot = 0; slot < Count; ++slot) {
       tasks[slot] = [](
-                      auto* DataSlot, ex_braid* Braid, size_t* Value,
+                      auto* DataSlot, tmc::ex_braid* Braid, size_t* Value,
                       size_t* LockCount
-                    ) -> task<void> {
+                    ) -> tmc::task<void> {
         int a = 0;
         int b = 1;
         for (int i = 0; i < 499; ++i) {

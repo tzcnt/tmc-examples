@@ -11,8 +11,6 @@
 #include <ranges>
 #include <thread>
 
-using namespace tmc;
-
 static tmc::task<void> coro_void(int Slot) {
   std::printf("void coro: %d\n", Slot);
   co_return;

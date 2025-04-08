@@ -15,14 +15,12 @@
 static constexpr inline size_t EXPECTED_RESULT =
   TMC_PLATFORM_BITS == 64 ? 499999500000 : 1783293664;
 
-using namespace tmc;
-
 namespace skynet {
 namespace coro {
 namespace bulk {
 // all tasks are spawned at the same priority
 template <size_t DepthMax>
-task<size_t> skynet_one(size_t BaseNum, size_t Depth) {
+tmc::task<size_t> skynet_one(size_t BaseNum, size_t Depth) {
   if (Depth == DepthMax) {
     co_return BaseNum;
   }
@@ -45,7 +43,7 @@ task<size_t> skynet_one(size_t BaseNum, size_t Depth) {
   }
   co_return count;
 }
-template <size_t DepthMax> task<void> skynet() {
+template <size_t DepthMax> tmc::task<void> skynet() {
   size_t count = co_await skynet_one<DepthMax>(0, 0);
   if (count != EXPECTED_RESULT) {
     std::printf("%zu\n", count);

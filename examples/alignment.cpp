@@ -19,8 +19,6 @@
 #include <cstdio>
 #include <ranges>
 
-using namespace tmc;
-
 constexpr size_t ALIGNMENT = 64;
 struct unaligned_struct {
   char value;
@@ -39,7 +37,8 @@ static void check_alignment(void* ptr) {
     std::fflush(stdout);
   }
 }
-static task<void> run_one(int i, unaligned_struct* ur, aligned_struct* ar) {
+static tmc::task<void>
+run_one(int i, unaligned_struct* ur, aligned_struct* ar) {
   static_assert(alignof(aligned_struct) == ALIGNMENT);
   static_assert(sizeof(void*) == sizeof(size_t));
   unaligned_struct u;
@@ -47,7 +46,7 @@ static task<void> run_one(int i, unaligned_struct* ur, aligned_struct* ar) {
   u.value = i & 0xFF;
   a.value = i + 1;
   check_alignment(&a);
-  co_await yield();
+  co_await tmc::yield();
   a.value2 = i + 2;
   check_alignment(&a);
   *ur = u;
@@ -59,10 +58,10 @@ template <int Count> tmc::task<void> run() {
   r1.resize(Count);
   r2.resize(Count);
   auto tasks = std::ranges::views::iota(0, Count) |
-               std::ranges::views::transform([&](int idx) -> task<void> {
+               std::ranges::views::transform([&](int idx) -> tmc::task<void> {
                  return run_one(idx, &r1[idx], &r2[idx]);
                });
-  co_await spawn_many(tasks.begin(), tasks.end());
+  co_await tmc::spawn_many(tasks.begin(), tasks.end());
   for (int i = 0; i < Count; ++i) {
     if (r2[i].value == 0) {
       std::printf("fail");

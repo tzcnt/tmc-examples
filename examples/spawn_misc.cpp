@@ -11,11 +11,9 @@
 #include <future>
 #include <ranges>
 
-using namespace tmc;
-
 template <size_t Count, size_t ThreadCount> void small_func_spawn_bench_lazy() {
   std::printf("small_func_spawn_bench_lazy()...\n");
-  ex_cpu executor;
+  tmc::ex_cpu executor;
   executor.set_thread_count(ThreadCount).init();
   std::array<size_t, Count> data;
   for (size_t i = 0; i < Count; ++i) {
@@ -60,7 +58,7 @@ template <size_t Count, size_t ThreadCount> void small_func_spawn_bench_lazy() {
 
 template <size_t Count, size_t nthreads> void large_task_spawn_bench_lazy() {
   std::printf("large_task_spawn_bench_lazy()...\n");
-  ex_cpu executor;
+  tmc::ex_cpu executor;
   executor.set_thread_count(nthreads).init();
   std::array<size_t, Count> data;
   for (size_t i = 0; i < Count; ++i) {
@@ -72,18 +70,19 @@ template <size_t Count, size_t nthreads> void large_task_spawn_bench_lazy() {
     // because this is a coroutine and not a functor, it is not safe to capture
     // https://clang.llvm.org/extra/clang-tidy/checks/cppcoreguidelines/avoid-capturing-lambda-coroutines.html
     // variables must be passed as parameters instead
-    results[slot] = post_waitable(executor, [](size_t* DataSlot) -> task<void> {
-      int a = 0;
-      int b = 1;
-      for (int i = 0; i < 1000; ++i) {
-        for (int j = 0; j < 500; ++j) {
-          a = a + b;
-          b = b + a;
+    results[slot] =
+      post_waitable(executor, [](size_t* DataSlot) -> tmc::task<void> {
+        int a = 0;
+        int b = 1;
+        for (int i = 0; i < 1000; ++i) {
+          for (int j = 0; j < 500; ++j) {
+            a = a + b;
+            b = b + a;
+          }
+          co_await tmc::yield_if_requested();
         }
-        co_await yield_if_requested();
-      }
-      *DataSlot = b;
-    }(&data[slot]));
+        *DataSlot = b;
+      }(&data[slot]));
   }
   auto postTime = std::chrono::high_resolution_clock::now();
   for (auto& f : results) {
@@ -112,15 +111,16 @@ template <size_t Count, size_t nthreads> void large_task_spawn_bench_lazy() {
 template <size_t Count, size_t nthreads>
 void large_task_spawn_bench_lazy_bulk() {
   std::printf("large_task_spawn_bench_lazy_bulk()...\n");
-  ex_cpu executor;
+  tmc::ex_cpu executor;
   executor.set_thread_count(nthreads).init();
   std::array<size_t, Count> data;
   for (size_t i = 0; i < Count; ++i) {
     data[i] = 0;
   }
   auto preTime = std::chrono::high_resolution_clock::now();
-  auto tasks =
-    std::ranges::views::transform(data, [](size_t& DataSlot) -> task<void> {
+  auto tasks = std::ranges::views::transform(
+    data,
+    [](size_t& DataSlot) -> tmc::task<void> {
       int a = 0;
       int b = 1;
       for (int i = 0; i < 1000; ++i) {
@@ -128,10 +128,11 @@ void large_task_spawn_bench_lazy_bulk() {
           a = a + b;
           b = b + a;
         }
-        co_await yield_if_requested();
+        co_await tmc::yield_if_requested();
       }
       DataSlot = b;
-    });
+    }
+  );
   auto future = post_bulk_waitable(executor, tasks.begin(), Count);
   auto postTime = std::chrono::high_resolution_clock::now();
   future.wait();
@@ -159,7 +160,7 @@ void large_task_spawn_bench_lazy_bulk() {
 template <size_t Count, size_t nthreads, size_t npriorities>
 void prio_reversal_test() {
   std::printf("prio_reversal_test()...\n");
-  ex_cpu executor;
+  tmc::ex_cpu executor;
   executor.set_thread_count(nthreads).set_priority_count(npriorities).init();
   std::array<size_t, Count> data;
   for (size_t i = 0; i < Count; ++i) {
@@ -173,7 +174,8 @@ void prio_reversal_test() {
          --prio) {
       results[slot] = post_waitable(
         executor,
-        [](size_t* DataSlot, [[maybe_unused]] size_t Priority) -> task<void> {
+        [](size_t* DataSlot, [[maybe_unused]] size_t Priority)
+          -> tmc::task<void> {
           int a = 0;
           int b = 1;
           for (int i = 0; i < 1000; ++i) {
@@ -181,8 +183,8 @@ void prio_reversal_test() {
               a = a + b;
               b = b + a;
             }
-            if (yield_requested()) {
-              co_await yield();
+            if (tmc::yield_requested()) {
+              co_await tmc::yield();
             }
           }
 

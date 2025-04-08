@@ -11,8 +11,6 @@
 #include <future>
 #include <ranges>
 
-using namespace tmc;
-
 #define USE_ITERATOR
 constexpr int WARMUP_COUNT = 10;
 
@@ -23,7 +21,7 @@ struct bench_result {
   std::chrono::duration<long, std::ratio<1, 1000000000>> dur_ns;
 };
 
-[[maybe_unused]] static task<void> make_task(size_t& DataSlot) {
+[[maybe_unused]] static tmc::task<void> make_task(size_t& DataSlot) {
   int a = 0;
   int b = 1;
 #pragma unroll 1

@@ -9,9 +9,7 @@
 #include <chrono>
 #include <cstdio>
 
-using namespace tmc;
-
-static task<size_t> fib(size_t n) {
+static tmc::task<size_t> fib(size_t n) {
   if (n < 2)
     co_return n;
   /* Several different ways to spawn / await 2 child tasks */
@@ -50,7 +48,7 @@ static task<size_t> fib(size_t n) {
   // co_return x + y;
 }
 
-static task<void> top_fib(size_t n) {
+static tmc::task<void> top_fib(size_t n) {
   auto result = co_await fib(n);
   std::printf("%zu\n", result);
   co_return;
