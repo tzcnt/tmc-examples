@@ -9,6 +9,11 @@
 #include "tmc/spawn_many.hpp"
 #include "tmc/task.hpp"
 
+#include <array>
+#include <atomic>
+#include <cassert>
+#include <chrono>
+#include <cstddef>
 #include <numeric>
 #include <ranges>
 #include <thread>

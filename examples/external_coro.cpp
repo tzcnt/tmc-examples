@@ -8,9 +8,11 @@
 
 #include "tmc/ex_cpu.hpp"
 #include "tmc/sync.hpp"
+#include "tmc/task.hpp"
 
 #include <cstdio>
 #include <future>
+#include <utility>
 
 static external_coro<int> external(int Count, int Max);
 

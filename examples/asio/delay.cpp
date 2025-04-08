@@ -7,11 +7,13 @@
 
 #define TMC_IMPL
 
+#include "../util/thread_name.hpp"
 #include "asio_thread_name.hpp"
 
 #include "tmc/asio/aw_asio.hpp"
 #include "tmc/asio/ex_asio.hpp"
 #include "tmc/ex_cpu.hpp"
+#include "tmc/task.hpp"
 
 #include <asio/steady_timer.hpp>
 #include <chrono>

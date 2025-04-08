@@ -15,9 +15,11 @@
 #include "tmc/aw_yield.hpp"
 #include "tmc/ex_cpu.hpp"
 #include "tmc/spawn_many.hpp"
+#include "tmc/task.hpp"
 
 #include <cstdio>
 #include <ranges>
+#include <vector>
 
 constexpr size_t ALIGNMENT = 64;
 struct unaligned_struct {

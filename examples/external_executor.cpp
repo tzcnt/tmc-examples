@@ -7,14 +7,19 @@
 
 #include "tmc/detail/compat.hpp"
 #include "tmc/detail/concepts.hpp"
+#include "tmc/detail/thread_locals.hpp"
 #include "tmc/ex_cpu.hpp"
 #include "tmc/spawn_task.hpp"
 #include "tmc/sync.hpp"
+#include "tmc/task.hpp"
 #include "util/thread_name.hpp"
 
 #include <coroutine>
+#include <cstddef>
+#include <cstdio>
 #include <string>
 #include <thread>
+#include <utility>
 
 // A terrible executor that creates a new thread for every task.
 class external_executor {

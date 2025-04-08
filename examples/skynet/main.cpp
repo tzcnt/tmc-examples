@@ -9,6 +9,8 @@
 
 #define TMC_IMPL
 
+#include "tmc/task.hpp"
+
 #include "skynet_braid.hpp"
 #include "skynet_coro_bulk.hpp"
 #include "skynet_coro_single.hpp"

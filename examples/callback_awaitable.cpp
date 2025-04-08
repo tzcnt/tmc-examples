@@ -7,6 +7,8 @@
 
 #include "callback_awaitable.hpp"
 
+#include <cassert>
+
 // Examples of callback-based async functions that might be provided by an
 // external library.
 void simulated_async_fn_void(void* user_data, void (*callback)(void*)) {

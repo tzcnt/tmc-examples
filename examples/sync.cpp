@@ -5,6 +5,7 @@
 
 #include "tmc/sync.hpp"
 #include "tmc/ex_cpu.hpp"
+#include "tmc/task.hpp"
 
 #include <chrono>
 #include <cstdio>

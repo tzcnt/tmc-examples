@@ -5,8 +5,12 @@
 
 #include "tmc/all_headers.hpp"
 
+#include <cassert>
 #include <chrono>
 #include <cstdio>
+#include <string>
+#include <utility>
+#include <vector>
 
 #define NELEMS 10000000
 

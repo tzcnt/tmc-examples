@@ -1,4 +1,3 @@
-#include "test_common.hpp"
 #include "tmc/asio/ex_asio.hpp"
 
 #include <gtest/gtest.h>

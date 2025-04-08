@@ -26,11 +26,16 @@
 #include "tmc/asio/ex_asio.hpp"
 #include "tmc/ex_cpu.hpp"
 #include "tmc/spawn_tuple.hpp"
+#include "tmc/task.hpp"
 
 #include <asio/error.hpp>
+#include <asio/error_code.hpp>
 #include <asio/steady_timer.hpp>
 #include <chrono>
 #include <cstdio>
+#include <cstdlib>
+#include <string>
+#include <utility>
 
 void log_event_timestamp(
   std::string event, std::chrono::high_resolution_clock::time_point startTime,

@@ -10,14 +10,16 @@
 #include "tmc/asio/ex_asio.hpp"
 #include "tmc/ex_cpu.hpp"
 #include "tmc/spawn_task.hpp"
+#include "tmc/task.hpp"
 
 #include <asio/buffer.hpp>
-#include <asio/detached.hpp>
-#include <asio/io_context.hpp>
 #include <asio/ip/tcp.hpp>
-#include <asio/signal_set.hpp>
 #include <asio/write.hpp>
+
+#include <cstdint>
+#include <cstdio>
 #include <string>
+#include <utility>
 
 using asio::ip::tcp;
 

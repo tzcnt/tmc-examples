@@ -5,10 +5,12 @@
 #define TMC_IMPL
 
 #include "tmc/all_headers.hpp"
+#include "tmc/utils.hpp"
 
 #include <chrono>
 #include <cstdio>
 #include <string>
+#include <vector>
 
 #define NELEMS 10000000
 

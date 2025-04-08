@@ -5,7 +5,9 @@
 #include "tmc/aw_yield.hpp"
 #include "tmc/ex_cpu.hpp"
 #include "tmc/sync.hpp"
+#include "tmc/task.hpp"
 
+#include <array>
 #include <chrono>
 #include <cstdio>
 #include <future>
@@ -24,7 +26,7 @@ template <size_t Count, size_t ThreadCount> void small_func_spawn_bench_lazy() {
   for (size_t i = 0; i < Count; ++i) {
     // because this is a functor and not a coroutine,
     // it is OK to capture the loop variables
-    results[i] = post_waitable(executor, [i, &data]() { data[i] = i; });
+    results[i] = tmc::post_waitable(executor, [i, &data]() { data[i] = i; });
   }
   auto postTime = std::chrono::high_resolution_clock::now();
   for (auto& f : results) {
@@ -71,7 +73,7 @@ template <size_t Count, size_t nthreads> void large_task_spawn_bench_lazy() {
     // https://clang.llvm.org/extra/clang-tidy/checks/cppcoreguidelines/avoid-capturing-lambda-coroutines.html
     // variables must be passed as parameters instead
     results[slot] =
-      post_waitable(executor, [](size_t* DataSlot) -> tmc::task<void> {
+      tmc::post_waitable(executor, [](size_t* DataSlot) -> tmc::task<void> {
         int a = 0;
         int b = 1;
         for (int i = 0; i < 1000; ++i) {
@@ -133,7 +135,7 @@ void large_task_spawn_bench_lazy_bulk() {
       DataSlot = b;
     }
   );
-  auto future = post_bulk_waitable(executor, tasks.begin(), Count);
+  auto future = tmc::post_bulk_waitable(executor, tasks.begin(), Count);
   auto postTime = std::chrono::high_resolution_clock::now();
   future.wait();
   auto doneTime = std::chrono::high_resolution_clock::now();
@@ -172,7 +174,7 @@ void prio_reversal_test() {
   while (true) {
     for (size_t prio = npriorities - 1; prio != static_cast<size_t>(-1);
          --prio) {
-      results[slot] = post_waitable(
+      results[slot] = tmc::post_waitable(
         executor,
         [](size_t* DataSlot, [[maybe_unused]] size_t Priority)
           -> tmc::task<void> {

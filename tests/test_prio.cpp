@@ -1,7 +1,12 @@
 #include "test_common.hpp"
 #include "tmc/asio/ex_asio.hpp"
+#include "tmc/detail/concepts.hpp"
+#include "tmc/detail/thread_locals.hpp"
 
 #include <array>
+#include <cstddef>
+#include <cstdlib>
+
 #include <gtest/gtest.h>
 
 #define CATEGORY test_priority
