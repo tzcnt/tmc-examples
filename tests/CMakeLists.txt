@@ -45,6 +45,7 @@ make_exe(
   test_prio.cpp
   test_channel.cpp
 )
+target_compile_definitions(tests PRIVATE TMC_NO_UNKNOWN_AWAITABLES)
 
 # GCC gives weird object linkage errors with the local lambdas used in some tests
 # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=114267
@@ -56,14 +57,14 @@ make_exe(
   test_fuzz_chan
   test_fuzz_chan.cpp
 )
+target_compile_definitions(test_fuzz_chan PRIVATE TMC_NO_UNKNOWN_AWAITABLES)
 
 make_exe(test_exceptions test_exceptions.cpp)
-
-target_compile_definitions(tests PRIVATE TMC_NO_UNKNOWN_AWAITABLES)
 
 if(TMC_USE_HWLOC AND LIBHWLOC_FOUND)
   target_link_libraries(tests ${LIBHWLOC_LIBRARY})
   target_link_libraries(test_fuzz_chan ${LIBHWLOC_LIBRARY})
+  target_link_libraries(test_exceptions ${LIBHWLOC_LIBRARY})
 endif()
 
 if(USE_IO_URING AND LIBURING_FOUND)
