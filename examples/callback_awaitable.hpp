@@ -22,10 +22,10 @@
 
 #pragma once
 
-#include "tmc/current.hpp"         // for this_thread
-#include "tmc/detail/compat.hpp"   // for TMC_FORCE_INLINE
-#include "tmc/detail/concepts.hpp" // for result_storage_t, awaitable_traits
-#include "tmc/task.hpp"
+#include "tmc/current.hpp" // for this_thread
+#include "tmc/detail/awaitable_customizer.hpp"
+#include "tmc/detail/compat.hpp"             // for TMC_FORCE_INLINE
+#include "tmc/detail/concepts_awaitable.hpp" // for result_storage_t, awaitable_traits
 
 #include <coroutine>
 #include <tuple>

@@ -10,7 +10,7 @@
 #include "tmc/asio/ex_asio.hpp"
 #include "tmc/aw_resume_on.hpp"
 #include "tmc/current.hpp"
-#include "tmc/detail/concepts.hpp"
+#include "tmc/detail/concepts_awaitable.hpp"
 #include "tmc/ex_braid.hpp"
 #include "tmc/ex_cpu.hpp"
 #include "tmc/spawn_many.hpp"

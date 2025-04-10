@@ -1,6 +1,6 @@
 #include "test_common.hpp"
 #include "tmc/asio/ex_asio.hpp"
-#include "tmc/detail/concepts.hpp"
+#include "tmc/detail/concepts_awaitable.hpp"
 #include "tmc/detail/thread_locals.hpp"
 
 #include <array>
