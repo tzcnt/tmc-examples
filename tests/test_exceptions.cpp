@@ -5,7 +5,7 @@
 
 #include "tmc/all_headers.hpp" // IWYU pragma: keep
 #include "tmc/detail/compat.hpp"
-#include "tmc/detail/concepts.hpp"
+#include "tmc/detail/concepts_awaitable.hpp"
 #include "tmc/detail/thread_locals.hpp"
 
 #include <coroutine>

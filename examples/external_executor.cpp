@@ -6,7 +6,7 @@
 #define TMC_IMPL
 
 #include "tmc/detail/compat.hpp"
-#include "tmc/detail/concepts.hpp"
+#include "tmc/detail/concepts_awaitable.hpp"
 #include "tmc/detail/thread_locals.hpp"
 #include "tmc/ex_any.hpp"
 #include "tmc/ex_cpu.hpp"
