@@ -9,6 +9,7 @@
 
 #include "tmc/asio/ex_asio.hpp"
 #include "tmc/aw_resume_on.hpp"
+#include "tmc/current.hpp"
 #include "tmc/detail/concepts.hpp"
 #include "tmc/detail/thread_locals.hpp"
 #include "tmc/ex_braid.hpp"
@@ -35,7 +36,7 @@ void check_exec_prio(Exec& ExpectedExecutor, size_t ExpectedPriority) {
   if (!tmc::detail::this_thread::prio_is(ExpectedPriority)) {
     std::printf(
       "FAIL | expected priority %zu but got priority %zu\n", ExpectedPriority,
-      tmc::detail::this_thread::this_task.prio
+      tmc::current_priority()
     );
   }
 }
