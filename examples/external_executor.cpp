@@ -8,10 +8,12 @@
 #include "tmc/detail/compat.hpp"
 #include "tmc/detail/concepts.hpp"
 #include "tmc/detail/thread_locals.hpp"
+#include "tmc/ex_any.hpp"
 #include "tmc/ex_cpu.hpp"
 #include "tmc/spawn_task.hpp"
 #include "tmc/sync.hpp"
 #include "tmc/task.hpp"
+#include "tmc/work_item.hpp"
 #include "util/thread_name.hpp"
 
 #include <coroutine>

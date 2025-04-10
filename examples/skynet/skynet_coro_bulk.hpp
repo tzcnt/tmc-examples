@@ -1,7 +1,5 @@
 #pragma once
 #include "skynet_shared.hpp"
-#include "tmc/detail/thread_layout.hpp"
-#include "tmc/detail/thread_locals.hpp"
 #include "tmc/ex_cpu.hpp"
 #include "tmc/spawn_many.hpp"
 #include "tmc/sync.hpp"

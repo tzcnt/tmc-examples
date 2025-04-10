@@ -15,7 +15,7 @@
 
 #include "util/thread_name.hpp"
 
-#include "tmc/detail/thread_locals.hpp"
+#include "tmc/current.hpp"
 #include "tmc/detail/tiny_lock.hpp"
 #include "tmc/ex_cpu.hpp"
 #include "tmc/external.hpp"

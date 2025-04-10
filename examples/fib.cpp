@@ -8,6 +8,7 @@
 
 #include <chrono>
 #include <cstdio>
+#include <cstdlib>
 #include <utility>
 
 static tmc::task<size_t> fib(size_t n) {
@@ -64,7 +65,7 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
 #else
   if (argc != 2) {
     printf("Usage: fib <n-th fibonacci number requested>\n");
-    exit(0);
+    return -1;
   }
 
   size_t n = static_cast<size_t>(atoi(argv[1]));
