@@ -13,7 +13,7 @@
 #include <exception>
 #include <thread>
 
-constexpr size_t ELEMS_PER_ACTION = 1000;
+constexpr int ELEMS_PER_ACTION = 1000;
 constexpr size_t ACTION_COUNT = 1000;
 
 xso::rng prng;
@@ -67,14 +67,14 @@ tmc::task<void> do_action(token& Chan) {
   switch (action) {
   case 0: {
     producers_started.fetch_add(1);
-    size_t count = prng.sample(1, 1000);
+    size_t count = prng.sample(1, ELEMS_PER_ACTION);
     tmc::spawn(producer(Chan, base, count)).detach();
     base += count;
     break;
   }
   case 1:
     consumers_started.fetch_add(1);
-    tmc::spawn(consumer(Chan, prng.sample(1, 1000))).detach();
+    tmc::spawn(consumer(Chan, prng.sample(1, ELEMS_PER_ACTION))).detach();
     break;
   default:
     std::terminate();
