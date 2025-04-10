@@ -11,7 +11,6 @@
 #include "tmc/aw_resume_on.hpp"
 #include "tmc/current.hpp"
 #include "tmc/detail/concepts.hpp"
-#include "tmc/detail/thread_locals.hpp"
 #include "tmc/ex_braid.hpp"
 #include "tmc/ex_cpu.hpp"
 #include "tmc/spawn_many.hpp"
@@ -27,13 +26,12 @@ constexpr size_t TASK_COUNT = 10000;
 // executor and with the expected priority.
 template <typename Exec>
 void check_exec_prio(Exec& ExpectedExecutor, size_t ExpectedPriority) {
-  if (!tmc::detail::this_thread::exec_is(
-        tmc::detail::executor_traits<Exec>::type_erased(ExpectedExecutor)
-      )) {
+  if (tmc::current_executor() !=
+      tmc::detail::executor_traits<Exec>::type_erased(ExpectedExecutor)) {
     std::printf("FAIL | expected executor did not match\n");
   }
 
-  if (!tmc::detail::this_thread::prio_is(ExpectedPriority)) {
+  if (tmc::current_priority() != ExpectedPriority) {
     std::printf(
       "FAIL | expected priority %zu but got priority %zu\n", ExpectedPriority,
       tmc::current_priority()

@@ -26,6 +26,7 @@
 #include <chrono>
 #include <cstddef>
 #include <cstdio>
+#include <cstdlib>
 #include <ranges>
 #include <vector>
 
