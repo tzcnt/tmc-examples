@@ -137,6 +137,6 @@ int main() {
   //
   // If you remove the call to set_default_executor(), the program will simply
   // crash when spawn() is called from the external thread.
-  tmc::external::set_default_executor(tmc::cpu_executor());
+  tmc::set_default_executor(tmc::cpu_executor());
   test_spawn_on_external_thread();
 }

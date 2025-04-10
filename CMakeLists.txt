@@ -49,7 +49,7 @@ else()
     CPMAddPackage(
         NAME TooManyCooks
         GIT_REPOSITORY https://github.com/tzcnt/TooManyCooks.git
-        GIT_TAG a3ccd5e25a5c7df5c3d4978959eeacb4f83d6901
+        GIT_TAG aed73988bfcf8066425b684a325633e86f30c2b0
         DOWNLOAD_ONLY)
 
     CPMAddPackage(
