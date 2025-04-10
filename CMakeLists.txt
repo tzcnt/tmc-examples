@@ -21,10 +21,6 @@ add_definitions(
 
     # Other
     # "-DTMC_USE_BOOST_ASIO"
-
-    # Debug / testing options
-    # "-DTMC_USE_MUTEXQ"
-    # "-DTMC_QUEUE_NO_LIFO"
 )
 
 # Optional flags can be passed at the command line. Used by GitHub Actions workflow.
