@@ -22,6 +22,7 @@
 #include <asio/write.hpp>
 #include <chrono>
 #include <cstddef>
+#include <cstdint>
 #include <cstdio>
 #include <ostream>
 #include <ranges>
