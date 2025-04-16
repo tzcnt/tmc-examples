@@ -17,6 +17,7 @@
 struct chan_config : tmc::chan_default_config {
   // static inline constexpr size_t BlockSize = 4096;
   // static inline constexpr size_t PackingLevel = 0;
+  // static inline constexpr bool EmbedFirstBlock = false;
 };
 using token = tmc::chan_tok<size_t, chan_config>;
 
