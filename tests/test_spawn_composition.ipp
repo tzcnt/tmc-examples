@@ -110,7 +110,7 @@ static inline tmc::task<void> spawn_tuple_compose_void() {
 
 static inline tmc::task<void> spawn_many_compose_spawn() {
   {
-    std::array<tmc::aw_spawned_task<tmc::task<int>>, 2> ts{
+    std::array<tmc::aw_spawn<tmc::task<int>>, 2> ts{
       tmc::spawn(work(0)), tmc::spawn(work(1))
     };
     std::array<int, 2> results = co_await tmc::spawn_many<2>(ts.data());
@@ -125,7 +125,7 @@ static inline tmc::task<void> spawn_many_compose_spawn() {
       i = (1 << i);
       co_return;
     };
-    std::array<tmc::aw_spawned_task<tmc::task<void>>, 2> ts{
+    std::array<tmc::aw_spawn<tmc::task<void>>, 2> ts{
       tmc::spawn(set(void_results[0])), tmc::spawn(set(void_results[1]))
     };
     co_await tmc::spawn_many<2>(ts.data());
@@ -179,7 +179,7 @@ static inline tmc::task<void> spawn_many_compose_spawn_many() {
 
 static inline tmc::task<void> spawn_many_compose_spawn_func() {
   {
-    std::array<tmc::aw_spawned_func<int>, 2> ts{
+    std::array<tmc::aw_spawn_func<int>, 2> ts{
       tmc::spawn_func([]() -> int { return 1 << 0; }),
       tmc::spawn_func([]() -> int { return 1 << 1; })
     };
@@ -191,7 +191,7 @@ static inline tmc::task<void> spawn_many_compose_spawn_func() {
   }
   {
     std::array<int, 2> void_results{0, 1};
-    std::array<tmc::aw_spawned_func<void>, 2> ts{
+    std::array<tmc::aw_spawn_func<void>, 2> ts{
       tmc::spawn_func([&void_results]() -> void { void_results[0] = 1 << 0; }),
       tmc::spawn_func([&void_results]() -> void { void_results[1] = 1 << 1; })
     };
@@ -256,7 +256,7 @@ static inline tmc::task<void> spawn_many_compose_tuple() {
     i = (1 << i);
     co_return;
   };
-  std::array<tmc::aw_spawned_task_tuple<tmc::task<int>, tmc::task<void>>, 2> ts{
+  std::array<tmc::aw_spawn_tuple<tmc::task<int>, tmc::task<void>>, 2> ts{
     tmc::spawn_tuple(work(0), set(void_results[0])),
     tmc::spawn_tuple(work(2), set(void_results[1])),
   };
@@ -314,7 +314,7 @@ TEST_F(CATEGORY, spawn_many_compose_tuple) {
 // Doesn't compile - as expected. fork() types cannot be moved
 // static inline tmc::task<void> spawn_many_compose_fork() {
 //   {
-//     std::array<tmc::aw_fork<tmc::task<int>>, 2> ts{
+//     std::array<tmc::aw_spawn_fork<tmc::task<int>>, 2> ts{
 //       tmc::spawn(work(0)).fork(), tmc::spawn(work(1)).fork()
 //     };
 //     std::array<int, 2> results =
@@ -330,7 +330,7 @@ TEST_F(CATEGORY, spawn_many_compose_tuple) {
 //       i = (1 << i);
 //       co_return;
 //     };
-//     std::array<tmc::aw_fork<tmc::task<void>>, 2> ts{
+//     std::array<tmc::aw_spawn_fork<tmc::task<void>>, 2> ts{
 //       tmc::spawn(set(void_results[0])).fork(),
 //       tmc::spawn(set(void_results[1])).fork()
 //     };
