@@ -95,26 +95,6 @@ if(TMC_USE_HWLOC)
     endif()
 endif()
 
-# URING support - this isn't a TMC flag, but an Asio option (for performance)
-option(USE_IO_URING "io_uring (requires Linux and liburing)" ON)
-
-if(USE_IO_URING)
-    if(NOT CMAKE_SYSTEM_NAME MATCHES Linux)
-        set(USE_IO_URING OFF CACHE BOOL "feature disabled (requires Linux)" FORCE)
-        message(STATUS "USE_IO_URING: WARN feature disabled (requires Linux)")
-    else()
-        message(STATUS "USE_IO_URING: running find_package(liburing)...")
-        find_package(liburing)
-
-        if(NOT LIBURING_FOUND)
-            message(STATUS "USE_IO_URING: WARN package liburing not found")
-        else()
-            message(STATUS "USE_IO_URING: using ${LIBURING_LIBRARY}")
-            add_compile_definitions(ASIO_HAS_IO_URING ASIO_DISABLE_EPOLL)
-        endif()
-    endif()
-endif()
-
 # Since each new coroutine requires an allocation,
 # they are sensitive to allocator performance.
 # Any of tcmalloc, mimalloc, or jemalloc provide
@@ -268,14 +248,5 @@ make_exe(asio_http_server
 make_exe(asio_http_skynet
     examples/asio/http_skynet.cpp
 )
-
-if(USE_IO_URING AND LIBURING_FOUND)
-    target_link_libraries(asio_prio ${LIBURING_LIBRARY})
-    target_link_libraries(asio_cancellation ${LIBURING_LIBRARY})
-    target_link_libraries(asio_delay ${LIBURING_LIBRARY})
-    target_link_libraries(asio_timer_mem_bench ${LIBURING_LIBRARY})
-    target_link_libraries(asio_http_server ${LIBURING_LIBRARY})
-    target_link_libraries(asio_http_skynet ${LIBURING_LIBRARY})
-endif()
 
 add_subdirectory(tests)

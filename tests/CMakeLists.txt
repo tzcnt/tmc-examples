@@ -67,11 +67,6 @@ if(TMC_USE_HWLOC AND LIBHWLOC_FOUND)
   target_link_libraries(test_exceptions ${LIBHWLOC_LIBRARY})
 endif()
 
-if(USE_IO_URING AND LIBURING_FOUND)
-  target_compile_definitions(tests PRIVATE ASIO_HAS_IO_URING ASIO_DISABLE_EPOLL)
-  target_link_libraries(tests ${LIBURING_LIBRARY})
-endif()
-
 include(GoogleTest)
 
 gtest_discover_tests(tests)
