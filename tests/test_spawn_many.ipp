@@ -146,6 +146,29 @@ template <int N> tmc::task<void> spawn_many_dynamic_unknown_sized_iterator() {
   co_return;
 }
 
+template <int N> tmc::task<void> spawn_many_unknown_sized_range() {
+  auto iter = iter_of_dynamic_unknown_size<N>();
+
+  // Due to unpredictable_filter(), we cannot know the exact number of tasks.
+  // We do not provide the N template parameter, and the size is unknown.
+
+  // auto size = iter.end() - iter.begin(); // doesn't compile!
+
+  // TooManyCooks will first internally construct a task vector (by appending /
+  // reallocating as needed), and after the number of tasks has been determined,
+  // a right-sized result vector will be constructed.
+  std::vector<int> results = co_await tmc::spawn_many(iter);
+
+  [[maybe_unused]] auto sum =
+    std::accumulate(results.begin(), results.end(), 0);
+
+  EXPECT_EQ(sum, (1 << N) - 1 - 8);
+  // The result vector is right-sized; only the internal task vector is not
+  EXPECT_EQ(results.size(), results.capacity());
+
+  co_return;
+}
+
 template <int N> tmc::task<void> spawn_many_dynamic_bounded_iterator() {
   // In this example, we do not know the exact number of tasks that iter could
   // produce. The 3rd parameter MaxTasks serves as an upper bound on the number
@@ -220,6 +243,12 @@ TEST_F(CATEGORY, spawn_many_dynamic_known_sized_iterator) {
 TEST_F(CATEGORY, spawn_many_range) {
   test_async_main(ex(), []() -> tmc::task<void> {
     co_await spawn_many_range<5>();
+  }());
+}
+
+TEST_F(CATEGORY, spawn_many_unknown_sized_range) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    co_await spawn_many_unknown_sized_range<5>();
   }());
 }
 
