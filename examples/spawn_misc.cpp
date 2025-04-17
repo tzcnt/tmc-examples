@@ -135,7 +135,7 @@ void large_task_spawn_bench_lazy_bulk() {
       DataSlot = b;
     }
   );
-  auto future = tmc::post_bulk_waitable(executor, tasks.begin(), Count);
+  auto future = tmc::post_bulk_waitable(executor, tasks);
   auto postTime = std::chrono::high_resolution_clock::now();
   future.wait();
   auto doneTime = std::chrono::high_resolution_clock::now();

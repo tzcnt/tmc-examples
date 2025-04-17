@@ -118,16 +118,17 @@ template <int N> tmc::task<void> static_bounded_iterator() {
 
 template <int N> tmc::task<void> dynamic_known_sized_iterator() {
   auto iter = iter_of_dynamic_known_size<N>();
+  [[maybe_unused]] auto taskCount =
+    static_cast<size_t>(iter.end() - iter.begin());
 
   // The template parameter N to spawn_many is not provided.
   // This overload will produce a right-sized output vector
   // (internally calculated from tasks.end() - tasks.begin())
-  std::vector<int> results = co_await tmc::spawn_many(iter.begin(), iter.end());
 
-  [[maybe_unused]] auto taskCount =
-    static_cast<size_t>(iter.end() - iter.begin());
-  // This will produce equivalent behavior:
+  // These invocations are all equivalent:
   // auto results = co_await tmc::spawn_many(iter.begin(), taskCount);
+  // auto results = co_await tmc::spawn_many(iter.begin(), iter.end());
+  std::vector<int> results = co_await tmc::spawn_many(iter);
 
   [[maybe_unused]] auto sum =
     std::accumulate(results.begin(), results.end(), 0);
@@ -150,7 +151,10 @@ template <int N> tmc::task<void> dynamic_unknown_sized_iterator() {
   // TooManyCooks will first internally construct a task vector (by appending /
   // reallocating as needed), and after the number of tasks has been determined,
   // a right-sized result vector will be constructed.
-  std::vector<int> results = co_await tmc::spawn_many(iter.begin(), iter.end());
+
+  // These invocations are equivalent:
+  // auto results = co_await tmc::spawn_many(iter.begin(), iter.end());
+  std::vector<int> results = co_await tmc::spawn_many(iter);
 
   [[maybe_unused]] auto sum =
     std::accumulate(results.begin(), results.end(), 0);

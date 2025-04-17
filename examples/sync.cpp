@@ -54,9 +54,7 @@ static void wait_one_func_value() {
 static void wait_many_coro_void() {
   auto fut = tmc::post_bulk_waitable(
     tmc::cpu_executor(),
-    (std::ranges::views::iota(0) | std::ranges::views::transform(coro_void))
-      .begin(),
-    10
+    (std::ranges::views::iota(0, 10) | std::ranges::views::transform(coro_void))
   );
   fut.get();
 }
@@ -64,10 +62,8 @@ static void wait_many_coro_void() {
 static void wait_many_func_void() {
   auto fut = tmc::post_bulk_waitable(
     tmc::cpu_executor(),
-    (std::ranges::views::iota(0) |
-     std::ranges::views::transform([](int) { return func_void; })
-    ).begin(),
-    10
+    (std::ranges::views::iota(0, 10) |
+     std::ranges::views::transform([](int) { return func_void; }))
   );
   fut.get();
 }
@@ -83,19 +79,16 @@ static void nowait_one_func_void() {
 static void nowait_many_coro_void() {
   tmc::post_bulk(
     tmc::cpu_executor(),
-    (std::ranges::views::iota(0) | std::ranges::views::transform(coro_void))
-      .begin(),
-    10
+    (std::ranges::views::iota(0, 10) | std::ranges::views::transform(coro_void))
+
   );
 }
 
 static void nowait_many_func_void() {
   tmc::post_bulk(
     tmc::cpu_executor(),
-    (std::ranges::views::iota(0) |
-     std::ranges::views::transform([](int) { return func_void; })
-    ).begin(),
-    10
+    (std::ranges::views::iota(0, 10) |
+     std::ranges::views::transform([](int) { return func_void; }))
   );
 }
 

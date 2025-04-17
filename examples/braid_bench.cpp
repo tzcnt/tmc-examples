@@ -53,7 +53,7 @@ int main() {
       }
 
       auto startTime = std::chrono::high_resolution_clock::now();
-      co_await tmc::spawn_many(prod.data(), prod.size());
+      co_await tmc::spawn_many(prod);
 
       auto endTime = std::chrono::high_resolution_clock::now();
 

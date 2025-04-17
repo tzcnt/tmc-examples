@@ -43,7 +43,7 @@ tmc::task<int> wait_on_tasks(size_t TaskCount) {
       co_await sleep_timer(10).async_wait(tmc::aw_asio);
     }());
   }
-  co_await tmc::spawn_many(tasks.begin(), TaskCount);
+  co_await tmc::spawn_many(tasks);
   co_return 0;
 }
 
@@ -52,15 +52,12 @@ tmc::task<int> wait_on_timers(size_t TaskCount) {
   for (size_t i = 0; i < TaskCount; ++i) {
     timers.emplace_back(sleep_timer(10));
   }
-  co_await tmc::spawn_many(
-    std::ranges::views::transform(
-      timers,
-      [](asio::steady_timer& timer) -> auto {
-        return timer.async_wait(tmc::aw_asio);
-      }
-    ).begin(),
-    TaskCount
-  );
+  co_await tmc::spawn_many(std::ranges::views::transform(
+    timers,
+    [](asio::steady_timer& timer) -> auto {
+      return timer.async_wait(tmc::aw_asio);
+    }
+  ));
   co_return 0;
 }
 
