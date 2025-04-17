@@ -18,6 +18,7 @@
 #include <asio/steady_timer.hpp>
 #include <chrono>
 #include <cstdio>
+#include <tuple>
 
 int main() {
   hook_init_ex_cpu_thread_name(tmc::cpu_executor());
@@ -40,13 +41,13 @@ int main() {
       }
       print_thread_name();
 
-      auto [error2] =
+      std::tie(error) =
         co_await asio::steady_timer{
           tmc::asio_executor(), std::chrono::milliseconds(250)
         }
           .async_wait(tmc::aw_asio)
           .resume_on(tmc::cpu_executor());
-      if (error2) {
+      if (error) {
         std::printf("error2: %s\n", error.message().c_str());
         co_return -1;
       }

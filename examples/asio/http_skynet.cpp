@@ -28,6 +28,7 @@
 #include <ranges>
 #include <sstream>
 #include <string>
+#include <tuple>
 #include <utility>
 
 // The proper sum of skynet (1M tasks) is 499999500000.
@@ -99,9 +100,9 @@ tmc::task<void> handler(auto Socket) {
            << result;
 
     // Send response
-    auto [error2, n2] =
+    std::tie(error, n) =
       co_await asio::async_write(Socket, ostream, tmc::aw_asio);
-    if (error2) {
+    if (error) {
       Socket.close();
       co_return;
     }
