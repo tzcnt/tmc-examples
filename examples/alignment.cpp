@@ -63,7 +63,7 @@ template <int Count> tmc::task<void> run() {
                std::ranges::views::transform([&](int idx) -> tmc::task<void> {
                  return run_one(idx, &r1[idx], &r2[idx]);
                });
-  co_await tmc::spawn_many(tasks.begin(), tasks.end());
+  co_await tmc::spawn_many(tasks);
   for (int i = 0; i < Count; ++i) {
     if (r2[i].value == 0) {
       std::printf("fail");

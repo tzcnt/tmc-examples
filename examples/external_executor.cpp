@@ -68,22 +68,22 @@ public:
 // A complete, minimal implementation of executor_traits.
 template <> struct tmc::detail::executor_traits<external_executor> {
   static inline void post(
-    external_executor& ex, tmc::work_item&& Item, size_t Priority,
+    external_executor& Ex, tmc::work_item&& Item, size_t Priority,
     size_t ThreadHint
   ) {
-    ex.post(std::move(Item), Priority, ThreadHint);
+    Ex.post(std::move(Item), Priority, ThreadHint);
   }
 
   template <typename It>
   static inline void post_bulk(
-    external_executor& ex, It&& Items, size_t Count, size_t Priority,
+    external_executor& Ex, It&& Items, size_t Count, size_t Priority,
     size_t ThreadHint
   ) {
-    ex.post_bulk(std::forward<It>(Items), Count, Priority, ThreadHint);
+    Ex.post_bulk(std::forward<It>(Items), Count, Priority, ThreadHint);
   }
 
-  static inline tmc::ex_any* type_erased(external_executor& ex) {
-    return ex.type_erased();
+  static inline tmc::ex_any* type_erased(external_executor& Ex) {
+    return Ex.type_erased();
   }
 
   static inline std::coroutine_handle<> task_enter_context(

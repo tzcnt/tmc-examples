@@ -140,7 +140,7 @@ template <size_t Count> tmc::task<void> braid_lock_middle() {
       }(&data[slot], &br, &value, &lockCount);
     }
   }
-  co_await spawn_many(tasks.data(), Count);
+  co_await spawn_many(tasks);
   auto done = std::chrono::high_resolution_clock::now();
 
   if (value != data[0] * Count) {
@@ -203,7 +203,7 @@ template <size_t Count> tmc::task<void> braid_lock_middle_resume_on() {
       }(&data[slot], &br, &value, &lockCount);
     }
   }
-  co_await spawn_many(tasks.data(), Count);
+  co_await spawn_many(tasks);
   auto done = std::chrono::high_resolution_clock::now();
 
   if (value != data[0] * Count) {
@@ -269,7 +269,7 @@ template <size_t Count> tmc::task<void> braid_lock_middle_child_task() {
       }(&data[slot], &br, &value, &lockCount);
     }
   }
-  co_await spawn_many(tasks.data(), Count);
+  co_await spawn_many(tasks);
   auto done = std::chrono::high_resolution_clock::now();
 
   if (value != data[0] * Count) {

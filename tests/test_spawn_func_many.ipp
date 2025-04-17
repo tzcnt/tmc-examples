@@ -97,6 +97,27 @@ tmc::task<void> spawn_func_many_dynamic_known_sized_iterator() {
   EXPECT_EQ(results.size(), results.capacity());
 }
 
+template <int N> tmc::task<void> spawn_func_many_range() {
+  auto iter = func_iter_of_dynamic_known_size<N>();
+
+  // The template parameter N to spawn_func_many is not provided.
+  // This overload will produce a right-sized output vector
+  // (internally calculated from iter.end() - iter.begin())
+  std::vector<int> results = co_await tmc::spawn_func_many(iter);
+
+  [[maybe_unused]] auto taskCount =
+    static_cast<size_t>(iter.end() - iter.begin());
+  // This will produce equivalent behavior:
+  // auto results = co_await tmc::spawn_func_many(iter.begin(), taskCount);
+
+  [[maybe_unused]] auto sum =
+    std::accumulate(results.begin(), results.end(), 0);
+  EXPECT_EQ(sum, (1 << N) - 1 - 8);
+  // The results vector is right-sized
+  EXPECT_EQ(results.size(), taskCount);
+  EXPECT_EQ(results.size(), results.capacity());
+}
+
 template <int N>
 tmc::task<void> spawn_func_many_dynamic_unknown_sized_iterator() {
   auto iter = func_iter_of_dynamic_unknown_size<N>();
@@ -187,6 +208,12 @@ TEST_F(CATEGORY, spawn_func_many_static_bounded_iterator) {
 TEST_F(CATEGORY, spawn_func_many_dynamic_known_sized_iterator) {
   test_async_main(ex(), []() -> tmc::task<void> {
     co_await spawn_func_many_dynamic_known_sized_iterator<5>();
+  }());
+}
+
+TEST_F(CATEGORY, spawn_func_many_range) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    co_await spawn_func_many_range<5>();
   }());
 }
 
