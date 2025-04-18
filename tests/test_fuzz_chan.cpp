@@ -98,43 +98,47 @@ void wait_for_consumers_to_finish() {
   }
 }
 
-TEST(test_fuzz_chan, test_fuzz_chan) {
-  reset();
-  tmc::async_main([]() -> tmc::task<int> {
-    auto chan = tmc::make_channel<size_t, chan_config>();
-    for (size_t tick = 0; tick < ACTION_COUNT; ++tick) {
-      co_await do_action(chan);
+auto run_one_test(bool wait_on_producers) -> tmc::task<int> {
+  auto chan = tmc::make_channel<size_t, chan_config>();
+  for (size_t tick = 0; tick < ACTION_COUNT; ++tick) {
+    co_await do_action(chan);
+  }
+  if (wait_on_producers) {
+    wait_for_producers_to_finish();
+  }
+  chan.close();
+  // Drain remaining data
+  {
+    size_t sum = 0;
+    auto data = co_await chan.pull();
+    while (data.has_value()) {
+      sum += data.value();
+      data = co_await chan.pull();
     }
-    // Requires re-running the test to get a different value.
-    // Pass --gtest_repeat=N on the command line.
-    bool wait_on_producers = (0 == prng.sample(0, 1));
-    if (wait_on_producers) {
-      wait_for_producers_to_finish();
-    }
-    chan.close();
-    // Drain remaining data
-    {
-      size_t sum = 0;
-      auto data = co_await chan.pull();
-      while (data.has_value()) {
-        sum += data.value();
-        data = co_await chan.pull();
-      }
-      full_sum.fetch_add(sum);
-    }
-    // Just wake the remaining waiting consumers
-    co_await chan.drain();
-    wait_for_consumers_to_finish();
+    full_sum.fetch_add(sum);
+  }
+  // Just wake the remaining waiting consumers
+  co_await chan.drain();
+  wait_for_consumers_to_finish();
 
-    if (wait_on_producers) {
-      size_t expectedSum = 0;
-      for (size_t i = 0; i < base; ++i) {
-        expectedSum += i;
-      }
-      EXPECT_EQ(expectedSum, full_sum.load());
+  if (wait_on_producers) {
+    size_t expectedSum = 0;
+    for (size_t i = 0; i < base; ++i) {
+      expectedSum += i;
     }
-    co_return 0;
-  }());
+    EXPECT_EQ(expectedSum, full_sum.load());
+  }
+  co_return 0;
+}
+
+TEST(test_fuzz_chan, test_fuzz_chan_wait) {
+  reset();
+  tmc::async_main(run_one_test(true));
+}
+
+TEST(test_fuzz_chan, test_fuzz_chan_nowait) {
+  reset();
+  tmc::async_main(run_one_test(false));
 }
 
 int main(int argc, char** argv) {

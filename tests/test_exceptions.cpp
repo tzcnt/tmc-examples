@@ -1,4 +1,3 @@
-#include "tmc/spawn_task.hpp"
 #define TMC_IMPL
 
 /// This is the test for exceptions
@@ -7,6 +6,7 @@
 #include "tmc/detail/compat.hpp"
 #include "tmc/detail/concepts_awaitable.hpp"
 #include "tmc/detail/thread_locals.hpp"
+#include "tmc/spawn_task.hpp"
 
 #include <coroutine>
 #include <cstdio>

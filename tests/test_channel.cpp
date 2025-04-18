@@ -133,4 +133,47 @@ TEST_F(CATEGORY, push_single_threaded) {
   }());
 }
 
+struct destructor_counter {
+  std::atomic<size_t>* count;
+  destructor_counter(std::atomic<size_t>* C) noexcept : count{C} {}
+  destructor_counter(destructor_counter const& Other) = delete;
+  destructor_counter& operator=(destructor_counter const& Other) = delete;
+
+  destructor_counter(destructor_counter&& Other) noexcept {
+    count = Other.count;
+    Other.count = nullptr;
+  }
+  destructor_counter& operator=(destructor_counter&& Other) noexcept {
+    count = Other.count;
+    Other.count = nullptr;
+    return *this;
+  }
+
+  ~destructor_counter() {
+    if (count != nullptr) {
+      ++(*count);
+    }
+  }
+};
+
+TEST_F(CATEGORY, destroy_chan_with_data) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    std::atomic<size_t> count;
+    {
+      auto chan = tmc::make_channel<destructor_counter>();
+      for (size_t i = 0; i < 10; ++i) {
+        chan.post(destructor_counter{&count});
+      }
+
+      for (size_t i = 0; i < 3; ++i) {
+        co_await chan.pull();
+      }
+
+      EXPECT_EQ(count.load(), 3);
+    }
+    // Now chan goes out of scope; remaining data's destructors are called
+    EXPECT_EQ(count.load(), 10);
+  }());
+}
+
 #undef CATEGORY

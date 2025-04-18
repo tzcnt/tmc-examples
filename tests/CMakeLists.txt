@@ -44,6 +44,7 @@ make_exe(
   test_ex_braid.cpp
   test_prio.cpp
   test_channel.cpp
+  test_yield.cpp
 )
 target_compile_definitions(tests PRIVATE TMC_NO_UNKNOWN_AWAITABLES)
 
