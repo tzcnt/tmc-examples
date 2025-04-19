@@ -1,4 +1,5 @@
 #include "test_common.hpp"
+#include "tmc/detail/thread_locals.hpp"
 #include "tmc/ex_cpu.hpp"
 
 #include <gtest/gtest.h>
@@ -21,6 +22,18 @@ protected:
 
   static tmc::ex_braid& ex() { return *braid; }
 };
+TEST_F(CATEGORY, destroy_running_braid) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    tmc::ex_braid br;
+    co_await tmc::enter(br);
+    EXPECT_EQ(tmc::detail::this_thread::executor, br.type_erased());
+    // The braid will be destroyed at the end of this coroutine.
+    // Afterward, the coroutine will return, and the call stack will be inside
+    // of try_run_loop, a member function of the destroyed braid.
+    // A separately allocated boolean is used to track when this occurs and exit
+    // the runloop safely.
+  }());
+}
 
 #include "test_executors.ipp"
 #include "test_nested_executors.ipp"
