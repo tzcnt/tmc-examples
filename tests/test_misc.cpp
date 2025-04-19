@@ -95,7 +95,7 @@ TEST_F(CATEGORY, post_bulk_checked_default_executor) {
 
   test_async_main(ex(), []() -> tmc::task<void> {
     atomic_awaitable<int> aa(0, 2);
-    std::array<std::coroutine_handle<>, 2> tasks;
+    std::array<tmc::work_item, 2> tasks;
     for (size_t i = 0; i < tasks.size(); ++i) {
       tasks[i] = [](atomic_awaitable<int>& AA) -> tmc::task<void> {
         ++AA.ref();
