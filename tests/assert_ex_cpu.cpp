@@ -24,17 +24,6 @@ TEST(CATEGORY, too_many_threads) {
   );
 }
 
-TEST(CATEGORY, invalid_priority) {
-  EXPECT_DEATH(
-    {
-      tmc::ex_cpu ex;
-      ex.set_thread_count(1).set_priority_count(1).init();
-      tmc::post_waitable(ex, empty_task, 1).wait();
-    },
-    "Priority"
-  );
-}
-
 TEST(CATEGORY, task_func_post) {
   // Accidentally submitted a task-returning func without calling it
   EXPECT_DEATH(

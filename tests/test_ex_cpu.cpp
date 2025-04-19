@@ -1,4 +1,5 @@
 #include "test_common.hpp"
+#include "tmc/current.hpp"
 
 #include <gtest/gtest.h>
 
@@ -12,6 +13,19 @@ protected:
 
   static tmc::ex_cpu& ex() { return tmc::cpu_executor(); }
 };
+
+// If an invalid priority is submitted, ex_cpu will clamp it to the valid range.
+TEST_F(CATEGORY, clamp_priority) {
+  tmc::post_waitable(
+    ex(),
+    []() -> tmc::task<void> {
+      EXPECT_EQ(tmc::current_priority(), ex().priority_count() - 1);
+      co_return;
+    }(),
+    1
+  )
+    .wait();
+}
 
 #include "test_executors.ipp"
 #include "test_nested_executors.ipp"
