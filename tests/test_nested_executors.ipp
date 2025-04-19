@@ -1,6 +1,11 @@
 #include "test_common.hpp"
 #include "tmc/asio/ex_asio.hpp"
+#include "tmc/detail/thread_locals.hpp"
 #include "tmc/ex_braid.hpp"
+#include "tmc/spawn_func.hpp"
+#include "tmc/spawn_many.hpp"
+#include "tmc/spawn_task.hpp"
+#include "tmc/spawn_tuple.hpp"
 
 #include <gtest/gtest.h>
 
@@ -75,6 +80,99 @@ TEST_F(CATEGORY, nested_ex_braid) {
     EXPECT_EQ(result, 200);
     result = co_await tmc::spawn(bounce(ex())).run_on(localEx);
     EXPECT_EQ(result, 200);
+  }());
+}
+
+TEST_F(CATEGORY, construct_braid_on_default_executor) {
+  tmc::set_default_executor(ex());
+  tmc::ex_braid br;
+  test_async_main(br, [](tmc::ex_braid& Br) -> tmc::task<void> {
+    EXPECT_EQ(tmc::detail::this_thread::executor, Br.type_erased());
+    co_return;
+  }(br));
+  tmc::set_default_executor(nullptr);
+}
+
+TEST_F(CATEGORY, test_spawn_run_resume) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    tmc::ex_cpu localEx;
+    localEx.set_thread_count(1).init();
+
+    co_await tmc::spawn([](tmc::ex_any* Ex) -> tmc::task<void> {
+      EXPECT_EQ(tmc::detail::this_thread::executor, Ex);
+      co_return;
+    }(localEx.type_erased()))
+      .run_on(localEx);
+
+    EXPECT_EQ(tmc::detail::this_thread::executor, ex().type_erased());
+
+    co_await tmc::spawn([]() -> tmc::task<void> { co_return; }())
+      .resume_on(localEx);
+    EXPECT_EQ(tmc::detail::this_thread::executor, localEx.type_erased());
+
+    co_await tmc::resume_on(ex());
+  }());
+}
+
+TEST_F(CATEGORY, test_spawn_func_run_resume) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    tmc::ex_cpu localEx;
+    localEx.set_thread_count(1).init();
+
+    co_await tmc::spawn_func([&]() -> void {
+      EXPECT_EQ(tmc::detail::this_thread::executor, localEx.type_erased());
+    }).run_on(localEx);
+
+    EXPECT_EQ(tmc::detail::this_thread::executor, ex().type_erased());
+
+    co_await tmc::spawn_func([]() -> void {}).resume_on(localEx);
+    EXPECT_EQ(tmc::detail::this_thread::executor, localEx.type_erased());
+
+    co_await tmc::resume_on(ex());
+  }());
+}
+
+TEST_F(CATEGORY, test_spawn_tuple_run_resume) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    tmc::ex_cpu localEx;
+    localEx.set_thread_count(1).init();
+
+    co_await tmc::spawn_tuple([](tmc::ex_any* Ex) -> tmc::task<void> {
+      EXPECT_EQ(tmc::detail::this_thread::executor, Ex);
+      co_return;
+    }(localEx.type_erased()))
+      .run_on(localEx);
+
+    EXPECT_EQ(tmc::detail::this_thread::executor, ex().type_erased());
+
+    co_await tmc::spawn_tuple([]() -> tmc::task<void> { co_return; }())
+      .resume_on(localEx);
+    EXPECT_EQ(tmc::detail::this_thread::executor, localEx.type_erased());
+
+    co_await tmc::resume_on(ex());
+  }());
+}
+
+TEST_F(CATEGORY, test_spawn_many_run_resume) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    tmc::ex_cpu localEx;
+    localEx.set_thread_count(1).init();
+
+    std::array<tmc::task<void>, 1> tasks;
+    tasks[0] = [](tmc::ex_any* Ex) -> tmc::task<void> {
+      EXPECT_EQ(tmc::detail::this_thread::executor, Ex);
+      co_return;
+    }(localEx.type_erased());
+
+    co_await tmc::spawn_many(tasks).run_on(localEx);
+
+    EXPECT_EQ(tmc::detail::this_thread::executor, ex().type_erased());
+
+    tasks[0] = []() -> tmc::task<void> { co_return; }();
+    co_await tmc::spawn_many(tasks).resume_on(localEx);
+    EXPECT_EQ(tmc::detail::this_thread::executor, localEx.type_erased());
+
+    co_await tmc::resume_on(ex());
   }());
 }
 
