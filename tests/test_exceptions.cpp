@@ -1,6 +1,10 @@
 #define TMC_IMPL
 
-/// This is the test for exceptions
+/// This is the test for exceptions. It is a separate executable from the main
+/// tests because it tests the behavior of exception handling with unknown
+/// awaitables. The main tests binary has defined TMC_NO_UNKNOWN_AWAITABLES, as
+/// ensuring that all TMC awaitables are well-formed is part of the test
+/// coverage.
 
 #include "tmc/all_headers.hpp" // IWYU pragma: keep
 #include "tmc/detail/compat.hpp"
