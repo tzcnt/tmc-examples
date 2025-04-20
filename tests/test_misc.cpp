@@ -8,6 +8,8 @@
 
 #include <gtest/gtest.h>
 
+#include <atomic>
+
 #define CATEGORY test_misc
 
 class CATEGORY : public testing::Test {
@@ -112,6 +114,17 @@ TEST_F(CATEGORY, post_bulk_checked_default_executor) {
   }());
 
   tmc::set_default_executor(nullptr);
+}
+
+TEST_F(CATEGORY, tiny_vec_resize_zero) {
+
+  std::atomic<size_t> count;
+  tmc::detail::tiny_vec<destructor_counter> tv;
+  tv.resize(2);
+  tv.emplace_at(0, &count);
+  tv.emplace_at(1, &count);
+  tv.resize(0);
+  EXPECT_EQ(count.load(), 2);
 }
 
 #undef CATEGORY
