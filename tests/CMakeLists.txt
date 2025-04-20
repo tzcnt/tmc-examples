@@ -38,7 +38,11 @@ make_exe(
   tests
   main.cpp
   assert_ex_cpu.cpp
+  assert_coro.cpp
   assert_spawn.cpp
+  assert_spawn_func.cpp
+  assert_spawn_many.cpp
+  assert_spawn_tuple.cpp
   test_ex_cpu.cpp
   test_ex_asio.cpp
   test_ex_braid.cpp

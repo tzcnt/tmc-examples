@@ -9,6 +9,12 @@
 
 // tests ported from examples/spawn_iterator.cpp
 
+TEST_F(CATEGORY, spawn_tuple_empty) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    std::tuple<> results = co_await tmc::spawn_tuple();
+  }());
+}
+
 TEST_F(CATEGORY, spawn_tuple_task_func) {
   test_async_main(ex(), []() -> tmc::task<void> {
     std::tuple<int, int, int> results =
