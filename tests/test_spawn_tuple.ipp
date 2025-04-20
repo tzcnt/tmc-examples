@@ -9,6 +9,28 @@
 
 // tests ported from examples/spawn_iterator.cpp
 
+TEST_F(CATEGORY, spawn_tuple_task_detach) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    atomic_awaitable<int> counter(0, 2);
+
+    auto ts = tmc::spawn_tuple(
+      [](std::atomic<int>& Counter) -> tmc::task<void> {
+        ++Counter;
+        Counter.notify_all();
+        co_return;
+      }(counter),
+      [](std::atomic<int>& Counter) -> tmc::task<void> {
+        ++Counter;
+        Counter.notify_all();
+        co_return;
+      }(counter)
+    );
+    ts.detach();
+    co_await counter;
+    EXPECT_EQ(counter.load(), 2);
+  }());
+}
+
 TEST_F(CATEGORY, spawn_tuple_empty) {
   test_async_main(ex(), []() -> tmc::task<void> {
     std::tuple<> results = co_await tmc::spawn_tuple();
@@ -111,27 +133,5 @@ TEST_F(CATEGORY, spawn_tuple_task_each) {
     }
 
     EXPECT_EQ(sum, (1 << 3) - 1);
-  }());
-}
-
-TEST_F(CATEGORY, spawn_tuple_task_detach) {
-  test_async_main(ex(), []() -> tmc::task<void> {
-    atomic_awaitable<int> counter(0, 2);
-
-    auto ts = tmc::spawn_tuple(
-      [](std::atomic<int>& Counter) -> tmc::task<void> {
-        ++Counter;
-        Counter.notify_all();
-        co_return;
-      }(counter),
-      [](std::atomic<int>& Counter) -> tmc::task<void> {
-        ++Counter;
-        Counter.notify_all();
-        co_return;
-      }(counter)
-    );
-    ts.detach();
-    co_await counter;
-    EXPECT_EQ(counter.load(), 2);
   }());
 }
