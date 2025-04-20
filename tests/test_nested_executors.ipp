@@ -1,5 +1,6 @@
 #include "test_common.hpp"
 #include "tmc/asio/ex_asio.hpp"
+#include "tmc/current.hpp"
 #include "tmc/detail/thread_locals.hpp"
 #include "tmc/ex_braid.hpp"
 #include "tmc/spawn_func.hpp"
@@ -42,10 +43,20 @@
 #ifndef TSAN_ENABLED
 template <typename Executor> tmc::task<size_t> bounce(Executor& Exec) {
   size_t result = 0;
-  for (size_t i = 0; i < 100; ++i) {
+  for (size_t i = 0; i < 10; ++i) {
+    auto outerExec = tmc::current_executor();
     auto scope = co_await tmc::enter(Exec);
+    EXPECT_EQ(tmc::current_executor(), Exec.type_erased());
     ++result;
+    {
+      // Re-entering / exiting the same executor should do nothing.
+      auto innerScope = co_await tmc::enter(Exec);
+      EXPECT_EQ(tmc::current_executor(), Exec.type_erased());
+      co_await innerScope.exit();
+      EXPECT_EQ(tmc::current_executor(), Exec.type_erased());
+    }
     co_await scope.exit();
+    EXPECT_EQ(tmc::current_executor(), outerExec);
     ++result;
   }
   co_return result;
@@ -57,9 +68,9 @@ TEST_F(CATEGORY, nested_ex_cpu) {
     localEx.set_thread_count(1).init();
 
     auto result = co_await bounce(localEx);
-    EXPECT_EQ(result, 200);
+    EXPECT_EQ(result, 20);
     result = co_await tmc::spawn(bounce(ex())).run_on(localEx);
-    EXPECT_EQ(result, 200);
+    EXPECT_EQ(result, 20);
   }());
 }
 
@@ -69,9 +80,9 @@ TEST_F(CATEGORY, nested_ex_asio) {
     localEx.init();
 
     auto result = co_await bounce(localEx);
-    EXPECT_EQ(result, 200);
+    EXPECT_EQ(result, 20);
     result = co_await tmc::spawn(bounce(ex())).run_on(localEx);
-    EXPECT_EQ(result, 200);
+    EXPECT_EQ(result, 20);
   }());
 }
 
@@ -80,9 +91,9 @@ TEST_F(CATEGORY, nested_ex_braid) {
     tmc::ex_braid localEx;
 
     auto result = co_await bounce(localEx);
-    EXPECT_EQ(result, 200);
+    EXPECT_EQ(result, 20);
     result = co_await tmc::spawn(bounce(ex())).run_on(localEx);
-    EXPECT_EQ(result, 200);
+    EXPECT_EQ(result, 20);
   }());
 }
 
