@@ -1,3 +1,4 @@
+#include "atomic_awaitable.hpp"
 #include "test_common.hpp"
 #include "tmc/current.hpp"
 
@@ -41,15 +42,25 @@ TEST_F(CATEGORY, set_thread_count) {
 }
 
 TEST_F(CATEGORY, set_thread_init_hook) {
-  tmc::ex_cpu ex;
   std::atomic<size_t> thr = TMC_ALL_ONES;
-  ex.set_thread_init_hook([&](size_t tid) -> void { thr = tid; }).init();
+  {
+    tmc::ex_cpu ex;
+    ex.set_thread_init_hook([&](size_t tid) -> void { thr = tid; })
+      .set_thread_count(1)
+      .init();
+  }
+  EXPECT_EQ(thr.load(), 0);
 }
 
 TEST_F(CATEGORY, set_thread_teardown_hook) {
-  tmc::ex_cpu ex;
   std::atomic<size_t> thr = TMC_ALL_ONES;
-  ex.set_thread_teardown_hook([&](size_t tid) -> void { thr = tid; }).init();
+  {
+    tmc::ex_cpu ex;
+    ex.set_thread_teardown_hook([&](size_t tid) -> void { thr = tid; })
+      .set_thread_count(1)
+      .init();
+  }
+  EXPECT_EQ(thr.load(), 0);
 }
 
 #ifdef TMC_USE_HWLOC

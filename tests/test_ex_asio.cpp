@@ -16,15 +16,21 @@ protected:
 };
 
 TEST_F(CATEGORY, set_thread_init_hook) {
-  tmc::ex_asio ex;
   std::atomic<size_t> thr = TMC_ALL_ONES;
-  ex.set_thread_init_hook([&](size_t tid) -> void { thr = tid; }).init();
+  {
+    tmc::ex_asio ex;
+    ex.set_thread_init_hook([&](size_t tid) -> void { thr = tid; }).init();
+  }
+  EXPECT_EQ(thr.load(), 0);
 }
 
 TEST_F(CATEGORY, set_thread_teardown_hook) {
-  tmc::ex_asio ex;
   std::atomic<size_t> thr = TMC_ALL_ONES;
-  ex.set_thread_teardown_hook([&](size_t tid) -> void { thr = tid; }).init();
+  {
+    tmc::ex_asio ex;
+    ex.set_thread_teardown_hook([&](size_t tid) -> void { thr = tid; }).init();
+  }
+  EXPECT_EQ(thr.load(), 0);
 }
 
 TEST_F(CATEGORY, no_init) { tmc::ex_asio ex; }
