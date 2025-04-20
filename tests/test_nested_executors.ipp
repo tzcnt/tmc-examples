@@ -183,7 +183,7 @@ TEST_F(CATEGORY, test_spawn_func_fork_run_resume) {
 
     EXPECT_EQ(tmc::detail::this_thread::executor, ex().type_erased());
 
-    auto t2 = tmc::spawn_func([]() -> void {}).resume_on(localEx);
+    auto t2 = tmc::spawn_func([]() -> void {}).resume_on(localEx).fork();
     std::this_thread::sleep_for(std::chrono::milliseconds(1));
     EXPECT_EQ(tmc::detail::this_thread::executor, ex().type_erased());
     co_await std::move(t2);
@@ -278,7 +278,7 @@ TEST_F(CATEGORY, test_spawn_many_fork_run_resume) {
       co_return;
     }(localEx.type_erased());
 
-    auto t1 = tmc::spawn_many(tasks).run_on(localEx);
+    auto t1 = tmc::spawn_many(tasks).run_on(localEx).fork();
 
     std::this_thread::sleep_for(std::chrono::milliseconds(1));
 
@@ -287,7 +287,7 @@ TEST_F(CATEGORY, test_spawn_many_fork_run_resume) {
     EXPECT_EQ(tmc::detail::this_thread::executor, ex().type_erased());
 
     tasks[0] = []() -> tmc::task<void> { co_return; }();
-    auto t2 = tmc::spawn_many(tasks).resume_on(localEx);
+    auto t2 = tmc::spawn_many(tasks).resume_on(localEx).fork();
     std::this_thread::sleep_for(std::chrono::milliseconds(1));
     EXPECT_EQ(tmc::detail::this_thread::executor, ex().type_erased());
     co_await std::move(t2);
