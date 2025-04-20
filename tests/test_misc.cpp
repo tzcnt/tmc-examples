@@ -61,11 +61,15 @@ TEST_F(CATEGORY, qu_inbox_try_push_full) {
   test_async_main(ex(), []() -> tmc::task<void> {
     atomic_awaitable<int> aa(0, 32000);
     for (size_t i = 0; i < 32000; ++i) {
-      tmc::post(ex(), [](atomic_awaitable<int>& AA) -> tmc::task<void> {
-        ++AA.ref();
-        AA.ref().notify_all();
-        co_return;
-      }(aa));
+      tmc::post(
+        ex(),
+        [](atomic_awaitable<int>& AA) -> tmc::task<void> {
+          ++AA.ref();
+          AA.ref().notify_all();
+          co_return;
+        }(aa),
+        0, 0
+      );
     }
     co_await aa;
   }());
