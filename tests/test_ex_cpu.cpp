@@ -1,7 +1,10 @@
+#include "atomic_awaitable.hpp"
 #include "test_common.hpp"
 #include "tmc/current.hpp"
 
 #include <gtest/gtest.h>
+
+#include <atomic>
 
 #define CATEGORY test_ex_cpu
 
@@ -25,6 +28,65 @@ TEST_F(CATEGORY, clamp_priority) {
     1
   )
     .wait();
+}
+
+TEST_F(CATEGORY, set_prio) {
+  tmc::ex_cpu ex;
+  ex.set_priority_count(1).init();
+}
+
+TEST_F(CATEGORY, set_thread_count) {
+  tmc::ex_cpu ex;
+  ex.set_thread_count(1).init();
+  EXPECT_EQ(ex.thread_count(), 1);
+}
+
+TEST_F(CATEGORY, set_thread_init_hook) {
+  std::atomic<size_t> thr = TMC_ALL_ONES;
+  {
+    tmc::ex_cpu ex;
+    ex.set_thread_init_hook([&](size_t tid) -> void { thr = tid; })
+      .set_thread_count(1)
+      .init();
+  }
+  EXPECT_EQ(thr.load(), 0);
+}
+
+TEST_F(CATEGORY, set_thread_teardown_hook) {
+  std::atomic<size_t> thr = TMC_ALL_ONES;
+  {
+    tmc::ex_cpu ex;
+    ex.set_thread_teardown_hook([&](size_t tid) -> void { thr = tid; })
+      .set_thread_count(1)
+      .init();
+  }
+  EXPECT_EQ(thr.load(), 0);
+}
+
+#ifdef TMC_USE_HWLOC
+TEST_F(CATEGORY, set_thread_occupancy) {
+  tmc::ex_cpu ex;
+  ex.set_thread_occupancy(1.0f).init();
+}
+#endif
+
+TEST_F(CATEGORY, no_init) { tmc::ex_cpu ex; }
+
+TEST_F(CATEGORY, init_twice) {
+  tmc::ex_cpu ex;
+  ex.init();
+  ex.init();
+}
+
+TEST_F(CATEGORY, teardown_twice) {
+  tmc::ex_cpu ex;
+  ex.teardown();
+  ex.teardown();
+}
+
+TEST_F(CATEGORY, teardown_and_destroy) {
+  tmc::ex_cpu ex;
+  ex.teardown();
 }
 
 #include "test_executors.ipp"

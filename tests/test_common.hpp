@@ -34,6 +34,29 @@ template <typename Arr> tmc::task<size_t> inc_task_int(Arr& arr, size_t idx) {
   co_return idx;
 };
 
+struct destructor_counter {
+  std::atomic<size_t>* count;
+  destructor_counter(std::atomic<size_t>* C) noexcept : count{C} {}
+  destructor_counter(destructor_counter const& Other) = delete;
+  destructor_counter& operator=(destructor_counter const& Other) = delete;
+
+  destructor_counter(destructor_counter&& Other) noexcept {
+    count = Other.count;
+    Other.count = nullptr;
+  }
+  destructor_counter& operator=(destructor_counter&& Other) noexcept {
+    count = Other.count;
+    Other.count = nullptr;
+    return *this;
+  }
+
+  ~destructor_counter() {
+    if (count != nullptr) {
+      ++(*count);
+    }
+  }
+};
+
 // test_async_main_int is similar to tmc::async_main
 // it returns an int value to be used as an "exit code"
 template <typename Executor>

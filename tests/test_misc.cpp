@@ -8,6 +8,8 @@
 
 #include <gtest/gtest.h>
 
+#include <atomic>
+
 #define CATEGORY test_misc
 
 class CATEGORY : public testing::Test {
@@ -61,11 +63,15 @@ TEST_F(CATEGORY, qu_inbox_try_push_full) {
   test_async_main(ex(), []() -> tmc::task<void> {
     atomic_awaitable<int> aa(0, 32000);
     for (size_t i = 0; i < 32000; ++i) {
-      tmc::post(ex(), [](atomic_awaitable<int>& AA) -> tmc::task<void> {
-        ++AA.ref();
-        AA.ref().notify_all();
-        co_return;
-      }(aa));
+      tmc::post(
+        ex(),
+        [](atomic_awaitable<int>& AA) -> tmc::task<void> {
+          ++AA.ref();
+          AA.ref().notify_all();
+          co_return;
+        }(aa),
+        0, 0
+      );
     }
     co_await aa;
   }());
@@ -108,6 +114,17 @@ TEST_F(CATEGORY, post_bulk_checked_default_executor) {
   }());
 
   tmc::set_default_executor(nullptr);
+}
+
+TEST_F(CATEGORY, tiny_vec_resize_zero) {
+
+  std::atomic<size_t> count;
+  tmc::detail::tiny_vec<destructor_counter> tv;
+  tv.resize(2);
+  tv.emplace_at(0, &count);
+  tv.emplace_at(1, &count);
+  tv.resize(0);
+  EXPECT_EQ(count.load(), 2);
 }
 
 #undef CATEGORY

@@ -1,5 +1,6 @@
 #include "test_common.hpp"
 #include "tmc/asio/ex_asio.hpp"
+#include "tmc/current.hpp"
 #include "tmc/detail/thread_locals.hpp"
 #include "tmc/ex_braid.hpp"
 #include "tmc/spawn_func.hpp"
@@ -8,6 +9,9 @@
 #include "tmc/spawn_tuple.hpp"
 
 #include <gtest/gtest.h>
+
+#include <chrono>
+#include <thread>
 
 // All 3 of the tests in this file produce TSan false positives in the same way:
 // 1. Inner coro enter()s the nested executor (this is the "racing read" to
@@ -39,10 +43,20 @@
 #ifndef TSAN_ENABLED
 template <typename Executor> tmc::task<size_t> bounce(Executor& Exec) {
   size_t result = 0;
-  for (size_t i = 0; i < 100; ++i) {
+  for (size_t i = 0; i < 10; ++i) {
+    auto outerExec = tmc::current_executor();
     auto scope = co_await tmc::enter(Exec);
+    EXPECT_EQ(tmc::current_executor(), Exec.type_erased());
     ++result;
+    {
+      // Re-entering / exiting the same executor should do nothing.
+      auto innerScope = co_await tmc::enter(Exec);
+      EXPECT_EQ(tmc::current_executor(), Exec.type_erased());
+      co_await innerScope.exit();
+      EXPECT_EQ(tmc::current_executor(), Exec.type_erased());
+    }
     co_await scope.exit();
+    EXPECT_EQ(tmc::current_executor(), outerExec);
     ++result;
   }
   co_return result;
@@ -54,9 +68,9 @@ TEST_F(CATEGORY, nested_ex_cpu) {
     localEx.set_thread_count(1).init();
 
     auto result = co_await bounce(localEx);
-    EXPECT_EQ(result, 200);
+    EXPECT_EQ(result, 20);
     result = co_await tmc::spawn(bounce(ex())).run_on(localEx);
-    EXPECT_EQ(result, 200);
+    EXPECT_EQ(result, 20);
   }());
 }
 
@@ -66,9 +80,9 @@ TEST_F(CATEGORY, nested_ex_asio) {
     localEx.init();
 
     auto result = co_await bounce(localEx);
-    EXPECT_EQ(result, 200);
+    EXPECT_EQ(result, 20);
     result = co_await tmc::spawn(bounce(ex())).run_on(localEx);
-    EXPECT_EQ(result, 200);
+    EXPECT_EQ(result, 20);
   }());
 }
 
@@ -77,9 +91,9 @@ TEST_F(CATEGORY, nested_ex_braid) {
     tmc::ex_braid localEx;
 
     auto result = co_await bounce(localEx);
-    EXPECT_EQ(result, 200);
+    EXPECT_EQ(result, 20);
     result = co_await tmc::spawn(bounce(ex())).run_on(localEx);
-    EXPECT_EQ(result, 200);
+    EXPECT_EQ(result, 20);
   }());
 }
 
@@ -114,6 +128,36 @@ TEST_F(CATEGORY, test_spawn_run_resume) {
   }());
 }
 
+TEST_F(CATEGORY, test_spawn_fork_run_resume) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    tmc::ex_cpu localEx;
+    localEx.set_thread_count(1).init();
+
+    auto t1 = tmc::spawn([](tmc::ex_any* Ex) -> tmc::task<void> {
+                EXPECT_EQ(tmc::detail::this_thread::executor, Ex);
+                co_return;
+              }(localEx.type_erased()))
+                .run_on(localEx)
+                .fork();
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+
+    co_await std::move(t1);
+
+    EXPECT_EQ(tmc::detail::this_thread::executor, ex().type_erased());
+
+    auto t2 = tmc::spawn([]() -> tmc::task<void> { co_return; }())
+                .resume_on(localEx)
+                .fork();
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    EXPECT_EQ(tmc::detail::this_thread::executor, ex().type_erased());
+    co_await std::move(t2);
+    EXPECT_EQ(tmc::detail::this_thread::executor, localEx.type_erased());
+
+    co_await tmc::resume_on(ex());
+  }());
+}
+
 TEST_F(CATEGORY, test_spawn_func_run_resume) {
   test_async_main(ex(), []() -> tmc::task<void> {
     tmc::ex_cpu localEx;
@@ -126,6 +170,34 @@ TEST_F(CATEGORY, test_spawn_func_run_resume) {
     EXPECT_EQ(tmc::detail::this_thread::executor, ex().type_erased());
 
     co_await tmc::spawn_func([]() -> void {}).resume_on(localEx);
+    EXPECT_EQ(tmc::detail::this_thread::executor, localEx.type_erased());
+
+    co_await tmc::resume_on(ex());
+  }());
+}
+
+TEST_F(CATEGORY, test_spawn_func_fork_run_resume) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    tmc::ex_cpu localEx;
+    localEx.set_thread_count(1).init();
+
+    auto t1 =
+      tmc::spawn_func([&]() -> void {
+        EXPECT_EQ(tmc::detail::this_thread::executor, localEx.type_erased());
+      })
+        .run_on(localEx)
+        .fork();
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+
+    co_await std::move(t1);
+
+    EXPECT_EQ(tmc::detail::this_thread::executor, ex().type_erased());
+
+    auto t2 = tmc::spawn_func([]() -> void {}).resume_on(localEx).fork();
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    EXPECT_EQ(tmc::detail::this_thread::executor, ex().type_erased());
+    co_await std::move(t2);
     EXPECT_EQ(tmc::detail::this_thread::executor, localEx.type_erased());
 
     co_await tmc::resume_on(ex());
@@ -153,6 +225,36 @@ TEST_F(CATEGORY, test_spawn_tuple_run_resume) {
   }());
 }
 
+TEST_F(CATEGORY, test_spawn_tuple_fork_run_resume) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    tmc::ex_cpu localEx;
+    localEx.set_thread_count(1).init();
+
+    auto t1 = tmc::spawn_tuple([](tmc::ex_any* Ex) -> tmc::task<void> {
+                EXPECT_EQ(tmc::detail::this_thread::executor, Ex);
+                co_return;
+              }(localEx.type_erased()))
+                .run_on(localEx)
+                .fork();
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+
+    co_await std::move(t1);
+
+    EXPECT_EQ(tmc::detail::this_thread::executor, ex().type_erased());
+
+    auto t2 = tmc::spawn_tuple([]() -> tmc::task<void> { co_return; }())
+                .resume_on(localEx)
+                .fork();
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    EXPECT_EQ(tmc::detail::this_thread::executor, ex().type_erased());
+    co_await std::move(t2);
+    EXPECT_EQ(tmc::detail::this_thread::executor, localEx.type_erased());
+
+    co_await tmc::resume_on(ex());
+  }());
+}
+
 TEST_F(CATEGORY, test_spawn_many_run_resume) {
   test_async_main(ex(), []() -> tmc::task<void> {
     tmc::ex_cpu localEx;
@@ -170,6 +272,36 @@ TEST_F(CATEGORY, test_spawn_many_run_resume) {
 
     tasks[0] = []() -> tmc::task<void> { co_return; }();
     co_await tmc::spawn_many(tasks).resume_on(localEx);
+    EXPECT_EQ(tmc::detail::this_thread::executor, localEx.type_erased());
+
+    co_await tmc::resume_on(ex());
+  }());
+}
+
+TEST_F(CATEGORY, test_spawn_many_fork_run_resume) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    tmc::ex_cpu localEx;
+    localEx.set_thread_count(1).init();
+
+    std::array<tmc::task<void>, 1> tasks;
+    tasks[0] = [](tmc::ex_any* Ex) -> tmc::task<void> {
+      EXPECT_EQ(tmc::detail::this_thread::executor, Ex);
+      co_return;
+    }(localEx.type_erased());
+
+    auto t1 = tmc::spawn_many(tasks).run_on(localEx).fork();
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+
+    co_await std::move(t1);
+
+    EXPECT_EQ(tmc::detail::this_thread::executor, ex().type_erased());
+
+    tasks[0] = []() -> tmc::task<void> { co_return; }();
+    auto t2 = tmc::spawn_many(tasks).resume_on(localEx).fork();
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    EXPECT_EQ(tmc::detail::this_thread::executor, ex().type_erased());
+    co_await std::move(t2);
     EXPECT_EQ(tmc::detail::this_thread::executor, localEx.type_erased());
 
     co_await tmc::resume_on(ex());
