@@ -5,6 +5,10 @@
 #include <gtest/gtest.h>
 #include <optional>
 
+#ifdef TSAN_ENABLED
+#include "sanitizer/tsan_interface.h"
+#endif
+
 #define CATEGORY test_ex_braid
 
 class CATEGORY : public testing::Test {
@@ -16,24 +20,15 @@ protected:
   }
 
   static void TearDownTestSuite() {
+#ifdef TSAN_ENABLED
+    __tsan_acquire(&braid);
+#endif
     braid.reset();
     tmc::cpu_executor().teardown();
   }
 
   static tmc::ex_braid& ex() { return *braid; }
 };
-TEST_F(CATEGORY, destroy_running_braid) {
-  test_async_main(ex(), []() -> tmc::task<void> {
-    tmc::ex_braid br;
-    co_await tmc::enter(br);
-    EXPECT_EQ(tmc::detail::this_thread::executor, br.type_erased());
-    // The braid will be destroyed at the end of this coroutine.
-    // Afterward, the coroutine will return, and the call stack will be inside
-    // of try_run_loop, a member function of the destroyed braid.
-    // A separately allocated boolean is used to track when this occurs and exit
-    // the runloop safely.
-  }());
-}
 
 #include "test_executors.ipp"
 #include "test_nested_executors.ipp"
@@ -47,5 +42,22 @@ TEST_F(CATEGORY, destroy_running_braid) {
 #include "test_spawn_many_each.ipp"
 #include "test_spawn_many_fork.ipp"
 #include "test_spawn_tuple.ipp"
+
+TEST_F(CATEGORY, destroy_running_braid) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    tmc::ex_braid br;
+    co_await tmc::enter(br);
+    EXPECT_EQ(tmc::detail::this_thread::executor, br.type_erased());
+    // The braid will be destroyed at the end of this coroutine.
+    // Afterward, the coroutine will return, and the call stack will be inside
+    // of try_run_loop, a member function of the destroyed braid.
+    // A separately allocated boolean is used to track when this occurs and exit
+    // the runloop safely.
+  }());
+
+#ifdef TSAN_ENABLED
+  __tsan_release(&ex());
+#endif
+}
 
 #undef CATEGORY

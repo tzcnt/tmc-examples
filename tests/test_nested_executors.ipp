@@ -34,11 +34,6 @@
 // Unfortunately none of these approaches worked. Perhaps the coroutine
 // nature of the functions confuses the name-matching behavior of TSan.
 // For now I have simply disabled these tests under TSan.
-#if defined(__has_feature)
-#if __has_feature(thread_sanitizer)
-#define TSAN_ENABLED
-#endif
-#endif
 
 #ifndef TSAN_ENABLED
 template <typename Executor> tmc::task<size_t> bounce(Executor& Exec) {

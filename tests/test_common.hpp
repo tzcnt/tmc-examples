@@ -3,6 +3,12 @@
 #include "tmc/all_headers.hpp" // IWYU pragma: export
 #include "tmc/utils.hpp"       // IWYU pragma: export
 
+#if defined(__has_feature)
+#if __has_feature(thread_sanitizer)
+#define TSAN_ENABLED
+#endif
+#endif
+
 static inline tmc::task<void> empty_task() { co_return; }
 
 static inline tmc::task<int> int_task() { co_return 1; }
