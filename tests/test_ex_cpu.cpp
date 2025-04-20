@@ -40,11 +40,6 @@ TEST_F(CATEGORY, set_thread_count) {
   EXPECT_EQ(ex.thread_count(), 1);
 }
 
-TEST_F(CATEGORY, set_thread_occupancy) {
-  tmc::ex_cpu ex;
-  ex.set_thread_occupancy(1.0f).init();
-}
-
 TEST_F(CATEGORY, set_thread_init_hook) {
   tmc::ex_cpu ex;
   std::atomic<size_t> thr = TMC_ALL_ONES;
@@ -56,6 +51,13 @@ TEST_F(CATEGORY, set_thread_teardown_hook) {
   std::atomic<size_t> thr = TMC_ALL_ONES;
   ex.set_thread_teardown_hook([&](size_t tid) -> void { thr = tid; }).init();
 }
+
+#ifdef TMC_USE_HWLOC
+TEST_F(CATEGORY, set_thread_occupancy) {
+  tmc::ex_cpu ex;
+  ex.set_thread_occupancy(1.0f).init();
+}
+#endif
 
 TEST_F(CATEGORY, no_init) { tmc::ex_cpu ex; }
 
