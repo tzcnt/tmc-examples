@@ -6,6 +6,7 @@
 #include <optional>
 
 #include <gtest/gtest.h>
+#include <thread>
 
 #define CATEGORY test_channel
 
@@ -35,8 +36,7 @@ void do_chan_test(Executor& Exec, size_t HeavyLoadThreshold, bool ReuseBlocks) {
 
     auto chan = tmc::make_channel<size_t, chan_config<PackingLevel>>()
                   .set_reuse_blocks(Reuse)
-                  .set_heavy_load_threshold(Threshold)
-                  .set_consumer_spins(1);
+                  .set_heavy_load_threshold(Threshold);
 
     auto results = co_await tmc::spawn_tuple(
       [](auto Chan) -> tmc::task<size_t> {
@@ -151,6 +151,21 @@ TEST_F(CATEGORY, destroy_chan_with_data) {
     }
     // Now chan goes out of scope; remaining data's destructors are called
     EXPECT_EQ(count.load(), 10);
+  }());
+}
+
+TEST_F(CATEGORY, spin_wait_consumer) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    auto chan = tmc::make_channel<int>().set_consumer_spins(TMC_ALL_ONES);
+    auto cons = tmc::spawn([](auto Chan) -> tmc::task<void> {
+                  auto v = co_await Chan.pull();
+                  EXPECT_TRUE(v.has_value());
+                  EXPECT_EQ(v.value(), 5);
+                }(chan))
+                  .fork();
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    chan.post(5);
+    co_await std::move(cons);
   }());
 }
 
