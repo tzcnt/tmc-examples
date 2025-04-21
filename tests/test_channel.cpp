@@ -35,7 +35,8 @@ void do_chan_test(Executor& Exec, size_t HeavyLoadThreshold, bool ReuseBlocks) {
 
     auto chan = tmc::make_channel<size_t, chan_config<PackingLevel>>()
                   .set_reuse_blocks(Reuse)
-                  .set_heavy_load_threshold(Threshold);
+                  .set_heavy_load_threshold(Threshold)
+                  .set_consumer_spins(1);
 
     auto results = co_await tmc::spawn_tuple(
       [](auto Chan) -> tmc::task<size_t> {
