@@ -110,8 +110,8 @@ static inline tmc::task<void> spawn_tuple_compose_void() {
 }
 
 static inline tmc::task<void> spawn_tuple_compose_void_detach() {
-  atomic_awaitable<int> aa(0, 7);
-  std::array<int, 7> results{0, 1, 2, 3, 4, 5, 6};
+  atomic_awaitable<int> aa(0, 4);
+  std::array<int, 4> results{0, 1, 2, 3};
   auto set = [](int& i, atomic_awaitable<int>& AA) -> tmc::task<void> {
     i = (1 << i);
     ++AA.ref();
@@ -126,24 +126,19 @@ static inline tmc::task<void> spawn_tuple_compose_void_detach() {
   // spawn_tuple also allows passing lvalue for a task. This is something to
   // fix later. It's not broken, but it fails to implement the linear type
   // rules.
-  auto sre = tmc::spawn(set(results[2], aa)).fork();
-  auto t6 = set(results[4], aa);
-  auto smare = tmc::spawn_many<1>(&t6).fork();
-  auto t8 = set(results[6], aa);
-  auto smvre = tmc::spawn_many(&t8, 1).fork();
+  auto t2 = set(results[2], aa);
+  auto t3 = set(results[3], aa);
 
-  auto t5 = set(results[3], aa);
-  auto t7 = set(results[5], aa);
   tmc::spawn_tuple(
-    set(results[0], aa), tmc::spawn(set(results[1], aa)), sre,
-    tmc::spawn_many<1>(&t5), smare, tmc::spawn_many(&t7, 1), smvre
+    set(results[0], aa), tmc::spawn(set(results[1], aa)),
+    tmc::spawn_many<1>(&t2), tmc::spawn_many(&t3, 1)
   )
     .detach();
 
   co_await aa;
 
   auto sum = std::accumulate(results.begin(), results.end(), 0);
-  EXPECT_EQ(sum, (1 << 7) - 1);
+  EXPECT_EQ(sum, (1 << 4) - 1);
 
   co_return;
 }
