@@ -163,7 +163,7 @@ TEST_F(CATEGORY, spin_wait_consumer) {
                   EXPECT_EQ(v.value(), 5);
                 }(chan))
                   .fork();
-    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
     chan.post(5);
     co_await std::move(cons);
   }());

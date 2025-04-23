@@ -151,7 +151,7 @@ TEST_F(CATEGORY, spawn_tuple_each_resume_after) {
                 make_task(3, aa), make_task(4, aa)
     )
                 .result_each();
-    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
     co_await aa;
     int sum = 0;
     for (auto idx = co_await ts; idx != ts.end(); idx = co_await ts) {
