@@ -3,6 +3,7 @@
 
 #include <gtest/gtest.h>
 
+#include <functional>
 #include <numeric>
 #include <ranges>
 #include <vector>
@@ -253,5 +254,12 @@ TEST_F(CATEGORY, spawn_func_many_dynamic_unknown_sized_iterator) {
 TEST_F(CATEGORY, spawn_func_many_dynamic_bounded_iterator) {
   test_async_main(ex(), []() -> tmc::task<void> {
     co_await spawn_func_many_dynamic_bounded_iterator<5>();
+  }());
+}
+
+TEST_F(CATEGORY, spawn_func_many_empty_iterator) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    std::array<std::function<void()>, 0> tasks;
+    co_await tmc::spawn_func_many(tasks);
   }());
 }

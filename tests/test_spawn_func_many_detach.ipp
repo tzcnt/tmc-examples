@@ -224,3 +224,29 @@ TEST_F(
     );
   }());
 }
+
+TEST_F(CATEGORY, spawn_func_many_detach_empty_iterator) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    std::array<std::function<void()>, 0> tasks;
+    tmc::spawn_func_many(tasks).detach();
+    co_return;
+  }());
+}
+
+TEST_F(CATEGORY, spawn_func_many_detach_count) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    atomic_awaitable<int> counter(0, 10);
+    auto tasks = std::ranges::views::iota(0, 10) |
+                 std::ranges::views::transform([&counter](int) -> auto {
+                   return [&counter]() -> void {
+                     ++counter.ref();
+                     counter.ref().notify_all();
+                   };
+                 });
+
+    tmc::spawn_func_many(tasks.begin(), 10).detach();
+
+    co_await counter;
+    EXPECT_EQ(counter.load(), 10);
+  }());
+}

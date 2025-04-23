@@ -3,6 +3,7 @@
 
 #include <gtest/gtest.h>
 
+#include <chrono>
 #include <numeric>
 #include <ranges>
 #include <vector>
@@ -133,5 +134,48 @@ TEST_F(CATEGORY, spawn_tuple_task_each) {
     }
 
     EXPECT_EQ(sum, (1 << 3) - 1);
+  }());
+}
+
+TEST_F(CATEGORY, spawn_tuple_each_resume_after) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    auto make_task = [](int I, atomic_awaitable<size_t>& AA) -> tmc::task<int> {
+      ++AA.ref();
+      AA.ref().notify_all();
+      co_return 1 << I;
+    };
+    static constexpr int N = 5;
+    atomic_awaitable<size_t> aa(0, N);
+    auto ts = tmc::spawn_tuple(
+                make_task(0, aa), make_task(1, aa), make_task(2, aa),
+                make_task(3, aa), make_task(4, aa)
+    )
+                .result_each();
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    co_await aa;
+    int sum = 0;
+    for (auto idx = co_await ts; idx != ts.end(); idx = co_await ts) {
+      switch (idx) {
+      case 0:
+        sum += ts.get<0>();
+        break;
+      case 1:
+        sum += ts.get<1>();
+        break;
+      case 2:
+        sum += ts.get<2>();
+        break;
+      case 3:
+        sum += ts.get<3>();
+        break;
+      case 4:
+        sum += ts.get<4>();
+        break;
+      }
+    }
+
+    EXPECT_EQ(sum, (1 << N) - 1);
+
+    co_return;
   }());
 }

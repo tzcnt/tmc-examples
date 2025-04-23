@@ -263,3 +263,10 @@ TEST_F(CATEGORY, spawn_many_dynamic_bounded_iterator) {
     co_await spawn_many_dynamic_bounded_iterator<5>();
   }());
 }
+
+TEST_F(CATEGORY, spawn_many_empty_iterator) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    std::array<tmc::task<void>, 0> tasks;
+    co_await tmc::spawn_many(tasks);
+  }());
+}
