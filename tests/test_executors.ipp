@@ -1,3 +1,4 @@
+#include "atomic_awaitable.hpp"
 #include "test_common.hpp"
 
 #include <gtest/gtest.h>
@@ -546,6 +547,30 @@ TEST_F(CATEGORY, spawn_coro) {
   for (size_t i = 0; i < results.size(); ++i) {
     EXPECT_EQ(results[i], i);
   }
+}
+
+TEST_F(CATEGORY, spawn_coro_detach) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    atomic_awaitable<int> counter(0, 1);
+    tmc::spawn([](atomic_awaitable<int>& Counter) -> tmc::task<void> {
+      ++Counter.ref();
+      Counter.ref().notify_all();
+      co_return;
+    }(counter))
+      .detach();
+    co_await counter;
+  }());
+}
+
+TEST_F(CATEGORY, spawn_func_detach) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    atomic_awaitable<int> counter(0, 1);
+    tmc::spawn_func([&counter]() -> void {
+      ++counter.ref();
+      counter.ref().notify_all();
+    }).detach();
+    co_await counter;
+  }());
 }
 
 TEST_F(CATEGORY, spawn_value) {
