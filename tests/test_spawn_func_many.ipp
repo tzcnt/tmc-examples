@@ -3,6 +3,7 @@
 
 #include <gtest/gtest.h>
 
+#include <functional>
 #include <numeric>
 #include <ranges>
 #include <vector>
@@ -253,5 +254,31 @@ TEST_F(CATEGORY, spawn_func_many_dynamic_unknown_sized_iterator) {
 TEST_F(CATEGORY, spawn_func_many_dynamic_bounded_iterator) {
   test_async_main(ex(), []() -> tmc::task<void> {
     co_await spawn_func_many_dynamic_bounded_iterator<5>();
+  }());
+}
+
+TEST_F(CATEGORY, spawn_func_many_zero_size) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    std::array<std::function<void()>, 0> tasks;
+    co_await tmc::spawn_func_many(tasks.begin(), 0);
+  }());
+}
+
+TEST_F(CATEGORY, spawn_func_many_empty_iterator) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    std::array<std::function<void()>, 0> tasks;
+    co_await tmc::spawn_func_many(tasks);
+  }());
+}
+
+TEST_F(CATEGORY, spawn_func_many_empty_iterator_of_unknown_size) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    auto tasks = std::ranges::views::iota(0, 5) |
+                 std::ranges::views::filter([](int i) { return false; }) |
+                 std::ranges::views::transform([](int i) -> auto {
+                   return [i]() -> int { return func_work(i); };
+                 });
+    auto results = co_await tmc::spawn_func_many(tasks);
+    EXPECT_EQ(results.size(), 0);
   }());
 }

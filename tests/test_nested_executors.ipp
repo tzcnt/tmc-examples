@@ -34,11 +34,6 @@
 // Unfortunately none of these approaches worked. Perhaps the coroutine
 // nature of the functions confuses the name-matching behavior of TSan.
 // For now I have simply disabled these tests under TSan.
-#if defined(__has_feature)
-#if __has_feature(thread_sanitizer)
-#define TSAN_ENABLED
-#endif
-#endif
 
 #ifndef TSAN_ENABLED
 template <typename Executor> tmc::task<size_t> bounce(Executor& Exec) {
@@ -140,7 +135,7 @@ TEST_F(CATEGORY, test_spawn_fork_run_resume) {
                 .run_on(localEx)
                 .fork();
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
     co_await std::move(t1);
 
@@ -149,7 +144,7 @@ TEST_F(CATEGORY, test_spawn_fork_run_resume) {
     auto t2 = tmc::spawn([]() -> tmc::task<void> { co_return; }())
                 .resume_on(localEx)
                 .fork();
-    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
     EXPECT_EQ(tmc::detail::this_thread::executor, ex().type_erased());
     co_await std::move(t2);
     EXPECT_EQ(tmc::detail::this_thread::executor, localEx.type_erased());
@@ -188,14 +183,14 @@ TEST_F(CATEGORY, test_spawn_func_fork_run_resume) {
         .run_on(localEx)
         .fork();
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
     co_await std::move(t1);
 
     EXPECT_EQ(tmc::detail::this_thread::executor, ex().type_erased());
 
     auto t2 = tmc::spawn_func([]() -> void {}).resume_on(localEx).fork();
-    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
     EXPECT_EQ(tmc::detail::this_thread::executor, ex().type_erased());
     co_await std::move(t2);
     EXPECT_EQ(tmc::detail::this_thread::executor, localEx.type_erased());
@@ -237,7 +232,7 @@ TEST_F(CATEGORY, test_spawn_tuple_fork_run_resume) {
                 .run_on(localEx)
                 .fork();
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
     co_await std::move(t1);
 
@@ -246,7 +241,7 @@ TEST_F(CATEGORY, test_spawn_tuple_fork_run_resume) {
     auto t2 = tmc::spawn_tuple([]() -> tmc::task<void> { co_return; }())
                 .resume_on(localEx)
                 .fork();
-    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
     EXPECT_EQ(tmc::detail::this_thread::executor, ex().type_erased());
     co_await std::move(t2);
     EXPECT_EQ(tmc::detail::this_thread::executor, localEx.type_erased());
@@ -291,7 +286,7 @@ TEST_F(CATEGORY, test_spawn_many_fork_run_resume) {
 
     auto t1 = tmc::spawn_many(tasks).run_on(localEx).fork();
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
     co_await std::move(t1);
 
@@ -299,7 +294,7 @@ TEST_F(CATEGORY, test_spawn_many_fork_run_resume) {
 
     tasks[0] = []() -> tmc::task<void> { co_return; }();
     auto t2 = tmc::spawn_many(tasks).resume_on(localEx).fork();
-    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
     EXPECT_EQ(tmc::detail::this_thread::executor, ex().type_erased());
     co_await std::move(t2);
     EXPECT_EQ(tmc::detail::this_thread::executor, localEx.type_erased());

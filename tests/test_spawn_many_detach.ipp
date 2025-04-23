@@ -250,3 +250,43 @@ TEST_F(CATEGORY, spawn_many_detach_maxCount_template_greater_uncountable_iter) {
     co_await spawn_many_detach_maxCount_template_greater_uncountable_iter();
   }());
 }
+
+TEST_F(CATEGORY, spawn_many_detach_empty_iterator) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    std::array<tmc::task<void>, 0> tasks;
+    tmc::spawn_many(tasks).detach();
+    co_return;
+  }());
+}
+
+TEST_F(CATEGORY, spawn_many_detach_empty_iterator_of_unknown_size) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    auto tasks = std::ranges::views::iota(0, 5) |
+                 std::ranges::views::filter([](int i) { return false; }) |
+                 std::ranges::views::transform([](int i) -> tmc::task<void> {
+                   co_return;
+                 });
+    tmc::spawn_many(tasks).detach();
+    co_return;
+  }());
+}
+
+TEST_F(CATEGORY, spawn_many_detach_count) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    atomic_awaitable<int> counter(0, 10);
+    auto tasks =
+      std::ranges::views::iota(0, 10) |
+      std::ranges::views::transform([&counter](int) -> tmc::task<void> {
+        return [](std::atomic<int>& Counter) -> tmc::task<void> {
+          ++Counter;
+          Counter.notify_all();
+          co_return;
+        }(counter);
+      });
+
+    tmc::spawn_many(tasks.begin(), 10).detach();
+
+    co_await counter;
+    EXPECT_EQ(counter.load(), 10);
+  }());
+}

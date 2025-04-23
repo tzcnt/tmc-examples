@@ -263,3 +263,27 @@ TEST_F(CATEGORY, spawn_many_dynamic_bounded_iterator) {
     co_await spawn_many_dynamic_bounded_iterator<5>();
   }());
 }
+
+TEST_F(CATEGORY, spawn_many_zero_size) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    std::array<tmc::task<void>, 0> tasks;
+    co_await tmc::spawn_many(tasks.begin(), 0);
+  }());
+}
+
+TEST_F(CATEGORY, spawn_many_empty_iterator) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    std::array<tmc::task<void>, 0> tasks;
+    co_await tmc::spawn_many(tasks);
+  }());
+}
+
+TEST_F(CATEGORY, spawn_many_empty_iterator_of_unknown_size) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    auto tasks = std::ranges::views::iota(0, 5) |
+                 std::ranges::views::filter([](int i) { return false; }) |
+                 std::ranges::views::transform(work);
+    auto results = co_await tmc::spawn_many(tasks);
+    EXPECT_EQ(results.size(), 0);
+  }());
+}

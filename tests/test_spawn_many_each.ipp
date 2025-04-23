@@ -1,3 +1,4 @@
+#include "atomic_awaitable.hpp"
 #include "test_common.hpp"
 #include "test_spawn_many_common.hpp"
 
@@ -226,5 +227,36 @@ TEST_F(CATEGORY, spawn_many_each_dynamic_unknown_sized_iterator) {
 TEST_F(CATEGORY, spawn_many_each_dynamic_bounded_iterator) {
   test_async_main(ex(), []() -> tmc::task<void> {
     co_await spawn_many_each_dynamic_bounded_iterator<5>();
+  }());
+}
+
+TEST_F(CATEGORY, spawn_many_each_resume_after) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    static constexpr int N = 5;
+    for (int i = 0; i < N; ++i) {
+      atomic_awaitable<size_t> aa(0, i);
+      auto iter =
+        std::ranges::views::iota(0, i) |
+        std::ranges::views::transform([&](int i) -> tmc::task<int> {
+          return [](int I, atomic_awaitable<size_t>& AA) -> tmc::task<int> {
+            ++AA.ref();
+            AA.ref().notify_all();
+            co_return 1 << I;
+          }(i, aa);
+        });
+      auto ts = tmc::spawn_many(iter).result_each();
+      co_await aa;
+      std::vector<int> results(i, 0);
+      for (auto idx = co_await ts; idx != ts.end(); idx = co_await ts) {
+        results[idx] = ts[idx];
+      }
+
+      [[maybe_unused]] auto sum =
+        std::accumulate(results.begin(), results.end(), 0);
+
+      EXPECT_EQ(sum, (1 << i) - 1);
+    }
+
+    co_return;
   }());
 }
