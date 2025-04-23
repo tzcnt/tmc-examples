@@ -259,6 +259,18 @@ TEST_F(CATEGORY, spawn_many_detach_empty_iterator) {
   }());
 }
 
+TEST_F(CATEGORY, spawn_many_detach_empty_iterator_of_unknown_size) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    auto tasks = std::ranges::views::iota(0, 5) |
+                 std::ranges::views::filter([](int i) { return false; }) |
+                 std::ranges::views::transform([](int i) -> tmc::task<void> {
+                   co_return;
+                 });
+    tmc::spawn_many(tasks).detach();
+    co_return;
+  }());
+}
+
 TEST_F(CATEGORY, spawn_many_detach_count) {
   test_async_main(ex(), []() -> tmc::task<void> {
     atomic_awaitable<int> counter(0, 10);
