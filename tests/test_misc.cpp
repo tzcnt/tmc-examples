@@ -3,6 +3,7 @@
 
 #include "atomic_awaitable.hpp"
 #include "test_common.hpp"
+#include "tmc/detail/qu_inbox.hpp"
 #include "tmc/external.hpp"
 #include "tmc/sync.hpp"
 
@@ -51,7 +52,7 @@ TEST_F(CATEGORY, qu_lockfree_expand_explicit_producer_index) {
   }());
 }
 
-TEST_F(CATEGORY, qu_inbox_try_push_bulk) {
+TEST_F(CATEGORY, overfull_thread_hint_push_bulk) {
   auto t1 = tmc::post_bulk_waitable(
     ex(), tmc::iter_adapter(0, [](int i) -> tmc::task<void> { co_return; }),
     32000, 0, 0
@@ -59,7 +60,7 @@ TEST_F(CATEGORY, qu_inbox_try_push_bulk) {
   t1.wait();
 }
 
-TEST_F(CATEGORY, qu_inbox_try_push_full) {
+TEST_F(CATEGORY, overfull_thread_hint_push) {
   test_async_main(ex(), []() -> tmc::task<void> {
     atomic_awaitable<int> aa(32000);
     for (size_t i = 0; i < 32000; ++i) {
@@ -114,7 +115,6 @@ TEST_F(CATEGORY, post_bulk_checked_default_executor) {
 }
 
 TEST_F(CATEGORY, tiny_vec_resize_zero) {
-
   std::atomic<size_t> count;
   tmc::detail::tiny_vec<destructor_counter> tv;
   tv.resize(2);
@@ -122,6 +122,30 @@ TEST_F(CATEGORY, tiny_vec_resize_zero) {
   tv.emplace_at(1, &count);
   tv.resize(0);
   EXPECT_EQ(count.load(), 2);
+}
+
+TEST_F(CATEGORY, ex_any_default_constructor) { tmc::ex_any e; }
+
+TEST_F(CATEGORY, qu_inbox_full) {
+  tmc::detail::qu_inbox<int, 4> q;
+  std::array<int, 5> vs{0, 1, 2, 3, 4};
+  auto count = q.try_push_bulk(vs.data(), 5);
+  EXPECT_EQ(count, 4);
+  EXPECT_EQ(q.try_push(vs[4]), false);
+  int v;
+  EXPECT_EQ(q.try_pull(v), true);
+  EXPECT_EQ(v, 0);
+  EXPECT_EQ(q.try_pull(v), true);
+  EXPECT_EQ(v, 1);
+  EXPECT_EQ(q.try_pull(v), true);
+  EXPECT_EQ(v, 2);
+  EXPECT_EQ(q.try_pull(v), true);
+  EXPECT_EQ(v, 3);
+  EXPECT_EQ(q.try_pull(v), false);
+  EXPECT_EQ(q.try_push(vs[4]), true);
+  EXPECT_EQ(q.try_pull(v), true);
+  EXPECT_EQ(v, 4);
+  EXPECT_EQ(q.try_pull(v), false);
 }
 
 #undef CATEGORY

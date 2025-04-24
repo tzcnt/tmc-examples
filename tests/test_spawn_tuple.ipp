@@ -27,6 +27,74 @@ TEST_F(CATEGORY, spawn_tuple_task_detach) {
   }());
 }
 
+TEST_F(CATEGORY, spawn_tuple_task_each) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    auto ts = tmc::spawn_tuple(work(0), work(1), work(2));
+    auto each = std::move(ts).result_each();
+
+    int sum = 0;
+    for (size_t i = co_await each; i != each.end(); i = co_await each) {
+      switch (i) {
+      case 0:
+        sum += each.get<0>();
+        break;
+      case 1:
+        sum += each.get<1>();
+        break;
+      case 2:
+        sum += each.get<2>();
+        break;
+      default:
+        ADD_FAILURE() << "invalid index: " << i;
+        break;
+      }
+    }
+
+    EXPECT_EQ(sum, (1 << 3) - 1);
+  }());
+}
+
+TEST_F(CATEGORY, spawn_tuple_each_resume_after) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    auto make_task = [](int I, atomic_awaitable<size_t>& AA) -> tmc::task<int> {
+      AA.inc();
+      co_return 1 << I;
+    };
+    static constexpr int N = 5;
+    atomic_awaitable<size_t> aa(N);
+    auto ts = tmc::spawn_tuple(
+                make_task(0, aa), make_task(1, aa), make_task(2, aa),
+                make_task(3, aa), make_task(4, aa)
+    )
+                .result_each();
+    co_await aa;
+    int sum = 0;
+    for (auto idx = co_await ts; idx != ts.end(); idx = co_await ts) {
+      switch (idx) {
+      case 0:
+        sum += ts.get<0>();
+        break;
+      case 1:
+        sum += ts.get<1>();
+        break;
+      case 2:
+        sum += ts.get<2>();
+        break;
+      case 3:
+        sum += ts.get<3>();
+        break;
+      case 4:
+        sum += ts.get<4>();
+        break;
+      }
+    }
+
+    EXPECT_EQ(sum, (1 << N) - 1);
+
+    co_return;
+  }());
+}
+
 TEST_F(CATEGORY, spawn_tuple_empty) {
   test_async_main(ex(), []() -> tmc::task<void> {
     std::tuple<> results = co_await tmc::spawn_tuple();
@@ -102,73 +170,5 @@ TEST_F(CATEGORY, spawn_tuple_task_fork) {
       std::get<0>(results) + std::get<1>(results) + std::get<2>(results);
 
     EXPECT_EQ(sum, (1 << 3) - 1);
-  }());
-}
-
-TEST_F(CATEGORY, spawn_tuple_task_each) {
-  test_async_main(ex(), []() -> tmc::task<void> {
-    auto ts = tmc::spawn_tuple(work(0), work(1), work(2));
-    auto each = std::move(ts).result_each();
-
-    int sum = 0;
-    for (size_t i = co_await each; i != each.end(); i = co_await each) {
-      switch (i) {
-      case 0:
-        sum += each.get<0>();
-        break;
-      case 1:
-        sum += each.get<1>();
-        break;
-      case 2:
-        sum += each.get<2>();
-        break;
-      default:
-        ADD_FAILURE() << "invalid index: " << i;
-        break;
-      }
-    }
-
-    EXPECT_EQ(sum, (1 << 3) - 1);
-  }());
-}
-
-TEST_F(CATEGORY, spawn_tuple_each_resume_after) {
-  test_async_main(ex(), []() -> tmc::task<void> {
-    auto make_task = [](int I, atomic_awaitable<size_t>& AA) -> tmc::task<int> {
-      AA.inc();
-      co_return 1 << I;
-    };
-    static constexpr int N = 5;
-    atomic_awaitable<size_t> aa(N);
-    auto ts = tmc::spawn_tuple(
-                make_task(0, aa), make_task(1, aa), make_task(2, aa),
-                make_task(3, aa), make_task(4, aa)
-    )
-                .result_each();
-    co_await aa;
-    int sum = 0;
-    for (auto idx = co_await ts; idx != ts.end(); idx = co_await ts) {
-      switch (idx) {
-      case 0:
-        sum += ts.get<0>();
-        break;
-      case 1:
-        sum += ts.get<1>();
-        break;
-      case 2:
-        sum += ts.get<2>();
-        break;
-      case 3:
-        sum += ts.get<3>();
-        break;
-      case 4:
-        sum += ts.get<4>();
-        break;
-      }
-    }
-
-    EXPECT_EQ(sum, (1 << N) - 1);
-
-    co_return;
   }());
 }
