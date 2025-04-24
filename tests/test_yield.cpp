@@ -31,7 +31,6 @@ TEST_F(CATEGORY, yield) {
       data[i] = 0;
     }
     std::array<std::future<void>, Count> results;
-    auto preTime = std::chrono::high_resolution_clock::now();
     size_t slot = 0;
     for (size_t slot = 0; slot < Count;) {
       for (size_t prio = PriorityCount - 1; prio != static_cast<size_t>(-1);
@@ -79,7 +78,6 @@ TEST_F(CATEGORY, yield_if_requested) {
       data[i] = 0;
     }
     std::array<std::future<void>, Count> results;
-    auto preTime = std::chrono::high_resolution_clock::now();
     size_t slot = 0;
     for (size_t slot = 0; slot < Count;) {
       for (size_t prio = PriorityCount - 1; prio != static_cast<size_t>(-1);
@@ -125,7 +123,6 @@ TEST_F(CATEGORY, yield_counter) {
       data[i] = 0;
     }
     std::array<std::future<void>, Count> results;
-    auto preTime = std::chrono::high_resolution_clock::now();
     size_t slot = 0;
     for (size_t slot = 0; slot < Count;) {
       for (size_t prio = PriorityCount - 1; prio != static_cast<size_t>(-1);
@@ -173,7 +170,6 @@ TEST_F(CATEGORY, yield_counter_dynamic) {
       data[i] = 0;
     }
     std::array<std::future<void>, Count> results;
-    auto preTime = std::chrono::high_resolution_clock::now();
     size_t slot = 0;
     for (size_t slot = 0; slot < Count;) {
       for (size_t prio = PriorityCount - 1; prio != static_cast<size_t>(-1);

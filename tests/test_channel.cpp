@@ -2,8 +2,10 @@
 #include "tmc/channel.hpp"
 #include "tmc/detail/compat.hpp"
 
+#include <chrono>
 #include <cstddef>
 #include <optional>
+#include <thread>
 
 #include <gtest/gtest.h>
 #include <thread>

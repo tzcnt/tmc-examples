@@ -11,7 +11,7 @@
 // Test detach() when the maxCount is less than the number of tasks in the
 // iterator.
 static inline tmc::task<void> spawn_many_detach_maxCount_less() {
-  atomic_awaitable<int> counter(0, 5);
+  atomic_awaitable<int> counter(5);
 
   auto tasks =
     std::ranges::views::iota(0, 10) |
@@ -33,7 +33,7 @@ static inline tmc::task<void> spawn_many_detach_maxCount_less() {
 // Test detach() when the maxCount is greater than the number of tasks in the
 // iterator.
 static inline tmc::task<void> spawn_many_detach_maxCount_greater() {
-  atomic_awaitable<int> counter(0, 10);
+  atomic_awaitable<int> counter(10);
 
   auto tasks =
     std::ranges::views::iota(0, 10) |
@@ -56,7 +56,7 @@ static inline tmc::task<void> spawn_many_detach_maxCount_greater() {
 // Test detach() when the Count is less than the number of tasks in the
 // iterator.
 static inline tmc::task<void> spawn_many_detach_maxCount_template_less() {
-  atomic_awaitable<int> counter(0, 5);
+  atomic_awaitable<int> counter(5);
 
   auto tasks =
     std::ranges::views::iota(0, 10) |
@@ -79,7 +79,7 @@ static inline tmc::task<void> spawn_many_detach_maxCount_template_less() {
 // Test detach() when the Count is greater than the number of tasks in the
 // iterator.
 static inline tmc::task<void> spawn_many_detach_maxCount_template_greater() {
-  atomic_awaitable<int> counter(0, 10);
+  atomic_awaitable<int> counter(10);
 
   auto tasks =
     std::ranges::views::iota(0, 10) |
@@ -103,7 +103,7 @@ static inline tmc::task<void> spawn_many_detach_maxCount_template_greater() {
 // iterator.
 static inline tmc::task<void>
 spawn_many_detach_maxCount_less_uncountable_iter() {
-  atomic_awaitable<int> counter(0, 5);
+  atomic_awaitable<int> counter(5);
 
   // Iterator contains 9 tasks but end() - begin() doesn't compile
   auto tasks =
@@ -129,7 +129,7 @@ spawn_many_detach_maxCount_less_uncountable_iter() {
 // iterator.
 static inline tmc::task<void>
 spawn_many_detach_maxCount_greater_uncountable_iter() {
-  atomic_awaitable<int> counter(0, 9);
+  atomic_awaitable<int> counter(9);
 
   // Iterator contains 9 tasks but end() - begin() doesn't compile
   auto tasks =
@@ -155,7 +155,7 @@ spawn_many_detach_maxCount_greater_uncountable_iter() {
 // iterator.
 static inline tmc::task<void>
 spawn_many_detach_maxCount_template_less_uncountable_iter() {
-  atomic_awaitable<int> counter(0, 5);
+  atomic_awaitable<int> counter(5);
 
   // Iterator contains 9 tasks but end() - begin() doesn't compile
   auto tasks =
@@ -181,7 +181,7 @@ spawn_many_detach_maxCount_template_less_uncountable_iter() {
 // iterator.
 static inline tmc::task<void>
 spawn_many_detach_maxCount_template_greater_uncountable_iter() {
-  atomic_awaitable<int> counter(0, 9);
+  atomic_awaitable<int> counter(9);
 
   // Iterator contains 9 tasks but end() - begin() doesn't compile
   auto tasks =
@@ -273,7 +273,7 @@ TEST_F(CATEGORY, spawn_many_detach_empty_iterator_of_unknown_size) {
 
 TEST_F(CATEGORY, spawn_many_detach_count) {
   test_async_main(ex(), []() -> tmc::task<void> {
-    atomic_awaitable<int> counter(0, 10);
+    atomic_awaitable<int> counter(10);
     auto tasks =
       std::ranges::views::iota(0, 10) |
       std::ranges::views::transform([&counter](int) -> tmc::task<void> {

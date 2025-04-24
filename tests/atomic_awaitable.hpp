@@ -26,12 +26,17 @@ template <typename T> struct atomic_awaitable : private AtomicAwaitableTag {
   std::thread thread;
   tmc::tiny_lock lock;
 
-  atomic_awaitable(T begin, T wait_until) : value(begin), until(wait_until) {
+  atomic_awaitable(T Until) : value(0), until(Until) {
     if (tmc::detail::this_thread::executor != nullptr) {
       prio = tmc::detail::this_thread::this_task.prio;
     } else {
       prio = 0;
     }
+  }
+
+  void inc() {
+    ++value;
+    value.notify_all();
   }
 
   std::atomic<T>& ref() { return value; }

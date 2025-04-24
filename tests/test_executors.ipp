@@ -551,10 +551,9 @@ TEST_F(CATEGORY, spawn_coro) {
 
 TEST_F(CATEGORY, spawn_coro_detach) {
   test_async_main(ex(), []() -> tmc::task<void> {
-    atomic_awaitable<int> counter(0, 1);
+    atomic_awaitable<int> counter(1);
     tmc::spawn([](atomic_awaitable<int>& Counter) -> tmc::task<void> {
-      ++Counter.ref();
-      Counter.ref().notify_all();
+      Counter.inc();
       co_return;
     }(counter))
       .detach();
@@ -564,11 +563,8 @@ TEST_F(CATEGORY, spawn_coro_detach) {
 
 TEST_F(CATEGORY, spawn_func_detach) {
   test_async_main(ex(), []() -> tmc::task<void> {
-    atomic_awaitable<int> counter(0, 1);
-    tmc::spawn_func([&counter]() -> void {
-      ++counter.ref();
-      counter.ref().notify_all();
-    }).detach();
+    atomic_awaitable<int> counter(1);
+    tmc::spawn_func([&counter]() -> void { counter.inc(); }).detach();
     co_await counter;
   }());
 }
