@@ -110,12 +110,12 @@ static inline tmc::task<void> spawn_tuple_compose_void() {
 }
 
 static inline tmc::task<void> spawn_tuple_compose_void_detach() {
-  atomic_awaitable<int> aa(0, 4);
+  atomic_awaitable<int> aa(4);
   std::array<int, 4> results{0, 1, 2, 3};
   auto set = [](int& i, atomic_awaitable<int>& AA) -> tmc::task<void> {
     i = (1 << i);
-    ++AA.ref();
-    AA.ref().notify_all();
+
+    AA.inc();
     co_return;
   };
 

@@ -3,16 +3,11 @@
 
 #include <gtest/gtest.h>
 
-#include <chrono>
-#include <numeric>
-#include <ranges>
-#include <vector>
-
 // tests ported from examples/spawn_iterator.cpp
 
 TEST_F(CATEGORY, spawn_tuple_task_detach) {
   test_async_main(ex(), []() -> tmc::task<void> {
-    atomic_awaitable<int> counter(0, 2);
+    atomic_awaitable<int> counter(2);
 
     auto ts = tmc::spawn_tuple(
       [](std::atomic<int>& Counter) -> tmc::task<void> {
@@ -140,18 +135,16 @@ TEST_F(CATEGORY, spawn_tuple_task_each) {
 TEST_F(CATEGORY, spawn_tuple_each_resume_after) {
   test_async_main(ex(), []() -> tmc::task<void> {
     auto make_task = [](int I, atomic_awaitable<size_t>& AA) -> tmc::task<int> {
-      ++AA.ref();
-      AA.ref().notify_all();
+      AA.inc();
       co_return 1 << I;
     };
     static constexpr int N = 5;
-    atomic_awaitable<size_t> aa(0, N);
+    atomic_awaitable<size_t> aa(N);
     auto ts = tmc::spawn_tuple(
                 make_task(0, aa), make_task(1, aa), make_task(2, aa),
                 make_task(3, aa), make_task(4, aa)
     )
                 .result_each();
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
     co_await aa;
     int sum = 0;
     for (auto idx = co_await ts; idx != ts.end(); idx = co_await ts) {

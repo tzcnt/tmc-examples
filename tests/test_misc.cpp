@@ -61,13 +61,12 @@ TEST_F(CATEGORY, qu_inbox_try_push_bulk) {
 
 TEST_F(CATEGORY, qu_inbox_try_push_full) {
   test_async_main(ex(), []() -> tmc::task<void> {
-    atomic_awaitable<int> aa(0, 32000);
+    atomic_awaitable<int> aa(32000);
     for (size_t i = 0; i < 32000; ++i) {
       tmc::post(
         ex(),
         [](atomic_awaitable<int>& AA) -> tmc::task<void> {
-          ++AA.ref();
-          AA.ref().notify_all();
+          AA.inc();
           co_return;
         }(aa),
         0, 0
@@ -81,12 +80,11 @@ TEST_F(CATEGORY, post_checked_default_executor) {
   tmc::set_default_executor(ex());
 
   test_async_main(ex(), []() -> tmc::task<void> {
-    atomic_awaitable<int> aa(0, 1);
+    atomic_awaitable<int> aa(1);
     tmc::detail::post_checked(
       nullptr,
       [](atomic_awaitable<int>& AA) -> tmc::task<void> {
-        ++AA.ref();
-        AA.ref().notify_all();
+        AA.inc();
         co_return;
       }(aa)
     );
@@ -100,12 +98,11 @@ TEST_F(CATEGORY, post_bulk_checked_default_executor) {
   tmc::set_default_executor(ex());
 
   test_async_main(ex(), []() -> tmc::task<void> {
-    atomic_awaitable<int> aa(0, 2);
+    atomic_awaitable<int> aa(2);
     std::array<tmc::work_item, 2> tasks;
     for (size_t i = 0; i < tasks.size(); ++i) {
       tasks[i] = [](atomic_awaitable<int>& AA) -> tmc::task<void> {
-        ++AA.ref();
-        AA.ref().notify_all();
+        AA.inc();
         co_return;
       }(aa);
     }
