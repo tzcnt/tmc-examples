@@ -8,6 +8,7 @@
 #include "tmc/spawn_many.hpp"
 #include "tmc/spawn_task.hpp"
 #include "tmc/spawn_tuple.hpp"
+#include "tmc/sync.hpp"
 
 #include <gtest/gtest.h>
 
@@ -412,6 +413,36 @@ TEST_F(CATEGORY, spawn_many_each_run_resume) {
 
     co_await tmc::resume_on(ex());
 
+    co_return;
+  }());
+}
+
+TEST_F(CATEGORY, post_thread_hint) {
+  tmc::post_waitable(
+    ex(),
+    [](tmc::ex_any* Ex) -> tmc::task<void> {
+      EXPECT_EQ(tmc::detail::this_thread::executor, Ex);
+      co_return;
+    }(ex().type_erased()),
+    0, 0
+  )
+    .wait();
+}
+
+TEST_F(CATEGORY, cross_post_thread_hint) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    atomic_awaitable<int> aa(1);
+    tmc::ex_cpu localEx;
+    localEx.set_thread_count(1).init();
+    tmc::post_waitable(
+      localEx,
+      [](tmc::ex_any* Ex) -> tmc::task<void> {
+        EXPECT_EQ(tmc::detail::this_thread::executor, Ex);
+        co_return;
+      }(localEx.type_erased()),
+      0, 0
+    )
+      .wait();
     co_return;
   }());
 }
