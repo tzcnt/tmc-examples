@@ -171,4 +171,29 @@ TEST_F(CATEGORY, spin_wait_consumer) {
   }());
 }
 
+TEST_F(CATEGORY, post_after_close) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    auto chan = tmc::make_channel<int>();
+    chan.close();
+    auto p = chan.post(5);
+    EXPECT_FALSE(p);
+    co_return;
+  }());
+}
+
+TEST_F(CATEGORY, drain_waiting_consumer) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    auto chan = tmc::make_channel<int>();
+    auto t = tmc::spawn([](auto Chan) -> tmc::task<void> {
+               auto v = co_await Chan.pull();
+               EXPECT_FALSE(v.has_value());
+             }(chan))
+               .fork();
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    co_await chan.drain();
+    co_await std::move(t);
+    co_return;
+  }());
+}
+
 #undef CATEGORY
