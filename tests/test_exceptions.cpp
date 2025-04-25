@@ -240,6 +240,45 @@ tmc::task<int> throwing_task_int() {
   co_return 5;
 }
 
+TEST_F(CATEGORY, wrapper_throws_no_await) {
+  {
+    bool caught = false;
+    auto t = []() -> tmc::detail::task_wrapper<void> {
+      throws();
+      co_return;
+    }();
+    // task_wrapper.resume() is noexcept - but it's type erased to a
+    // coroutine_handle<> before being resumed by the runtime, and
+    // coroutine_handle<>'s resume() is not noexcept
+    std::coroutine_handle<> tc = std::move(t);
+    try {
+      tc.resume();
+    } catch (std::runtime_error ex) {
+      EXPECT_EQ(0, strcmp(ex.what(), "foo"));
+      caught = true;
+    }
+    EXPECT_TRUE(caught);
+  }
+  {
+    bool caught = false;
+    auto t = []() -> tmc::detail::task_wrapper<int> {
+      throws();
+      co_return 1;
+    }();
+    // task_wrapper.resume() is noexcept - but it's type erased to a
+    // coroutine_handle<> before being resumed by the runtime, and
+    // coroutine_handle<>'s resume() is not noexcept
+    std::coroutine_handle<> tc = std::move(t);
+    try {
+      tc.resume();
+    } catch (std::runtime_error ex) {
+      EXPECT_EQ(0, strcmp(ex.what(), "foo"));
+      caught = true;
+    }
+    EXPECT_TRUE(caught);
+  }
+}
+
 TEST(exceptions_DeathTest, unhandled_in_main) {
   EXPECT_DEATH(
     {

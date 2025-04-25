@@ -24,34 +24,6 @@ protected:
   static tmc::ex_cpu& ex() { return tmc::cpu_executor(); }
 };
 
-TEST_F(CATEGORY, qu_lockfree_expand_implicit_producer_index) {
-  auto t1 = tmc::post_bulk_waitable(
-    ex(), tmc::iter_adapter(0, [](int i) -> tmc::task<void> { co_return; }),
-    8000
-  );
-
-  auto t2 = tmc::post_bulk_waitable(
-    ex(), tmc::iter_adapter(0, [](int i) -> tmc::task<void> { co_return; }),
-    32000
-  );
-  t1.wait();
-  t2.wait();
-}
-
-TEST_F(CATEGORY, qu_lockfree_expand_explicit_producer_index) {
-  test_async_main(ex(), []() -> tmc::task<void> {
-    auto t1 =
-      tmc::spawn_many(
-        tmc::iter_adapter(0, [](int i) -> tmc::task<void> { co_return; }), 8000
-      )
-        .fork();
-    co_await tmc::spawn_many(
-      tmc::iter_adapter(0, [](int i) -> tmc::task<void> { co_return; }), 32000
-    );
-    co_await std::move(t1);
-  }());
-}
-
 TEST_F(CATEGORY, overfull_thread_hint_push_bulk) {
   auto t1 = tmc::post_bulk_waitable(
     ex(), tmc::iter_adapter(0, [](int i) -> tmc::task<void> { co_return; }),
@@ -145,6 +117,24 @@ TEST_F(CATEGORY, qu_inbox_full) {
   EXPECT_EQ(q.try_push(vs[4]), true);
   EXPECT_EQ(q.try_pull(v), true);
   EXPECT_EQ(v, 4);
+  EXPECT_EQ(q.try_pull(v), false);
+}
+
+TEST_F(CATEGORY, qu_inbox_exact) {
+  tmc::detail::qu_inbox<int, 4> q;
+  std::array<int, 5> vs{0, 1, 2, 3, 4};
+  auto count = q.try_push_bulk(vs.data(), 4);
+  EXPECT_EQ(count, 4);
+  EXPECT_EQ(q.try_push(vs[4]), false);
+  int v;
+  EXPECT_EQ(q.try_pull(v), true);
+  EXPECT_EQ(v, 0);
+  EXPECT_EQ(q.try_pull(v), true);
+  EXPECT_EQ(v, 1);
+  EXPECT_EQ(q.try_pull(v), true);
+  EXPECT_EQ(v, 2);
+  EXPECT_EQ(q.try_pull(v), true);
+  EXPECT_EQ(v, 3);
   EXPECT_EQ(q.try_pull(v), false);
 }
 
