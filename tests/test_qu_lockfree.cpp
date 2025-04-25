@@ -51,26 +51,56 @@ TEST_F(CATEGORY, expand_explicit_producer_index) {
 }
 
 TEST_F(CATEGORY, destroy_implicit_non_empty) {
-  std::atomic<size_t> count;
+  std::atomic<size_t> destroyCount;
   {
     tmc::queue::ConcurrentQueue<destructor_counter> q;
-    q.enqueue(destructor_counter(&count));
+    q.enqueue(destructor_counter(&destroyCount));
   }
-  EXPECT_EQ(count, 1);
+  EXPECT_EQ(destroyCount, 1);
+}
+
+TEST_F(CATEGORY, destroy_implicit_non_empty_multi_block) {
+  using queue_t = tmc::queue::ConcurrentQueue<destructor_counter>;
+  auto Count = queue_t::ConcurrentQueue::PRODUCER_BLOCK_SIZE;
+  std::atomic<size_t> destroyCount;
+  {
+    tmc::queue::ConcurrentQueue<destructor_counter> q;
+    for (size_t i = 0; i < Count + 1; ++i) {
+      q.enqueue(destructor_counter(&destroyCount));
+    }
+  }
+  EXPECT_EQ(destroyCount, Count + 1);
 }
 
 TEST_F(CATEGORY, destroy_explicit_non_empty) {
   using queue_t = tmc::queue::ConcurrentQueue<destructor_counter>;
-  std::atomic<size_t> count;
+  std::atomic<size_t> destroyCount;
   {
     // mimic the way that explicit producers are used by ex_cpu
     queue_t q;
     q.staticProducers = new queue_t::ExplicitProducer[1];
     q.staticProducers[0].init(&q);
-    q.staticProducers[0].enqueue(destructor_counter(&count));
+    q.staticProducers[0].enqueue(destructor_counter(&destroyCount));
     delete[] q.staticProducers;
   }
-  EXPECT_EQ(count, 1);
+  EXPECT_EQ(destroyCount, 1);
+}
+
+TEST_F(CATEGORY, destroy_explicit_non_empty_multi_block) {
+  using queue_t = tmc::queue::ConcurrentQueue<destructor_counter>;
+  auto Count = queue_t::ConcurrentQueue::PRODUCER_BLOCK_SIZE;
+  std::atomic<size_t> destroyCount;
+  {
+    // mimic the way that explicit producers are used by ex_cpu
+    queue_t q;
+    q.staticProducers = new queue_t::ExplicitProducer[1];
+    q.staticProducers[0].init(&q);
+    for (size_t i = 0; i < Count + 1; ++i) {
+      q.staticProducers[0].enqueue(destructor_counter(&destroyCount));
+    }
+    delete[] q.staticProducers;
+  }
+  EXPECT_EQ(destroyCount, Count + 1);
 }
 
 #undef CATEGORY
