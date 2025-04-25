@@ -148,4 +148,22 @@ TEST_F(CATEGORY, qu_inbox_full) {
   EXPECT_EQ(q.try_pull(v), false);
 }
 
+TEST_F(CATEGORY, qu_inbox_exact) {
+  tmc::detail::qu_inbox<int, 4> q;
+  std::array<int, 5> vs{0, 1, 2, 3, 4};
+  auto count = q.try_push_bulk(vs.data(), 4);
+  EXPECT_EQ(count, 4);
+  EXPECT_EQ(q.try_push(vs[4]), false);
+  int v;
+  EXPECT_EQ(q.try_pull(v), true);
+  EXPECT_EQ(v, 0);
+  EXPECT_EQ(q.try_pull(v), true);
+  EXPECT_EQ(v, 1);
+  EXPECT_EQ(q.try_pull(v), true);
+  EXPECT_EQ(v, 2);
+  EXPECT_EQ(q.try_pull(v), true);
+  EXPECT_EQ(v, 3);
+  EXPECT_EQ(q.try_pull(v), false);
+}
+
 #undef CATEGORY
