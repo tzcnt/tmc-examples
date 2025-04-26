@@ -46,12 +46,12 @@ make_exe(
   test_ex_cpu.cpp
   test_ex_asio.cpp
   test_ex_braid.cpp
-  test_channel.cpp
-  test_misc.cpp
   test_prio.cpp
+  test_channel.cpp
+  test_yield.cpp
+  test_misc.cpp
   test_qu_lockfree.cpp
   test_thread_layout.cpp
-  test_yield.cpp
 )
 target_compile_definitions(tests PRIVATE TMC_NO_UNKNOWN_AWAITABLES)
 
