@@ -120,7 +120,6 @@ void do_chan_test(Executor& Exec, size_t HeavyLoadThreshold, bool ReuseBlocks) {
       chan.close();
       auto p = chan.post(5);
       EXPECT_FALSE(p);
-      co_return;
     }
     {
       // drain while there is a waiting consumer
@@ -135,7 +134,6 @@ void do_chan_test(Executor& Exec, size_t HeavyLoadThreshold, bool ReuseBlocks) {
       std::this_thread::sleep_for(std::chrono::milliseconds(10));
       co_await chan.drain();
       co_await std::move(t);
-      co_return;
     }
   }(HeavyLoadThreshold, ReuseBlocks));
 }
