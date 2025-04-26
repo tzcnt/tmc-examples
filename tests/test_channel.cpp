@@ -7,6 +7,7 @@
 #include <optional>
 #include <thread>
 
+#include <array>
 #include <gtest/gtest.h>
 #include <thread>
 
@@ -126,11 +127,14 @@ void do_chan_test(Executor& Exec, size_t HeavyLoadThreshold, bool ReuseBlocks) {
       auto chan = tmc::make_channel<size_t, chan_config<PackingLevel>>()
                     .set_reuse_blocks(Reuse)
                     .set_heavy_load_threshold(Threshold);
-      auto t = tmc::spawn([](auto Chan) -> tmc::task<void> {
-                 auto v = co_await Chan.pull();
-                 EXPECT_FALSE(v.has_value());
-               }(chan))
-                 .fork();
+      std::array<tmc::task<void>, 5> cons;
+      for (size_t i = 0; i < 5; ++i) {
+        cons[i] = [](auto Chan) -> tmc::task<void> {
+          auto v = co_await Chan.pull();
+          EXPECT_FALSE(v.has_value());
+        }(chan);
+      }
+      auto t = tmc::spawn_many<5>(cons.data()).fork();
       std::this_thread::sleep_for(std::chrono::milliseconds(10));
       co_await chan.drain();
       co_await std::move(t);
