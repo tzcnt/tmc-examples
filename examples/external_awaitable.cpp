@@ -19,7 +19,7 @@
 #include "tmc/detail/tiny_lock.hpp"
 #include "tmc/ex_cpu.hpp"
 #include "tmc/external.hpp"
-#include "tmc/spawn_task.hpp"
+#include "tmc/spawn.hpp"
 #include "tmc/sync.hpp"
 #include "tmc/task.hpp"
 

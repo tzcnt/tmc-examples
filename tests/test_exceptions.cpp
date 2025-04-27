@@ -10,7 +10,7 @@
 #include "tmc/detail/compat.hpp"
 #include "tmc/detail/concepts_awaitable.hpp"
 #include "tmc/detail/thread_locals.hpp"
-#include "tmc/spawn_task.hpp"
+#include "tmc/spawn.hpp"
 
 #include <coroutine>
 #include <cstdio>
