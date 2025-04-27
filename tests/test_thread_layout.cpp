@@ -44,8 +44,6 @@ TEST_F(CATEGORY, get_matrixes) {
     EXPECT_EQ(steal_matrix.size(), threadCount * threadCount);
     auto waker_matrix = tmc::detail::invert_matrix(steal_matrix, threadCount);
     EXPECT_EQ(waker_matrix.size(), threadCount * threadCount);
-
-    // tmc::detail::print_square_matrix(steal_matrix, threadCount);
   }
   {
     std::vector<size_t> steal_matrix =
