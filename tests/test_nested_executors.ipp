@@ -4,9 +4,9 @@
 #include "tmc/current.hpp"
 #include "tmc/detail/thread_locals.hpp"
 #include "tmc/ex_braid.hpp"
+#include "tmc/spawn.hpp"
 #include "tmc/spawn_func.hpp"
 #include "tmc/spawn_many.hpp"
-#include "tmc/spawn_task.hpp"
 #include "tmc/spawn_tuple.hpp"
 #include "tmc/sync.hpp"
 

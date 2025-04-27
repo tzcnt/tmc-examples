@@ -14,7 +14,6 @@ add_definitions(
 
     # Performance tuning options
     # "-DTMC_WORK_ITEM=CORO" # one of: CORO, FUNC, FUNCORO
-    "-DTMC_CUSTOM_CORO_ALLOC"
 
     # "-DTMC_TRIVIAL_TASK" # enabled in this repo for Release builds via CMakePresets.json
     # "-DTMC_PRIORITY_COUNT=1" # unsigned integer between 1 and 63
