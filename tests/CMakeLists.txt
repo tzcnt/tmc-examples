@@ -37,6 +37,7 @@ endfunction()
 make_exe(
   tests
   main.cpp
+  standalone_compilation.cpp
   assert_ex_cpu.cpp
   assert_coro.cpp
   assert_spawn.cpp

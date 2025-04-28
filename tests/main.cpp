@@ -1,6 +1,3 @@
-#define TMC_IMPL
-#include "tmc/all_headers.hpp" // IWYU pragma: keep
-
 #include <cstdio>
 
 #include "gtest/gtest.h"
