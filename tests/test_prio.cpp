@@ -2,6 +2,7 @@
 #include "tmc/asio/ex_asio.hpp"
 #include "tmc/detail/concepts_awaitable.hpp"
 #include "tmc/detail/thread_locals.hpp"
+#include "tmc/spawn.hpp"
 
 #include <array>
 #include <cstddef>
@@ -105,15 +106,34 @@ TEST_F(CATEGORY, enter_exit_test) {
   }());
 }
 
-// KNOWN ISSUE - the asio threads have their priority modified by enter()
-// and don't revert it
-// TEST_F(CATEGORY, resume_on_test) {
-//   tmc::async_main([]() -> tmc::task<int> {
-//     co_await tmc::change_priority(3);
-//     co_await tmc::resume_on(tmc::asio_executor());
-//     EXPECT_EQ(tmc::current_priority(), 0);
-//     co_await tmc::resume_on(tmc::cpu_executor());
-//     EXPECT_EQ(tmc::current_priority(), 0);
-//     co_return 0;
-//   }());
-// }
+TEST_F(CATEGORY, resume_on_test) {
+  tmc::async_main([]() -> tmc::task<int> {
+    co_await tmc::change_priority(3);
+    co_await tmc::resume_on(tmc::asio_executor());
+    EXPECT_EQ(tmc::current_priority(), 3);
+    co_await tmc::resume_on(tmc::cpu_executor());
+    EXPECT_EQ(tmc::current_priority(), 3);
+
+    co_await tmc::change_priority(1);
+    co_await tmc::spawn([]() -> tmc::task<void> {
+      EXPECT_EQ(tmc::current_priority(), 1);
+      co_return;
+    }())
+      .run_on(tmc::asio_executor());
+    co_return 0;
+  }());
+}
+
+TEST_F(CATEGORY, spawn_as_change_priority) {
+  tmc::async_main([]() -> tmc::task<int> {
+    EXPECT_EQ(tmc::current_priority(), 0);
+    co_await tmc::spawn([]() -> tmc::task<void> {
+      EXPECT_EQ(tmc::current_priority(), 1);
+      co_return;
+    }())
+      .run_on(tmc::asio_executor())
+      .with_priority(1);
+    EXPECT_EQ(tmc::current_priority(), 0);
+    co_return 0;
+  }());
+}
