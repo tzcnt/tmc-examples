@@ -50,6 +50,7 @@ template <typename Awaitable> struct callback_awaitable_impl {
   TMC_FORCE_INLINE inline void await_suspend(std::coroutine_handle<> Outer
   ) noexcept {
     handle.customizer.continuation = Outer.address();
+    handle.customizer.flags = tmc::current_priority();
     handle.customizer.result_ptr = &result;
     handle.async_initiate();
   }
@@ -69,9 +70,8 @@ template <typename Awaitable> struct callback_awaitable_impl {
 template <typename... ResultArgs> struct callback_awaitable_base {
   using ResultTuple = std::tuple<ResultArgs...>;
   tmc::detail::awaitable_customizer<ResultTuple> customizer;
-  size_t prio;
 
-  callback_awaitable_base() : prio(tmc::current_priority()) {}
+  callback_awaitable_base() {}
 
   template <typename... ResultArgs_>
   static inline void callback(void* user_data, ResultArgs_... results) {
@@ -83,7 +83,7 @@ template <typename... ResultArgs> struct callback_awaitable_base {
       aw->customizer.result_ptr->emplace(std::forward<ResultArgs_>(results)...);
     }
 
-    auto next = aw->customizer.resume_continuation(aw->prio);
+    auto next = aw->customizer.resume_continuation();
     if (next != std::noop_coroutine()) {
       next.resume();
     }

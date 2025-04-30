@@ -4,10 +4,11 @@
 
 #pragma once
 
+#include "tmc/current.hpp"
+#include "tmc/detail/awaitable_customizer.hpp"
 #include "tmc/detail/concepts_awaitable.hpp"
 #include "tmc/detail/thread_locals.hpp"
 #include "tmc/detail/tiny_lock.hpp"
-#include "tmc/task.hpp"
 
 #include <atomic>
 #include <cassert>
@@ -28,9 +29,9 @@ template <typename T> struct atomic_awaitable : private AtomicAwaitableTag {
 
   atomic_awaitable(T Until) : value(0), until(Until) {
     if (tmc::detail::this_thread::executor != nullptr) {
-      prio = tmc::detail::this_thread::this_task.prio;
+      customizer.flags = tmc::current_priority();
     } else {
-      prio = 0;
+      customizer.flags = 0;
     }
   }
 
@@ -54,7 +55,7 @@ template <typename T> struct atomic_awaitable : private AtomicAwaitableTag {
         value.wait(old);
         old = value.load();
       }
-      auto next = customizer.resume_continuation(prio);
+      auto next = customizer.resume_continuation();
       assert(next == std::noop_coroutine());
     });
   }

@@ -69,14 +69,14 @@ tmc::task<void> jump_around(
 
 int main() {
   tmc::asio_executor().init();
-  tmc::cpu_executor().set_thread_count(2).set_priority_count(64).init();
+  tmc::cpu_executor().set_thread_count(2).set_priority_count(16).init();
   return tmc::async_main([]() -> tmc::task<int> {
     tmc::ex_braid cpuBraid(tmc::cpu_executor());
     tmc::ex_braid asioBraid(tmc::asio_executor());
 
     std::array<tmc::task<void>, TASK_COUNT> tasks;
     for (size_t i = 0; i < TASK_COUNT; ++i) {
-      size_t randomPrio = static_cast<size_t>(rand()) % 64;
+      size_t randomPrio = static_cast<size_t>(rand()) % 16;
       tasks[i] = jump_around(&cpuBraid, &asioBraid, randomPrio);
     }
 
