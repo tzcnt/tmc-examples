@@ -232,5 +232,5 @@ int main() {
   small_func_spawn_bench_lazy<100, 16>();
   large_task_spawn_bench_lazy<100, 16>();
   large_task_spawn_bench_lazy_bulk<100, 16>();
-  prio_reversal_test<100, 16, 63>();
+  prio_reversal_test<100, 16, 16>();
 }

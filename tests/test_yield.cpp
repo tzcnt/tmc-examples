@@ -8,7 +8,7 @@
 #define CATEGORY test_misc
 
 static constexpr size_t Count = 100;
-static constexpr size_t PriorityCount = 63;
+static constexpr size_t PriorityCount = 16;
 
 class CATEGORY : public testing::Test {
 protected:

@@ -72,10 +72,11 @@ CPMAddPackage(
     VERSION 1.28.1
     GIT_TAG asio-1-28-1
     DOWNLOAD_ONLY)
+set(ASIO_INCLUDE_PATH ${asio_SOURCE_DIR}/asio/include CACHE STRING "" FORCE)
 
 # mark Asio headers as SYSTEM to ignore warnings
 include_directories(SYSTEM
-    ${asio_SOURCE_DIR}/asio/include
+    ${ASIO_INCLUDE_PATH}
 )
 
 # TMC HWLOC support

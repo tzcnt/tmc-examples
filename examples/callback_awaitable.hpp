@@ -22,7 +22,6 @@
 
 #pragma once
 
-#include "tmc/current.hpp" // for this_thread
 #include "tmc/detail/awaitable_customizer.hpp"
 #include "tmc/detail/compat.hpp"             // for TMC_FORCE_INLINE
 #include "tmc/detail/concepts_awaitable.hpp" // for result_storage_t, awaitable_traits
@@ -69,9 +68,8 @@ template <typename Awaitable> struct callback_awaitable_impl {
 template <typename... ResultArgs> struct callback_awaitable_base {
   using ResultTuple = std::tuple<ResultArgs...>;
   tmc::detail::awaitable_customizer<ResultTuple> customizer;
-  size_t prio;
 
-  callback_awaitable_base() : prio(tmc::current_priority()) {}
+  callback_awaitable_base() {}
 
   template <typename... ResultArgs_>
   static inline void callback(void* user_data, ResultArgs_... results) {
@@ -83,7 +81,7 @@ template <typename... ResultArgs> struct callback_awaitable_base {
       aw->customizer.result_ptr->emplace(std::forward<ResultArgs_>(results)...);
     }
 
-    auto next = aw->customizer.resume_continuation(aw->prio);
+    auto next = aw->customizer.resume_continuation();
     if (next != std::noop_coroutine()) {
       next.resume();
     }
