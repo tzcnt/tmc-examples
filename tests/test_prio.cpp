@@ -110,6 +110,26 @@ TEST_F(CATEGORY, enter_exit_test) {
   }());
 }
 
+TEST_F(CATEGORY, braid_restore_test) {
+  tmc::ex_braid br(tmc::cpu_executor());
+  tmc::async_main([](tmc::ex_braid& Braid) -> tmc::task<int> {
+    co_await tmc::change_priority(1);
+    co_await tmc::resume_on(Braid);
+    EXPECT_EQ(tmc::current_priority(), 1);
+    co_await tmc::resume_on(tmc::cpu_executor());
+    EXPECT_EQ(tmc::current_priority(), 1);
+
+    co_await tmc::change_priority(2);
+    co_await tmc::spawn([]() -> tmc::task<void> {
+      EXPECT_EQ(tmc::current_priority(), 2);
+      co_return;
+    }())
+      .run_on(Braid);
+    EXPECT_EQ(tmc::current_priority(), 2);
+    co_return 0;
+  }(br));
+}
+
 TEST_F(CATEGORY, resume_on_test) {
   tmc::async_main([]() -> tmc::task<int> {
     co_await tmc::change_priority(3);
