@@ -22,6 +22,11 @@ include_directories(
   ${TMC_ASIO_INCLUDE_PATH}
 )
 
+# mark Asio headers as SYSTEM to ignore warnings
+include_directories(SYSTEM
+  ${ASIO_INCLUDE_PATH}
+)
+
 # copy compile_commands.json to the build directory after build so clangd can find it
 # clangd won't look in the /build/{config} directory, only in the top-level /build directory
 function(make_exe target_name)

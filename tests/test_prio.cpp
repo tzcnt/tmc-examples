@@ -1,13 +1,17 @@
 #include "test_common.hpp"
+#include "tmc/asio/aw_asio.hpp"
 #include "tmc/asio/ex_asio.hpp"
+#include "tmc/current.hpp"
 #include "tmc/detail/concepts_awaitable.hpp"
 #include "tmc/detail/thread_locals.hpp"
+#include "tmc/ex_cpu.hpp"
 #include "tmc/spawn.hpp"
 
 #include <array>
 #include <cstddef>
 #include <cstdlib>
 
+#include <asio/steady_timer.hpp>
 #include <gtest/gtest.h>
 
 #define CATEGORY test_priority
@@ -396,6 +400,40 @@ TEST_F(CATEGORY, spawn_tuple_each_with_priority_run_on) {
 
     v = co_await t;
     EXPECT_EQ(v, t.end());
+    EXPECT_EQ(tmc::current_priority(), 1);
+    co_return 0;
+  }());
+}
+
+TEST_F(CATEGORY, aw_asio) {
+  tmc::async_main([]() -> tmc::task<int> {
+    EXPECT_EQ(tmc::current_priority(), 0);
+    co_await tmc::change_priority(1);
+    EXPECT_EQ(tmc::current_priority(), 1);
+
+    auto exec = tmc::current_executor();
+    co_await asio::steady_timer{
+      tmc::asio_executor(), std::chrono::milliseconds(0)
+    }
+      .async_wait(tmc::aw_asio);
+    EXPECT_EQ(tmc::current_executor(), exec);
+    EXPECT_EQ(tmc::current_priority(), 1);
+    co_return 0;
+  }());
+}
+
+TEST_F(CATEGORY, aw_asio_resume_on) {
+  tmc::async_main([]() -> tmc::task<int> {
+    EXPECT_EQ(tmc::current_priority(), 0);
+    co_await tmc::change_priority(1);
+    EXPECT_EQ(tmc::current_priority(), 1);
+
+    co_await asio::steady_timer{
+      tmc::asio_executor(), std::chrono::milliseconds(0)
+    }
+      .async_wait(tmc::aw_asio)
+      .resume_on(tmc::asio_executor());
+    EXPECT_EQ(tmc::current_executor(), tmc::asio_executor().type_erased());
     EXPECT_EQ(tmc::current_priority(), 1);
     co_return 0;
   }());
