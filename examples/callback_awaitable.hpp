@@ -50,7 +50,6 @@ template <typename Awaitable> struct callback_awaitable_impl {
   TMC_FORCE_INLINE inline void await_suspend(std::coroutine_handle<> Outer
   ) noexcept {
     handle.customizer.continuation = Outer.address();
-    handle.customizer.flags = tmc::current_priority();
     handle.customizer.result_ptr = &result;
     handle.async_initiate();
   }

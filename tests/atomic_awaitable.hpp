@@ -28,9 +28,7 @@ template <typename T> struct atomic_awaitable : private AtomicAwaitableTag {
   tmc::tiny_lock lock;
 
   atomic_awaitable(T Until) : value(0), until(Until) {
-    if (tmc::detail::this_thread::executor != nullptr) {
-      customizer.flags = tmc::current_priority();
-    } else {
+    if (tmc::detail::this_thread::executor == nullptr) {
       customizer.flags = 0;
     }
   }
