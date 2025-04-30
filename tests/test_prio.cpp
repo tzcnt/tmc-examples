@@ -144,6 +144,7 @@ TEST_F(CATEGORY, resume_on_test) {
       co_return;
     }())
       .run_on(tmc::asio_executor());
+    EXPECT_EQ(tmc::current_priority(), 1);
     co_return 0;
   }());
 }

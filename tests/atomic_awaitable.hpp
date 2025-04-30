@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include "tmc/current.hpp"
 #include "tmc/detail/awaitable_customizer.hpp"
 #include "tmc/detail/concepts_awaitable.hpp"
 #include "tmc/detail/thread_locals.hpp"
