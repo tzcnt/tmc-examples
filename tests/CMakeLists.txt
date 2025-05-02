@@ -49,6 +49,7 @@ make_exe(
   assert_spawn_func.cpp
   assert_spawn_many.cpp
   assert_spawn_tuple.cpp
+  test_barrier.cpp
   test_ex_cpu.cpp
   test_ex_asio.cpp
   test_ex_braid.cpp
