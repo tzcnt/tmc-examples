@@ -61,6 +61,20 @@ tmc::task<void> flip_flop_waiter(
   }
 }
 
+TEST_F(CATEGORY, zero_init) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    tmc::barrier bar(0);
+    co_await bar;
+  }());
+}
+
+TEST_F(CATEGORY, negative_init) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    tmc::barrier bar(static_cast<size_t>(-1));
+    co_await bar;
+  }());
+}
+
 TEST_F(CATEGORY, once) {
   test_async_main(ex(), []() -> tmc::task<void> {
     tmc::barrier bar(5);
