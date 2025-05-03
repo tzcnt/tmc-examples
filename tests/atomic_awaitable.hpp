@@ -85,7 +85,9 @@ template <IsAwAtomic Awaitable> struct awaitable_traits<Awaitable> {
   using self_type = Awaitable;
 
   // Values controlling the behavior when awaited directly in a tmc::task
-  static decltype(auto) get_awaiter(self_type& awaitable) { return awaitable; }
+  static decltype(auto) get_awaiter(self_type& awaitable) noexcept {
+    return awaitable;
+  }
 
   // Values controlling the behavior when wrapped by a utility function
   // such as tmc::spawn_*()

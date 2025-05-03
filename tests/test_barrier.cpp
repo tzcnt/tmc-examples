@@ -1,12 +1,5 @@
-// Various tests to increase code coverage in specific areas that are otherwise
-// not exercised.
-
-#include "atomic_awaitable.hpp"
 #include "test_common.hpp"
 #include "tmc/barrier.hpp"
-#include "tmc/detail/qu_inbox.hpp"
-#include "tmc/external.hpp"
-#include "tmc/sync.hpp"
 
 #include <gtest/gtest.h>
 
