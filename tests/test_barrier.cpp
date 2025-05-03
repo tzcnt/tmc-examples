@@ -1,9 +1,12 @@
+#include "atomic_awaitable.hpp"
 #include "test_common.hpp"
 #include "tmc/barrier.hpp"
 
 #include <gtest/gtest.h>
 
 #include <atomic>
+#include <optional>
+#include <thread>
 #include <vector>
 
 #define CATEGORY test_barrier
@@ -58,12 +61,14 @@ TEST_F(CATEGORY, zero_init) {
   test_async_main(ex(), []() -> tmc::task<void> {
     tmc::barrier bar(0);
     co_await bar;
+    co_await bar;
   }());
 }
 
 TEST_F(CATEGORY, negative_init) {
   test_async_main(ex(), []() -> tmc::task<void> {
     tmc::barrier bar(static_cast<size_t>(-1));
+    co_await bar;
     co_await bar;
   }());
 }
@@ -107,6 +112,28 @@ TEST_F(CATEGORY, flip_flop) {
       tasks[i] = flip_flop_waiter(bar, dones, i);
     }
     co_await tmc::spawn_many(tasks);
+  }());
+}
+
+TEST_F(CATEGORY, resume_in_destructor) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    atomic_awaitable<int> aa(1);
+    std::optional<tmc::barrier> bar;
+    bar.emplace(100);
+    auto t =
+      tmc::spawn(
+        [](tmc::barrier& Bar, atomic_awaitable<int>& AA) -> tmc::task<void> {
+          co_await Bar;
+          AA.inc();
+        }(*bar, aa)
+      )
+        .fork();
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    EXPECT_EQ(aa.load(), 0);
+    // Destroy bar while the task is still waiting.
+    bar.reset();
+    co_await aa;
+    co_await std::move(t);
   }());
 }
 
