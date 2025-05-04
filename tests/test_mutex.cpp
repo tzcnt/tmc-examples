@@ -106,4 +106,27 @@ TEST_F(CATEGORY, resume_in_destructor) {
   }());
 }
 
+// Protect access to a non-atomic resource with acquire/release semantics
+TEST_F(CATEGORY, access_control) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    size_t count = 0;
+    tmc::mutex mut;
+
+    co_await tmc::spawn_many(
+      tmc::iter_adapter(
+        0,
+        [&mut, &count](int i) -> tmc::task<void> {
+          return [](tmc::mutex& Mut, size_t& Count) -> tmc::task<void> {
+            co_await Mut;
+            ++Count;
+            Mut.unlock();
+          }(mut, count);
+        }
+      ),
+      100
+    );
+    EXPECT_EQ(count, 100);
+  }());
+}
+
 #undef CATEGORY

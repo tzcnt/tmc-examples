@@ -1,6 +1,7 @@
 #include "atomic_awaitable.hpp"
 #include "test_common.hpp"
 #include "tmc/semaphore.hpp"
+#include "tmc/utils.hpp"
 
 #include <gtest/gtest.h>
 
@@ -106,6 +107,30 @@ TEST_F(CATEGORY, resume_in_destructor) {
     sem.reset();
     co_await aa;
     co_await std::move(t);
+  }());
+}
+
+// Sem should be usable as a mutex to protect access to a non-atomic resource
+// with acquire/release semantics
+TEST_F(CATEGORY, access_control) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    size_t count = 0;
+    tmc::semaphore sem(1);
+
+    co_await tmc::spawn_many(
+      tmc::iter_adapter(
+        0,
+        [&sem, &count](int i) -> tmc::task<void> {
+          return [](tmc::semaphore& Sem, size_t& Count) -> tmc::task<void> {
+            co_await Sem;
+            ++Count;
+            Sem.release();
+          }(sem, count);
+        }
+      ),
+      100
+    );
+    EXPECT_EQ(count, 100);
   }());
 }
 
