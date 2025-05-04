@@ -125,6 +125,7 @@ TEST_F(CATEGORY, access_control) {
       ),
       100
     );
+    co_await mut;
     EXPECT_EQ(count, 100);
   }());
 }
