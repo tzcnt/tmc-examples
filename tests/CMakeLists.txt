@@ -50,6 +50,7 @@ make_exe(
   assert_spawn_many.cpp
   assert_spawn_tuple.cpp
   test_barrier.cpp
+  test_mutex.cpp
   test_semaphore.cpp
   test_ex_cpu.cpp
   test_ex_asio.cpp
