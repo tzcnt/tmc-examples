@@ -13,7 +13,7 @@
 class CATEGORY : public testing::Test {
 protected:
   static void SetUpTestSuite() {
-    tmc::cpu_executor().set_thread_count(4).init();
+    tmc::cpu_executor().set_thread_count(4).set_priority_count(2).init();
   }
 
   static void TearDownTestSuite() { tmc::cpu_executor().teardown(); }
@@ -110,8 +110,8 @@ TEST_F(CATEGORY, resume_in_destructor) {
   }());
 }
 
-// Sem should be usable as a mutex to protect access to a non-atomic resource
-// with acquire/release semantics
+// Sem should be usable as a semaphore to protect access to a non-atomic
+// resource with acquire/release semantics
 TEST_F(CATEGORY, access_control) {
   test_async_main(ex(), []() -> tmc::task<void> {
     size_t count = 0;
@@ -132,6 +132,61 @@ TEST_F(CATEGORY, access_control) {
     );
     co_await sem;
     EXPECT_EQ(count, 100);
+  }());
+}
+
+TEST_F(CATEGORY, co_release) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    tmc::semaphore sem(1);
+    {
+      co_await sem;
+      EXPECT_EQ(sem.count(), 0);
+      co_await sem.co_release();
+      EXPECT_EQ(sem.count(), 1);
+      co_await sem;
+      EXPECT_EQ(sem.count(), 0);
+    }
+    {
+      atomic_awaitable<int> aa(1);
+      auto t = tmc::spawn(
+                 [](
+                   tmc::semaphore& Sem, atomic_awaitable<int>& AA
+                 ) -> tmc::task<void> {
+                   co_await Sem;
+                   AA.inc();
+                   Sem.release();
+                 }(sem, aa)
+      )
+                 .fork();
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+      EXPECT_EQ(sem.count(), 0);
+      EXPECT_EQ(aa.load(), 0);
+      co_await sem.co_release();
+      co_await aa;
+      co_await std::move(t);
+      co_await sem;
+    }
+    {
+      atomic_awaitable<int> aa(1);
+      auto t = tmc::spawn(
+                 [](
+                   tmc::semaphore& Sem, atomic_awaitable<int>& AA
+                 ) -> tmc::task<void> {
+                   co_await Sem;
+                   AA.inc();
+                   Sem.release();
+                 }(sem, aa)
+      )
+                 .with_priority(1)
+                 .fork();
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+      EXPECT_EQ(sem.count(), 0);
+      EXPECT_EQ(aa.load(), 0);
+      co_await sem.co_release();
+      co_await aa;
+      co_await std::move(t);
+      co_await sem;
+    }
   }());
 }
 
