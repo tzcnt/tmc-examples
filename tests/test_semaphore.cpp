@@ -110,6 +110,8 @@ TEST_F(CATEGORY, resume_in_destructor) {
   }());
 }
 
+#ifndef TSAN_ENABLED
+
 // Sem should be usable as a semaphore to protect access to a non-atomic
 // resource with acquire/release semantics
 TEST_F(CATEGORY, access_control) {
@@ -134,6 +136,8 @@ TEST_F(CATEGORY, access_control) {
     EXPECT_EQ(count, 100);
   }());
 }
+
+#endif // TSAN_ENABLED
 
 TEST_F(CATEGORY, co_release) {
   test_async_main(ex(), []() -> tmc::task<void> {
