@@ -12,7 +12,7 @@
 class CATEGORY : public testing::Test {
 protected:
   static void SetUpTestSuite() {
-    tmc::cpu_executor().set_thread_count(4).init();
+    tmc::cpu_executor().set_thread_count(4).set_priority_count(2).init();
   }
 
   static void TearDownTestSuite() { tmc::cpu_executor().teardown(); }
@@ -127,6 +127,60 @@ TEST_F(CATEGORY, access_control) {
     );
     co_await mut;
     EXPECT_EQ(count, 100);
+  }());
+}
+
+TEST_F(CATEGORY, co_unlock) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    tmc::mutex mut;
+    {
+      co_await mut;
+      EXPECT_EQ(mut.is_locked(), true);
+      co_await mut.co_unlock();
+      EXPECT_EQ(mut.is_locked(), false);
+      co_await mut;
+      EXPECT_EQ(mut.is_locked(), true);
+    }
+
+    {
+      atomic_awaitable<int> aa(1);
+      auto t =
+        tmc::spawn(
+          [](tmc::mutex& Mut, atomic_awaitable<int>& AA) -> tmc::task<void> {
+            co_await Mut;
+            AA.inc();
+            Mut.unlock();
+          }(mut, aa)
+        )
+          .fork();
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+      EXPECT_EQ(mut.is_locked(), true);
+      EXPECT_EQ(aa.load(), 0);
+      co_await mut.co_unlock();
+      co_await aa;
+      co_await std::move(t);
+      co_await mut;
+    }
+    {
+      atomic_awaitable<int> aa(1);
+      auto t =
+        tmc::spawn(
+          [](tmc::mutex& Mut, atomic_awaitable<int>& AA) -> tmc::task<void> {
+            co_await Mut;
+            AA.inc();
+            Mut.unlock();
+          }(mut, aa)
+        )
+          .with_priority(1)
+          .fork();
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+      EXPECT_EQ(mut.is_locked(), true);
+      EXPECT_EQ(aa.load(), 0);
+      co_await mut.co_unlock();
+      co_await aa;
+      co_await std::move(t);
+      co_await mut;
+    }
   }());
 }
 
