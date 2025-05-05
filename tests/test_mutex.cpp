@@ -153,7 +153,6 @@ TEST_F(CATEGORY, co_unlock) {
           [](tmc::mutex& Mut, atomic_awaitable<int>& AA) -> tmc::task<void> {
             co_await Mut;
             AA.inc();
-            Mut.unlock();
           }(mut, aa)
         )
           .fork();
@@ -163,7 +162,6 @@ TEST_F(CATEGORY, co_unlock) {
       co_await mut.co_unlock();
       co_await aa;
       co_await std::move(t);
-      co_await mut;
     }
     {
       atomic_awaitable<int> aa(1);
@@ -172,7 +170,6 @@ TEST_F(CATEGORY, co_unlock) {
           [](tmc::mutex& Mut, atomic_awaitable<int>& AA) -> tmc::task<void> {
             co_await Mut;
             AA.inc();
-            Mut.unlock();
           }(mut, aa)
         )
           .with_priority(1)
@@ -183,7 +180,6 @@ TEST_F(CATEGORY, co_unlock) {
       co_await mut.co_unlock();
       co_await aa;
       co_await std::move(t);
-      co_await mut;
     }
   }());
 }

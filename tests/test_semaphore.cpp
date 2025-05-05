@@ -158,7 +158,6 @@ TEST_F(CATEGORY, co_release) {
                  ) -> tmc::task<void> {
                    co_await Sem;
                    AA.inc();
-                   Sem.release();
                  }(sem, aa)
       )
                  .fork();
@@ -168,7 +167,6 @@ TEST_F(CATEGORY, co_release) {
       co_await sem.co_release();
       co_await aa;
       co_await std::move(t);
-      co_await sem;
     }
     {
       atomic_awaitable<int> aa(1);
@@ -178,7 +176,6 @@ TEST_F(CATEGORY, co_release) {
                  ) -> tmc::task<void> {
                    co_await Sem;
                    AA.inc();
-                   Sem.release();
                  }(sem, aa)
       )
                  .with_priority(1)
@@ -189,7 +186,6 @@ TEST_F(CATEGORY, co_release) {
       co_await sem.co_release();
       co_await aa;
       co_await std::move(t);
-      co_await sem;
     }
   }());
 }
