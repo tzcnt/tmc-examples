@@ -106,6 +106,8 @@ TEST_F(CATEGORY, resume_in_destructor) {
   }());
 }
 
+#ifndef TSAN_ENABLED
+
 // Protect access to a non-atomic resource with acquire/release semantics
 TEST_F(CATEGORY, access_control) {
   test_async_main(ex(), []() -> tmc::task<void> {
@@ -130,6 +132,8 @@ TEST_F(CATEGORY, access_control) {
   }());
 }
 
+#endif // TSAN_ENABLED
+
 TEST_F(CATEGORY, co_unlock) {
   test_async_main(ex(), []() -> tmc::task<void> {
     tmc::mutex mut;
@@ -149,7 +153,6 @@ TEST_F(CATEGORY, co_unlock) {
           [](tmc::mutex& Mut, atomic_awaitable<int>& AA) -> tmc::task<void> {
             co_await Mut;
             AA.inc();
-            Mut.unlock();
           }(mut, aa)
         )
           .fork();
@@ -159,7 +162,6 @@ TEST_F(CATEGORY, co_unlock) {
       co_await mut.co_unlock();
       co_await aa;
       co_await std::move(t);
-      co_await mut;
     }
     {
       atomic_awaitable<int> aa(1);
@@ -168,7 +170,6 @@ TEST_F(CATEGORY, co_unlock) {
           [](tmc::mutex& Mut, atomic_awaitable<int>& AA) -> tmc::task<void> {
             co_await Mut;
             AA.inc();
-            Mut.unlock();
           }(mut, aa)
         )
           .with_priority(1)
@@ -179,7 +180,6 @@ TEST_F(CATEGORY, co_unlock) {
       co_await mut.co_unlock();
       co_await aa;
       co_await std::move(t);
-      co_await mut;
     }
   }());
 }

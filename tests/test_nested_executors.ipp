@@ -447,4 +447,4 @@ TEST_F(CATEGORY, cross_post_thread_hint) {
   }());
 }
 
-#endif
+#endif // TSAN_ENABLED
