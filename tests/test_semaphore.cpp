@@ -112,7 +112,7 @@ TEST_F(CATEGORY, resume_in_destructor) {
 
 #ifndef TSAN_ENABLED
 
-// Sem should be usable as a semaphore to protect access to a non-atomic
+// Sem should be usable as a mutex to protect access to a non-atomic
 // resource with acquire/release semantics
 TEST_F(CATEGORY, access_control) {
   test_async_main(ex(), []() -> tmc::task<void> {
