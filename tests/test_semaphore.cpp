@@ -35,6 +35,16 @@ TEST_F(CATEGORY, nonblocking) {
     EXPECT_EQ(sem.count(), 2);
     co_await sem;
     EXPECT_EQ(sem.count(), 1);
+    {
+      auto s = co_await sem.acquire_scope();
+      EXPECT_EQ(sem.count(), 0);
+    }
+    EXPECT_EQ(sem.count(), 1);
+    {
+      tmc::semaphore_scope s{co_await sem.acquire_scope()};
+      EXPECT_EQ(sem.count(), 0);
+    }
+    EXPECT_EQ(sem.count(), 1);
     co_await sem;
     EXPECT_EQ(sem.count(), 0);
   }());
@@ -127,6 +137,28 @@ TEST_F(CATEGORY, access_control) {
             co_await Sem;
             ++Count;
             Sem.release();
+          }(sem, count);
+        }
+      ),
+      100
+    );
+    co_await sem;
+    EXPECT_EQ(count, 100);
+  }());
+}
+
+TEST_F(CATEGORY, access_control_scope) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    size_t count = 0;
+    tmc::semaphore sem(1);
+
+    co_await tmc::spawn_many(
+      tmc::iter_adapter(
+        0,
+        [&sem, &count](int i) -> tmc::task<void> {
+          return [](tmc::semaphore& Sem, size_t& Count) -> tmc::task<void> {
+            auto s = co_await Sem.acquire_scope();
+            ++Count;
           }(sem, count);
         }
       ),
