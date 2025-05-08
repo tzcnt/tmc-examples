@@ -87,6 +87,22 @@ TEST_F(CATEGORY, resume_in_destructor) {
     auto t = tmc::spawn(make_waiter(*cv, aa)).fork();
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
     EXPECT_EQ(aa.load(), 0);
+
+    // Notify 0 waiters
+    cv->notify_n(0);
+    co_await cv->co_notify_n(0);
+
+    // Notify waiters, but the value hasn't changed
+    cv->notify_n(1);
+    cv->notify_one();
+    cv->notify_all();
+    co_await cv->co_notify_n(1);
+    co_await cv->co_notify_one();
+    co_await cv->co_notify_all();
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    EXPECT_EQ(aa.load(), 0);
+
     // Destroy cv while the task is still waiting.
     cv.reset();
     co_await aa;
