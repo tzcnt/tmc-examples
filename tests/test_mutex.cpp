@@ -28,6 +28,16 @@ TEST_F(CATEGORY, nonblocking) {
     EXPECT_EQ(mut.is_locked(), true);
     mut.unlock();
     EXPECT_EQ(mut.is_locked(), false);
+    {
+      tmc::mutex_scope s{co_await mut.lock_scope()};
+      EXPECT_EQ(mut.is_locked(), true);
+    }
+    EXPECT_EQ(mut.is_locked(), false);
+    {
+      auto s = co_await mut.lock_scope();
+      EXPECT_EQ(mut.is_locked(), true);
+    }
+    EXPECT_EQ(mut.is_locked(), false);
   }());
 }
 
@@ -122,6 +132,28 @@ TEST_F(CATEGORY, access_control) {
             co_await Mut;
             ++Count;
             Mut.unlock();
+          }(mut, count);
+        }
+      ),
+      100
+    );
+    co_await mut;
+    EXPECT_EQ(count, 100);
+  }());
+}
+
+TEST_F(CATEGORY, access_control_scope) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    size_t count = 0;
+    tmc::mutex mut;
+
+    co_await tmc::spawn_many(
+      tmc::iter_adapter(
+        0,
+        [&mut, &count](int i) -> tmc::task<void> {
+          return [](tmc::mutex& Mut, size_t& Count) -> tmc::task<void> {
+            auto s = co_await Mut.lock_scope();
+            ++Count;
           }(mut, count);
         }
       ),
