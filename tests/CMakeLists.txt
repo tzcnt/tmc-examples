@@ -56,6 +56,7 @@ make_exe(
   test_ex_asio.cpp
   test_ex_braid.cpp
   test_prio.cpp
+  test_atomic_condvar.cpp
   test_channel.cpp
   test_yield.cpp
   test_misc.cpp
