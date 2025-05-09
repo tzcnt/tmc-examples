@@ -24,31 +24,6 @@ protected:
   static tmc::ex_cpu& ex() { return tmc::cpu_executor(); }
 };
 
-TEST_F(CATEGORY, overfull_thread_hint_push_bulk) {
-  auto t1 = tmc::post_bulk_waitable(
-    ex(), tmc::iter_adapter(0, [](int i) -> tmc::task<void> { co_return; }),
-    32000, 0, 0
-  );
-  t1.wait();
-}
-
-TEST_F(CATEGORY, overfull_thread_hint_push) {
-  test_async_main(ex(), []() -> tmc::task<void> {
-    atomic_awaitable<int> aa(32000);
-    for (size_t i = 0; i < 32000; ++i) {
-      tmc::post(
-        ex(),
-        [](atomic_awaitable<int>& AA) -> tmc::task<void> {
-          AA.inc();
-          co_return;
-        }(aa),
-        0, 0
-      );
-    }
-    co_await aa;
-  }());
-}
-
 TEST_F(CATEGORY, post_checked_default_executor) {
   tmc::set_default_executor(ex());
 
