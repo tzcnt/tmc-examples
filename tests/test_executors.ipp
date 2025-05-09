@@ -4,12 +4,21 @@
 #include <gtest/gtest.h>
 #include <ranges>
 
-// ex_cpu implements fixed size inboxes to accept tasks with ThreadHint
-// other executors may ignore the parameter
+// ex_cpu implements fixed size inboxes to accept tasks with ThreadHint.
+// other executors may ignore the parameter.
+// This inbox is not a priority queue but should save and restore the priority
+// of the task anyway.
 TEST_F(CATEGORY, overfull_thread_hint_push_bulk) {
   auto t1 = tmc::post_bulk_waitable(
-    ex(), tmc::iter_adapter(0, [](int i) -> tmc::task<void> { co_return; }),
-    32000, 0, 0
+    ex(),
+    tmc::iter_adapter(
+      0,
+      [](int i) -> tmc::task<void> {
+        EXPECT_EQ(tmc::current_priority(), 1);
+        co_return;
+      }
+    ),
+    32000, 1, 0
   );
   t1.wait();
 }
@@ -21,10 +30,11 @@ TEST_F(CATEGORY, overfull_thread_hint_push) {
       tmc::post(
         ex(),
         [](atomic_awaitable<int>& AA) -> tmc::task<void> {
+          EXPECT_EQ(tmc::current_priority(), 1);
           AA.inc();
           co_return;
         }(aa),
-        0, 0
+        1, 0
       );
     }
     co_await aa;

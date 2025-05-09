@@ -10,7 +10,9 @@
 
 class CATEGORY : public testing::Test {
 protected:
-  static void SetUpTestSuite() { tmc::cpu_executor().init(); }
+  static void SetUpTestSuite() {
+    tmc::cpu_executor().set_priority_count(2).init();
+  }
 
   static void TearDownTestSuite() { tmc::cpu_executor().teardown(); }
 
@@ -25,7 +27,7 @@ TEST_F(CATEGORY, clamp_priority) {
       EXPECT_EQ(tmc::current_priority(), ex().priority_count() - 1);
       co_return;
     }(),
-    1
+    2
   )
     .wait();
 }
