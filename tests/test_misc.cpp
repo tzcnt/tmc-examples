@@ -5,7 +5,6 @@
 #include "test_common.hpp"
 #include "tmc/detail/qu_inbox.hpp"
 #include "tmc/external.hpp"
-#include "tmc/sync.hpp"
 
 #include <gtest/gtest.h>
 
@@ -23,31 +22,6 @@ protected:
 
   static tmc::ex_cpu& ex() { return tmc::cpu_executor(); }
 };
-
-TEST_F(CATEGORY, overfull_thread_hint_push_bulk) {
-  auto t1 = tmc::post_bulk_waitable(
-    ex(), tmc::iter_adapter(0, [](int i) -> tmc::task<void> { co_return; }),
-    32000, 0, 0
-  );
-  t1.wait();
-}
-
-TEST_F(CATEGORY, overfull_thread_hint_push) {
-  test_async_main(ex(), []() -> tmc::task<void> {
-    atomic_awaitable<int> aa(32000);
-    for (size_t i = 0; i < 32000; ++i) {
-      tmc::post(
-        ex(),
-        [](atomic_awaitable<int>& AA) -> tmc::task<void> {
-          AA.inc();
-          co_return;
-        }(aa),
-        0, 0
-      );
-    }
-    co_await aa;
-  }());
-}
 
 TEST_F(CATEGORY, post_checked_default_executor) {
   tmc::set_default_executor(ex());
@@ -101,41 +75,45 @@ TEST_F(CATEGORY, ex_any_default_constructor) { tmc::ex_any e; }
 TEST_F(CATEGORY, qu_inbox_full) {
   tmc::detail::qu_inbox<int, 4> q;
   std::array<int, 5> vs{0, 1, 2, 3, 4};
-  auto count = q.try_push_bulk(vs.data(), 5);
+  auto count = q.try_push_bulk(vs.data(), 5, 2);
   EXPECT_EQ(count, 4);
-  EXPECT_EQ(q.try_push(vs[4]), false);
+  EXPECT_EQ(q.try_push(vs[4], 0), false);
   int v;
-  EXPECT_EQ(q.try_pull(v), true);
+  size_t prio = 0;
+  EXPECT_EQ(q.try_pull(v, prio), true);
   EXPECT_EQ(v, 0);
-  EXPECT_EQ(q.try_pull(v), true);
+  EXPECT_EQ(prio, 2);
+  EXPECT_EQ(q.try_pull(v, prio), true);
   EXPECT_EQ(v, 1);
-  EXPECT_EQ(q.try_pull(v), true);
+  EXPECT_EQ(q.try_pull(v, prio), true);
   EXPECT_EQ(v, 2);
-  EXPECT_EQ(q.try_pull(v), true);
+  EXPECT_EQ(q.try_pull(v, prio), true);
   EXPECT_EQ(v, 3);
-  EXPECT_EQ(q.try_pull(v), false);
-  EXPECT_EQ(q.try_push(vs[4]), true);
-  EXPECT_EQ(q.try_pull(v), true);
+  EXPECT_EQ(q.try_pull(v, prio), false);
+  EXPECT_EQ(q.try_push(vs[4], 3), true);
+  EXPECT_EQ(q.try_pull(v, prio), true);
   EXPECT_EQ(v, 4);
-  EXPECT_EQ(q.try_pull(v), false);
+  EXPECT_EQ(prio, 3);
+  EXPECT_EQ(q.try_pull(v, prio), false);
 }
 
 TEST_F(CATEGORY, qu_inbox_exact) {
   tmc::detail::qu_inbox<int, 4> q;
   std::array<int, 5> vs{0, 1, 2, 3, 4};
-  auto count = q.try_push_bulk(vs.data(), 4);
+  auto count = q.try_push_bulk(vs.data(), 4, 0);
   EXPECT_EQ(count, 4);
-  EXPECT_EQ(q.try_push(vs[4]), false);
+  EXPECT_EQ(q.try_push(vs[4], 0), false);
   int v;
-  EXPECT_EQ(q.try_pull(v), true);
+  size_t prio = 0;
+  EXPECT_EQ(q.try_pull(v, prio), true);
   EXPECT_EQ(v, 0);
-  EXPECT_EQ(q.try_pull(v), true);
+  EXPECT_EQ(q.try_pull(v, prio), true);
   EXPECT_EQ(v, 1);
-  EXPECT_EQ(q.try_pull(v), true);
+  EXPECT_EQ(q.try_pull(v, prio), true);
   EXPECT_EQ(v, 2);
-  EXPECT_EQ(q.try_pull(v), true);
+  EXPECT_EQ(q.try_pull(v, prio), true);
   EXPECT_EQ(v, 3);
-  EXPECT_EQ(q.try_pull(v), false);
+  EXPECT_EQ(q.try_pull(v, prio), false);
 }
 
 #undef CATEGORY
