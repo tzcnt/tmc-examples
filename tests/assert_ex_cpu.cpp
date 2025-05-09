@@ -24,6 +24,7 @@ TEST(CATEGORY, too_many_threads) {
   );
 }
 
+#ifndef TMC_TRIVIAL_TASK
 TEST(CATEGORY, task_func_post) {
   // Accidentally submitted a task-returning func without calling it
   EXPECT_DEATH(
@@ -35,6 +36,7 @@ TEST(CATEGORY, task_func_post) {
     "!handle"
   );
 }
+#endif
 
 TEST(CATEGORY, spawn_without_executor) {
   EXPECT_DEATH({ tmc::spawn(empty_task()).detach(); }, "executor != nullptr");

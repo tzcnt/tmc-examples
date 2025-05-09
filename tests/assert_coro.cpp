@@ -5,7 +5,7 @@
 #define CATEGORY assert_coro_DeathTest
 
 #ifndef NDEBUG
-
+#ifndef TMC_TRIVIAL_TASK
 TEST(CATEGORY, none) {
   EXPECT_DEATH(
     {
@@ -34,7 +34,7 @@ TEST(CATEGORY, co_await_twice) {
     "once"
   );
 }
-
+#endif
 #endif
 
 #undef CATEGORY
