@@ -35,6 +35,16 @@ TEST_F(CATEGORY, nonblocking) {
     EXPECT_EQ(sem.count(), 2);
     co_await sem;
     EXPECT_EQ(sem.count(), 1);
+    {
+      auto s = co_await sem.acquire_scope();
+      EXPECT_EQ(sem.count(), 0);
+    }
+    EXPECT_EQ(sem.count(), 1);
+    {
+      tmc::semaphore_scope s{co_await sem.acquire_scope()};
+      EXPECT_EQ(sem.count(), 0);
+    }
+    EXPECT_EQ(sem.count(), 1);
     co_await sem;
     EXPECT_EQ(sem.count(), 0);
   }());
@@ -110,6 +120,33 @@ TEST_F(CATEGORY, resume_in_destructor) {
   }());
 }
 
+TEST_F(CATEGORY, move_scope) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    atomic_awaitable<int> aa(1);
+    std::optional<tmc::semaphore> sem;
+    sem.emplace(1);
+    std::optional<tmc::semaphore_scope> scope{co_await sem->acquire_scope()};
+    auto t =
+      tmc::spawn(
+        [](tmc::semaphore& Sem, atomic_awaitable<int>& AA) -> tmc::task<void> {
+          co_await Sem;
+          AA.inc();
+        }(*sem, aa)
+      )
+        .fork();
+    {
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+      EXPECT_EQ(aa.load(), 0);
+      auto s = *std::move(scope);
+      scope.reset(); // should do nothing as the scope has been moved
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+      EXPECT_EQ(aa.load(), 0);
+    }
+    co_await aa;
+    co_await std::move(t);
+  }());
+}
+
 #ifndef TSAN_ENABLED
 
 // Sem should be usable as a mutex to protect access to a non-atomic
@@ -127,6 +164,28 @@ TEST_F(CATEGORY, access_control) {
             co_await Sem;
             ++Count;
             Sem.release();
+          }(sem, count);
+        }
+      ),
+      100
+    );
+    co_await sem;
+    EXPECT_EQ(count, 100);
+  }());
+}
+
+TEST_F(CATEGORY, access_control_scope) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    size_t count = 0;
+    tmc::semaphore sem(1);
+
+    co_await tmc::spawn_many(
+      tmc::iter_adapter(
+        0,
+        [&sem, &count](int i) -> tmc::task<void> {
+          return [](tmc::semaphore& Sem, size_t& Count) -> tmc::task<void> {
+            auto s = co_await Sem.acquire_scope();
+            ++Count;
           }(sem, count);
         }
       ),
