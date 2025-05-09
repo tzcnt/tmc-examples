@@ -1,4 +1,3 @@
-#include "atomic_awaitable.hpp"
 #include "test_common.hpp"
 #include "tmc/current.hpp"
 

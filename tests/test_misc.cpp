@@ -5,7 +5,6 @@
 #include "test_common.hpp"
 #include "tmc/detail/qu_inbox.hpp"
 #include "tmc/external.hpp"
-#include "tmc/sync.hpp"
 
 #include <gtest/gtest.h>
 

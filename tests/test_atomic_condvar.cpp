@@ -1,7 +1,6 @@
 #include "atomic_awaitable.hpp"
 #include "test_common.hpp"
 #include "tmc/atomic_condvar.hpp"
-#include "tmc/utils.hpp"
 
 #include <atomic>
 #include <gtest/gtest.h>
