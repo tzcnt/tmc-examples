@@ -2,6 +2,9 @@
 set -euo
 
 # This script is designed to extract test coverage information for Github Actions that can be fed to codecov.io
+# It builds and runs the test suites multiple times across all supported work item types,
+# then combines the coverage information into a single file using a format that codecov.io supports.
+
 # It can be run locally with the following preconditions:
 # - TMC is checked out as a submodule in ./submodules/TooManyCooks
 # - you have clang, llvm-profdata and llvm-cov installed
@@ -48,7 +51,7 @@ done
 echo "Merging coverage data..."
 "llvm-profdata-${llvm_version}" merge -sparse ${raws} -o ${cov}/coverage.profdata
 
-echo "Generating coverage-report.txt..."
+echo "Generating coverage.txt..."
 "llvm-cov-${llvm_version}" export -format=lcov -instr-profile=${cov}/coverage.profdata ${programs} ./submodules/TooManyCooks/ > ${cov}/coverage.txt
 
 echo "Done."
