@@ -42,3 +42,4 @@ Makefile
 .vscode
 CMakePresets.json
 scratch/
+coverage_data/
