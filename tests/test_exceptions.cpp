@@ -279,6 +279,41 @@ TEST_F(CATEGORY, wrapper_throws_no_await) {
   }
 }
 
+struct non_throwing_unknown_default_constructible {
+  bool await_ready() { return false; }
+  void await_suspend(std::coroutine_handle<> Outer) {
+    tmc::detail::post_checked(tmc::current_executor(), std::move(Outer));
+  }
+  int await_resume() { return 5; }
+};
+
+TEST_F(CATEGORY, wrapper_no_throw_default_constructible) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    auto x = co_await non_throwing_unknown_default_constructible{};
+    EXPECT_EQ(x, 5);
+  }());
+}
+
+struct no_default_int {
+  int a;
+  no_default_int(int x) : a{x} {}
+};
+
+struct non_throwing_unknown_non_default_constructible {
+  bool await_ready() { return false; }
+  void await_suspend(std::coroutine_handle<> Outer) {
+    tmc::detail::post_checked(tmc::current_executor(), std::move(Outer));
+  }
+  no_default_int await_resume() { return no_default_int{5}; }
+};
+
+TEST_F(CATEGORY, wrapper_no_throw_non_default_constructible) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    auto x = co_await non_throwing_unknown_non_default_constructible{};
+    EXPECT_EQ(x.a, 5);
+  }());
+}
+
 TEST(exceptions_DeathTest, unhandled_in_main) {
   EXPECT_DEATH(
     {
