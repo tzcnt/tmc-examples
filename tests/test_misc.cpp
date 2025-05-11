@@ -3,6 +3,7 @@
 
 #include "atomic_awaitable.hpp"
 #include "test_common.hpp"
+#include "tmc/detail/concepts_awaitable.hpp"
 #include "tmc/detail/qu_inbox.hpp"
 #include "tmc/external.hpp"
 
@@ -114,6 +115,42 @@ TEST_F(CATEGORY, qu_inbox_exact) {
   EXPECT_EQ(q.try_pull(v, prio), true);
   EXPECT_EQ(v, 3);
   EXPECT_EQ(q.try_pull(v, prio), false);
+}
+
+struct unk_awaitable {
+  inline bool await_ready() { return false; }
+  inline void await_suspend() {}
+  inline void await_resume() {}
+};
+
+struct unk_co_await_member {
+  inline unk_awaitable operator co_await() { return unk_awaitable{}; }
+};
+
+struct unk_co_await_free {};
+
+inline unk_awaitable operator co_await(unk_co_await_free&& f) {
+  return unk_awaitable{};
+}
+
+// unknown_awaitable_traits::guess_awaiter is normally unevaluated, and is used
+// only to get the correct awaitable type here it is evaluated for test
+// coverage, and to ensure that it returns the correct awaitable type
+TEST_F(CATEGORY, unknown_awaitable_traits) {
+  unk_co_await_member a;
+  unk_awaitable x =
+    tmc::detail::unknown_awaitable_traits<unk_co_await_member>::guess_awaiter(a
+    );
+
+  unk_co_await_free b;
+  unk_awaitable y =
+    tmc::detail::unknown_awaitable_traits<unk_co_await_member>::guess_awaiter(a
+    );
+
+  unk_awaitable c;
+  unk_awaitable z =
+    tmc::detail::unknown_awaitable_traits<unk_co_await_member>::guess_awaiter(a
+    );
 }
 
 #undef CATEGORY
