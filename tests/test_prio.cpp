@@ -55,6 +55,17 @@ tmc::task<void> jump_around(
   );
   EXPECT_EQ(tmc::current_priority(), ExpectedPriority);
 
+  // Also test the exec_is, prio_is, and exec_prio_is detail functions
+  EXPECT_TRUE(tmc::detail::this_thread::exec_is(
+    tmc::detail::executor_traits<tmc::ex_cpu>::type_erased(tmc::cpu_executor())
+  ));
+  EXPECT_TRUE(tmc::detail::this_thread::prio_is(ExpectedPriority));
+
+  EXPECT_TRUE(tmc::detail::this_thread::exec_prio_is(
+    tmc::detail::executor_traits<tmc::ex_cpu>::type_erased(tmc::cpu_executor()),
+    ExpectedPriority
+  ));
+
   auto cpuBraidScope = co_await tmc::enter(CpuBraid);
   EXPECT_EQ(
     tmc::detail::this_thread::executor,
