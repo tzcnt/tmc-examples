@@ -177,20 +177,25 @@ TEST_F(CATEGORY, access_control) {
 TEST_F(CATEGORY, access_control_scope) {
   test_async_main(ex(), []() -> tmc::task<void> {
     size_t count = 0;
-    tmc::semaphore sem(1);
+    tmc::semaphore sem(0);
 
-    co_await tmc::spawn_many(
-      tmc::iter_adapter(
-        0,
-        [&sem, &count](int i) -> tmc::task<void> {
-          return [](tmc::semaphore& Sem, size_t& Count) -> tmc::task<void> {
-            auto s = co_await Sem.acquire_scope();
-            ++Count;
-          }(sem, count);
-        }
-      ),
-      100
-    );
+    auto ts =
+      tmc::spawn_many(
+        tmc::iter_adapter(
+          0,
+          [&sem, &count](int i) -> tmc::task<void> {
+            return [](tmc::semaphore& Sem, size_t& Count) -> tmc::task<void> {
+              auto s = co_await Sem.acquire_scope();
+              ++Count;
+            }(sem, count);
+          }
+        ),
+        100
+      )
+        .fork();
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    sem.release();
+    co_await std::move(ts);
     co_await sem;
     EXPECT_EQ(count, 100);
   }());

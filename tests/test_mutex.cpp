@@ -173,19 +173,25 @@ TEST_F(CATEGORY, access_control_scope) {
   test_async_main(ex(), []() -> tmc::task<void> {
     size_t count = 0;
     tmc::mutex mut;
+    co_await mut;
 
-    co_await tmc::spawn_many(
-      tmc::iter_adapter(
-        0,
-        [&mut, &count](int i) -> tmc::task<void> {
-          return [](tmc::mutex& Mut, size_t& Count) -> tmc::task<void> {
-            auto s = co_await Mut.lock_scope();
-            ++Count;
-          }(mut, count);
-        }
-      ),
-      100
-    );
+    auto ts =
+      tmc::spawn_many(
+        tmc::iter_adapter(
+          0,
+          [&mut, &count](int i) -> tmc::task<void> {
+            return [](tmc::mutex& Mut, size_t& Count) -> tmc::task<void> {
+              auto s = co_await Mut.lock_scope();
+              ++Count;
+            }(mut, count);
+          }
+        ),
+        100
+      )
+        .fork();
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    mut.unlock();
+    co_await std::move(ts);
     co_await mut;
     EXPECT_EQ(count, 100);
   }());
