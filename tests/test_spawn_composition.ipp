@@ -11,11 +11,10 @@
 
 static inline tmc::task<void> spawn_tuple_compose() {
   // These fork() types aren't move-constructible directly into the
-  // spawn_tuple, since they initiate their operations immediately. spawn_tuple
-  // is able to take lvalues to these, pass them to safe_wrap which creates an
-  // awaiting task. spawn_tuple also allows passing lvalue for a task, which is
-  // something to fix later. This works and produces the correct output, but is
-  // undesirable because it does not implement the linear type rules.
+  // spawn_tuple, since they initiate their operations immediately. As an
+  // exception to the linear type rules, spawn_tuple is allowed to take lvalues
+  // to these since they don't have a move constructor, and pass them to
+  // safe_wrap which creates a task that awaits that lvalue reference.
   auto sre = tmc::spawn(work(2)).fork();
   auto tre = tmc::spawn_tuple(work(4)).fork();
   auto smare = tmc::spawn_many<1>(tmc::iter_adapter(6, work)).fork();
@@ -77,12 +76,11 @@ static inline tmc::task<void> spawn_tuple_compose_void() {
     co_return;
   };
 
-  // These types aren't move-constructible directly into the spawn_tuple,
-  // since they initiate their operations immediately.
-  // spawn_tuple is able to take lvalues to these, pass them to safe_wrap
-  // which creates an awaiting task. This is undesirable or unclear behavior.
-  // spawn_tuple also allows passing lvalue for a task. This is something to
-  // fix later. It's not broken, but it fails to implement the linear type
+  // These fork() types aren't move-constructible directly into the
+  // spawn_tuple, since they initiate their operations immediately. As an
+  // exception to the linear type rules, spawn_tuple is allowed to take lvalues
+  // to these since they don't have a move constructor, and pass them to
+  // safe_wrap which creates a task that awaits that lvalue reference.e
   // rules.
   auto sre = tmc::spawn(set(results[2])).fork();
   auto tre = tmc::spawn_tuple(set(results[4])).fork();
@@ -119,13 +117,8 @@ static inline tmc::task<void> spawn_tuple_compose_void_detach() {
     co_return;
   };
 
-  // These types aren't move-constructible directly into the spawn_tuple,
-  // since they initiate their operations immediately.
-  // spawn_tuple is able to take lvalues to these, pass them to safe_wrap
-  // which creates an awaiting task. This is undesirable or unclear behavior.
-  // spawn_tuple also allows passing lvalue for a task. This is something to
-  // fix later. It's not broken, but it fails to implement the linear type
-  // rules.
+  // Underspecified behavior - spawn_many allows to move from these tasks as
+  // arrays without requiring an explicit move cast.
   auto t2 = set(results[2], aa);
   auto t3 = set(results[3], aa);
 
@@ -349,6 +342,67 @@ TEST_F(CATEGORY, spawn_many_compose_spawn_func_many) {
 TEST_F(CATEGORY, spawn_many_compose_tuple) {
   test_async_main(ex(), []() -> tmc::task<void> {
     co_await spawn_many_compose_tuple();
+  }());
+}
+
+TEST_F(CATEGORY, spawn_compose) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    {
+      auto [x] = co_await tmc::spawn(tmc::spawn_tuple(work(1)));
+      EXPECT_EQ(x, 2);
+    }
+    {
+      auto t = tmc::spawn(tmc::spawn_tuple(work(1))).fork();
+      auto [x] = co_await std::move(t);
+      EXPECT_EQ(x, 2);
+    }
+  }());
+}
+
+TEST_F(CATEGORY, spawn_compose_void) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    auto set = [](int& i) -> tmc::task<void> {
+      i = (1 << i);
+      co_return;
+    };
+    {
+      int i = 1;
+      auto [x] = co_await tmc::spawn(tmc::spawn_tuple(set(i)));
+      EXPECT_EQ(i, 2);
+    }
+    {
+      int i = 1;
+      auto t = tmc::spawn(tmc::spawn_tuple(set(i))).fork();
+      auto [x] = co_await std::move(t);
+      EXPECT_EQ(i, 2);
+    }
+    {
+      atomic_awaitable<int> aa(1);
+      tmc::spawn(tmc::spawn([](atomic_awaitable<int>& AA) -> tmc::task<void> {
+        AA.inc();
+        co_return;
+      }(aa)))
+        .detach();
+      co_await aa;
+    }
+  }());
+}
+
+// Like spawn_tuple, spawn is allowed to accept lvalues if the type being passed
+// in doesn't have a move constructor.
+TEST_F(CATEGORY, spawn_compose_lvalues) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    {
+      auto t = tmc::spawn_tuple(work(1)).fork();
+      auto [x] = co_await tmc::spawn(t);
+      EXPECT_EQ(x, 2);
+    }
+    {
+      auto tt = tmc::spawn_tuple(work(1)).fork();
+      auto t = tmc::spawn(tt).fork();
+      auto [x] = co_await tmc::spawn(t);
+      EXPECT_EQ(x, 2);
+    }
   }());
 }
 
