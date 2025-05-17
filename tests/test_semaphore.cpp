@@ -238,7 +238,9 @@ TEST_F(CATEGORY, co_release) {
                  [](
                    tmc::semaphore& Sem, atomic_awaitable<int>& AA
                  ) -> tmc::task<void> {
+                   EXPECT_EQ(tmc::current_priority(), 1);
                    co_await Sem;
+                   EXPECT_EQ(tmc::current_priority(), 1);
                    AA.inc();
                  }(sem, aa)
       )
@@ -247,7 +249,9 @@ TEST_F(CATEGORY, co_release) {
       std::this_thread::sleep_for(std::chrono::milliseconds(10));
       EXPECT_EQ(sem.count(), 0);
       EXPECT_EQ(aa.load(), 0);
+      EXPECT_EQ(tmc::current_priority(), 0);
       co_await sem.co_release();
+      EXPECT_EQ(tmc::current_priority(), 0);
       co_await aa;
       co_await std::move(t);
     }

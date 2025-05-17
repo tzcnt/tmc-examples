@@ -233,7 +233,9 @@ TEST_F(CATEGORY, co_unlock) {
       auto t =
         tmc::spawn(
           [](tmc::mutex& Mut, atomic_awaitable<int>& AA) -> tmc::task<void> {
+            EXPECT_EQ(tmc::current_priority(), 1);
             co_await Mut;
+            EXPECT_EQ(tmc::current_priority(), 1);
             AA.inc();
           }(mut, aa)
         )
@@ -242,7 +244,9 @@ TEST_F(CATEGORY, co_unlock) {
       std::this_thread::sleep_for(std::chrono::milliseconds(10));
       EXPECT_EQ(mut.is_locked(), true);
       EXPECT_EQ(aa.load(), 0);
+      EXPECT_EQ(tmc::current_priority(), 0);
       co_await mut.co_unlock();
+      EXPECT_EQ(tmc::current_priority(), 0);
       co_await aa;
       co_await std::move(t);
     }
