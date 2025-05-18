@@ -98,6 +98,34 @@ TEST_F(CATEGORY, multi_waiter) {
   }());
 }
 
+TEST_F(CATEGORY, multi_waiter_co_release) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    tmc::semaphore sem(0);
+    atomic_awaitable<int> aa(5);
+    std::array<tmc::task<void>, 5> tasks;
+    for (size_t i = 0; i < 5; ++i) {
+      tasks[i] =
+        [](tmc::semaphore& Sem, atomic_awaitable<int>& AA) -> tmc::task<void> {
+        co_await Sem;
+        AA.inc();
+      }(sem, aa);
+    }
+    auto t = tmc::spawn_many(tasks).fork();
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    EXPECT_EQ(sem.count(), 0);
+    EXPECT_EQ(aa.load(), 0);
+    sem.release(1);
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    EXPECT_EQ(aa.load(), 1);
+    co_await sem.co_release();
+    co_await sem.co_release();
+    co_await sem.co_release();
+    co_await sem.co_release();
+    co_await aa;
+    co_await std::move(t);
+  }());
+}
+
 TEST_F(CATEGORY, resume_in_destructor) {
   test_async_main(ex(), []() -> tmc::task<void> {
     atomic_awaitable<int> aa(1);
