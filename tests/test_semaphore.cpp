@@ -114,7 +114,7 @@ TEST_F(CATEGORY, multi_waiter_co_release) {
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
     EXPECT_EQ(sem.count(), 0);
     EXPECT_EQ(aa.load(), 0);
-    sem.release(1);
+    co_await sem.co_release();
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
     EXPECT_EQ(aa.load(), 1);
     co_await sem.co_release();

@@ -146,6 +146,7 @@ TEST_F(CATEGORY, multi_waiter_co_set) {
       std::this_thread::sleep_for(std::chrono::milliseconds(10));
       EXPECT_EQ(aa.load(), 0);
       co_await event.co_set();
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));
       EXPECT_EQ(aa.load(), 1);
       co_await event.co_set();
       co_await event.co_set();
