@@ -146,6 +146,7 @@ TEST_F(CATEGORY, multi_waiter_co_set) {
       std::this_thread::sleep_for(std::chrono::milliseconds(10));
       EXPECT_EQ(aa.load(), 0);
       co_await event.co_set();
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));
       EXPECT_EQ(aa.load(), 1);
       co_await event.co_set();
       co_await event.co_set();
@@ -184,36 +185,64 @@ TEST_F(CATEGORY, resume_in_destructor) {
   }());
 }
 
+#ifndef TSAN_ENABLED
+
+// Event should be usable as a mutex to protect access to a non-atomic
+// resource with acquire/release semantics
+TEST_F(CATEGORY, access_control) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    size_t count = 0;
+    tmc::auto_reset_event event(1);
+
+    co_await tmc::spawn_many(
+      tmc::iter_adapter(
+        0,
+        [&event, &count](int i) -> tmc::task<void> {
+          return
+            [](tmc::auto_reset_event& Event, size_t& Count) -> tmc::task<void> {
+              co_await Event;
+              ++Count;
+              Event.set();
+            }(event, count);
+        }
+      ),
+      1000
+    );
+    co_await event;
+    EXPECT_EQ(count, 1000);
+  }());
+}
+
+#endif // TSAN_ENABLED
+
 // The task should not be symmetric transferred as it is scheduled with a
 // different priority.
 TEST_F(CATEGORY, co_set_no_symmetric) {
   test_async_main(ex(), []() -> tmc::task<void> {
     tmc::auto_reset_event event;
     EXPECT_EQ(event.is_set(), false);
-    {
-      atomic_awaitable<int> aa(1);
-      auto t = tmc::spawn(
-                 [](
-                   tmc::auto_reset_event& Event, atomic_awaitable<int>& AA
-                 ) -> tmc::task<void> {
-                   EXPECT_EQ(tmc::current_priority(), 1);
-                   co_await Event;
-                   EXPECT_EQ(tmc::current_priority(), 1);
-                   AA.inc();
-                 }(event, aa)
-      )
-                 .with_priority(1)
-                 .fork();
-      std::this_thread::sleep_for(std::chrono::milliseconds(10));
-      EXPECT_EQ(event.is_set(), false);
-      EXPECT_EQ(aa.load(), 0);
-      EXPECT_EQ(tmc::current_priority(), 0);
-      co_await event.co_set();
-      EXPECT_EQ(tmc::current_priority(), 0);
-      co_await aa;
-      co_await std::move(t);
-      EXPECT_EQ(event.is_set(), false);
-    }
+    atomic_awaitable<int> aa(1);
+    auto t = tmc::spawn(
+               [](
+                 tmc::auto_reset_event& Event, atomic_awaitable<int>& AA
+               ) -> tmc::task<void> {
+                 EXPECT_EQ(tmc::current_priority(), 1);
+                 co_await Event;
+                 EXPECT_EQ(tmc::current_priority(), 1);
+                 AA.inc();
+               }(event, aa)
+    )
+               .with_priority(1)
+               .fork();
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    EXPECT_EQ(event.is_set(), false);
+    EXPECT_EQ(aa.load(), 0);
+    EXPECT_EQ(tmc::current_priority(), 0);
+    co_await event.co_set();
+    EXPECT_EQ(tmc::current_priority(), 0);
+    co_await aa;
+    co_await std::move(t);
+    EXPECT_EQ(event.is_set(), false);
   }());
 }
 

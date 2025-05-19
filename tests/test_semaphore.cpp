@@ -114,7 +114,7 @@ TEST_F(CATEGORY, multi_waiter_co_release) {
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
     EXPECT_EQ(sem.count(), 0);
     EXPECT_EQ(aa.load(), 0);
-    sem.release(1);
+    co_await sem.co_release();
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
     EXPECT_EQ(aa.load(), 1);
     co_await sem.co_release();
@@ -195,10 +195,10 @@ TEST_F(CATEGORY, access_control) {
           }(sem, count);
         }
       ),
-      100
+      1000
     );
     co_await sem;
-    EXPECT_EQ(count, 100);
+    EXPECT_EQ(count, 1000);
   }());
 }
 
@@ -218,14 +218,14 @@ TEST_F(CATEGORY, access_control_scope) {
             }(sem, count);
           }
         ),
-        100
+        1000
       )
         .fork();
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
     sem.release();
     co_await std::move(ts);
     co_await sem;
-    EXPECT_EQ(count, 100);
+    EXPECT_EQ(count, 1000);
   }());
 }
 
@@ -260,29 +260,34 @@ TEST_F(CATEGORY, co_release) {
       co_await aa;
       co_await std::move(t);
     }
-    {
-      atomic_awaitable<int> aa(1);
-      auto t = tmc::spawn(
-                 [](
-                   tmc::semaphore& Sem, atomic_awaitable<int>& AA
-                 ) -> tmc::task<void> {
-                   EXPECT_EQ(tmc::current_priority(), 1);
-                   co_await Sem;
-                   EXPECT_EQ(tmc::current_priority(), 1);
-                   AA.inc();
-                 }(sem, aa)
+  }());
+}
+
+// The task should not be symmetric transferred as it is scheduled with a
+// different priority.
+TEST_F(CATEGORY, co_release_no_symmetric) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    tmc::semaphore sem(0);
+    atomic_awaitable<int> aa(1);
+    auto t =
+      tmc::spawn(
+        [](tmc::semaphore& Sem, atomic_awaitable<int>& AA) -> tmc::task<void> {
+          EXPECT_EQ(tmc::current_priority(), 1);
+          co_await Sem;
+          EXPECT_EQ(tmc::current_priority(), 1);
+          AA.inc();
+        }(sem, aa)
       )
-                 .with_priority(1)
-                 .fork();
-      std::this_thread::sleep_for(std::chrono::milliseconds(10));
-      EXPECT_EQ(sem.count(), 0);
-      EXPECT_EQ(aa.load(), 0);
-      EXPECT_EQ(tmc::current_priority(), 0);
-      co_await sem.co_release();
-      EXPECT_EQ(tmc::current_priority(), 0);
-      co_await aa;
-      co_await std::move(t);
-    }
+        .with_priority(1)
+        .fork();
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    EXPECT_EQ(sem.count(), 0);
+    EXPECT_EQ(aa.load(), 0);
+    EXPECT_EQ(tmc::current_priority(), 0);
+    co_await sem.co_release();
+    EXPECT_EQ(tmc::current_priority(), 0);
+    co_await aa;
+    co_await std::move(t);
   }());
 }
 
