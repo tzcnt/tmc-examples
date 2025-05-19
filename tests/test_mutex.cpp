@@ -162,10 +162,10 @@ TEST_F(CATEGORY, access_control) {
           }(mut, count);
         }
       ),
-      100
+      1000
     );
     co_await mut;
-    EXPECT_EQ(count, 100);
+    EXPECT_EQ(count, 1000);
   }());
 }
 
@@ -186,14 +186,14 @@ TEST_F(CATEGORY, access_control_scope) {
             }(mut, count);
           }
         ),
-        100
+        1000
       )
         .fork();
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
     mut.unlock();
     co_await std::move(ts);
     co_await mut;
-    EXPECT_EQ(count, 100);
+    EXPECT_EQ(count, 1000);
   }());
 }
 

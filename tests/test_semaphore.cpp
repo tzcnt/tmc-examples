@@ -195,10 +195,10 @@ TEST_F(CATEGORY, access_control) {
           }(sem, count);
         }
       ),
-      100
+      1000
     );
     co_await sem;
-    EXPECT_EQ(count, 100);
+    EXPECT_EQ(count, 1000);
   }());
 }
 
@@ -218,14 +218,14 @@ TEST_F(CATEGORY, access_control_scope) {
             }(sem, count);
           }
         ),
-        100
+        1000
       )
         .fork();
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
     sem.release();
     co_await std::move(ts);
     co_await sem;
-    EXPECT_EQ(count, 100);
+    EXPECT_EQ(count, 1000);
   }());
 }
 
