@@ -41,6 +41,10 @@ TEST_F(CATEGORY, nonblocking) {
     EXPECT_EQ(event.is_set(), false);
     co_await event.co_set();
     EXPECT_EQ(event.is_set(), true);
+    co_await event.co_set();
+    EXPECT_EQ(event.is_set(), true);
+    co_await event;
+    EXPECT_EQ(event.is_set(), false);
   }());
 }
 
