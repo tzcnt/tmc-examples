@@ -210,46 +210,52 @@ TEST_F(CATEGORY, co_unlock) {
       co_await mut;
       EXPECT_EQ(mut.is_locked(), true);
     }
+    {
+      atomic_awaitable<int> aa(1);
+      auto t =
+        tmc::spawn(
+          [](tmc::mutex& Mut, atomic_awaitable<int>& AA) -> tmc::task<void> {
+            co_await Mut;
+            AA.inc();
+          }(mut, aa)
+        )
+          .fork();
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+      EXPECT_EQ(mut.is_locked(), true);
+      EXPECT_EQ(aa.load(), 0);
+      co_await mut.co_unlock();
+      co_await aa;
+      co_await std::move(t);
+    }
+  }());
+}
 
-    {
-      atomic_awaitable<int> aa(1);
-      auto t =
-        tmc::spawn(
-          [](tmc::mutex& Mut, atomic_awaitable<int>& AA) -> tmc::task<void> {
-            co_await Mut;
-            AA.inc();
-          }(mut, aa)
-        )
-          .fork();
-      std::this_thread::sleep_for(std::chrono::milliseconds(10));
-      EXPECT_EQ(mut.is_locked(), true);
-      EXPECT_EQ(aa.load(), 0);
-      co_await mut.co_unlock();
-      co_await aa;
-      co_await std::move(t);
-    }
-    {
-      atomic_awaitable<int> aa(1);
-      auto t =
-        tmc::spawn(
-          [](tmc::mutex& Mut, atomic_awaitable<int>& AA) -> tmc::task<void> {
-            EXPECT_EQ(tmc::current_priority(), 1);
-            co_await Mut;
-            EXPECT_EQ(tmc::current_priority(), 1);
-            AA.inc();
-          }(mut, aa)
-        )
-          .with_priority(1)
-          .fork();
-      std::this_thread::sleep_for(std::chrono::milliseconds(10));
-      EXPECT_EQ(mut.is_locked(), true);
-      EXPECT_EQ(aa.load(), 0);
-      EXPECT_EQ(tmc::current_priority(), 0);
-      co_await mut.co_unlock();
-      EXPECT_EQ(tmc::current_priority(), 0);
-      co_await aa;
-      co_await std::move(t);
-    }
+// The task should not be symmetric transferred as it is scheduled with a
+// different priority.
+TEST_F(CATEGORY, co_unlock_no_symmetric) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    tmc::mutex mut;
+    co_await mut;
+    atomic_awaitable<int> aa(1);
+    auto t =
+      tmc::spawn(
+        [](tmc::mutex& Mut, atomic_awaitable<int>& AA) -> tmc::task<void> {
+          EXPECT_EQ(tmc::current_priority(), 1);
+          co_await Mut;
+          EXPECT_EQ(tmc::current_priority(), 1);
+          AA.inc();
+        }(mut, aa)
+      )
+        .with_priority(1)
+        .fork();
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    EXPECT_EQ(mut.is_locked(), true);
+    EXPECT_EQ(aa.load(), 0);
+    EXPECT_EQ(tmc::current_priority(), 0);
+    co_await mut.co_unlock();
+    EXPECT_EQ(tmc::current_priority(), 0);
+    co_await aa;
+    co_await std::move(t);
   }());
 }
 

@@ -190,30 +190,28 @@ TEST_F(CATEGORY, co_set_no_symmetric) {
   test_async_main(ex(), []() -> tmc::task<void> {
     tmc::auto_reset_event event;
     EXPECT_EQ(event.is_set(), false);
-    {
-      atomic_awaitable<int> aa(1);
-      auto t = tmc::spawn(
-                 [](
-                   tmc::auto_reset_event& Event, atomic_awaitable<int>& AA
-                 ) -> tmc::task<void> {
-                   EXPECT_EQ(tmc::current_priority(), 1);
-                   co_await Event;
-                   EXPECT_EQ(tmc::current_priority(), 1);
-                   AA.inc();
-                 }(event, aa)
-      )
-                 .with_priority(1)
-                 .fork();
-      std::this_thread::sleep_for(std::chrono::milliseconds(10));
-      EXPECT_EQ(event.is_set(), false);
-      EXPECT_EQ(aa.load(), 0);
-      EXPECT_EQ(tmc::current_priority(), 0);
-      co_await event.co_set();
-      EXPECT_EQ(tmc::current_priority(), 0);
-      co_await aa;
-      co_await std::move(t);
-      EXPECT_EQ(event.is_set(), false);
-    }
+    atomic_awaitable<int> aa(1);
+    auto t = tmc::spawn(
+               [](
+                 tmc::auto_reset_event& Event, atomic_awaitable<int>& AA
+               ) -> tmc::task<void> {
+                 EXPECT_EQ(tmc::current_priority(), 1);
+                 co_await Event;
+                 EXPECT_EQ(tmc::current_priority(), 1);
+                 AA.inc();
+               }(event, aa)
+    )
+               .with_priority(1)
+               .fork();
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    EXPECT_EQ(event.is_set(), false);
+    EXPECT_EQ(aa.load(), 0);
+    EXPECT_EQ(tmc::current_priority(), 0);
+    co_await event.co_set();
+    EXPECT_EQ(tmc::current_priority(), 0);
+    co_await aa;
+    co_await std::move(t);
+    EXPECT_EQ(event.is_set(), false);
   }());
 }
 
