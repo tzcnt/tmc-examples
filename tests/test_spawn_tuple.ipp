@@ -172,3 +172,15 @@ TEST_F(CATEGORY, spawn_tuple_task_fork) {
     EXPECT_EQ(sum, (1 << 3) - 1);
   }());
 }
+
+TEST_F(CATEGORY, spawn_tuple_from_tuple) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    std::tuple<tmc::task<int>, tmc::task<int>> t{work(0), work(1)};
+
+    std::tuple<int, int> results = co_await tmc::spawn_tuple(std::move(t));
+
+    [[maybe_unused]] auto sum = std::get<0>(results) + std::get<1>(results);
+
+    EXPECT_EQ(sum, (1 << 2) - 1);
+  }());
+}
