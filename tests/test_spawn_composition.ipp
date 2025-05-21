@@ -40,21 +40,22 @@ static inline tmc::task<void> spawn_tuple_compose() {
     std::array<int, 1>, std::vector<int>, std::vector<int>, int, int,
     std::array<int, 1>, std::array<int, 1>, std::vector<int>, std::vector<int>>
     results = co_await tmc::spawn_tuple(
-      work(0), tmc::spawn(work(1)), sre, tmc::spawn_tuple(work(3)), tre,
-      tmc::spawn_many<1>(tmc::iter_adapter(5, work)), smare,
-      tmc::spawn_many(tmc::iter_adapter(7, work), 1), smvre,
-      tmc::spawn_func([]() -> int { return 1 << 9; }), sfre,
+      work(0), tmc::spawn(work(1)), std::move(sre), tmc::spawn_tuple(work(3)),
+      std::move(tre), tmc::spawn_many<1>(tmc::iter_adapter(5, work)),
+      std::move(smare), tmc::spawn_many(tmc::iter_adapter(7, work), 1),
+      std::move(smvre), tmc::spawn_func([]() -> int { return 1 << 9; }),
+      std::move(sfre),
       tmc::spawn_func_many<1>(tmc::iter_adapter(
         11, [](int i) -> auto { return [i]() -> int { return 1 << i; }; }
       )),
-      sfmare,
+      std::move(sfmare),
       tmc::spawn_func_many(
         tmc::iter_adapter(
           13, [](int i) -> auto { return [i]() -> int { return 1 << i; }; }
         ),
         1
       ),
-      sfmvre
+      std::move(sfmvre)
     );
 
   auto sum = std::get<0>(results) + std::get<1>(results) +
@@ -96,9 +97,10 @@ static inline tmc::task<void> spawn_tuple_compose_void() {
     std::tuple<std::monostate>, std::monostate, std::monostate, std::monostate,
     std::monostate, std::tuple<>>
     foo = co_await tmc::spawn_tuple(
-      set(results[0]), tmc::spawn(set(results[1])), sre,
-      tmc::spawn_tuple(set(results[3])), tre, tmc::spawn_many<1>(&t5), smare,
-      tmc::spawn_many(&t7, 1), smvre,
+      set(results[0]), tmc::spawn(set(results[1])), std::move(sre),
+      tmc::spawn_tuple(set(results[3])), std::move(tre),
+      tmc::spawn_many<1>(&t5), std::move(smare), tmc::spawn_many(&t7, 1),
+      std::move(smvre),
       // throw in an empty tuple at the end
       tmc::spawn_tuple()
     );
@@ -394,51 +396,274 @@ TEST_F(CATEGORY, spawn_compose_lvalues) {
   test_async_main(ex(), []() -> tmc::task<void> {
     {
       auto t = tmc::spawn_tuple(work(1)).fork();
-      auto [x] = co_await tmc::spawn(t);
+      auto [x] = co_await tmc::spawn(std::move(t));
       EXPECT_EQ(x, 2);
     }
     {
       auto tt = tmc::spawn_tuple(work(1)).fork();
-      auto t = tmc::spawn(tt).fork();
-      auto [x] = co_await tmc::spawn(t);
+      auto t = tmc::spawn(std::move(tt)).fork();
+      auto [x] = co_await tmc::spawn(std::move(t));
       EXPECT_EQ(x, 2);
     }
   }());
 }
 
-// Doesn't compile - as expected. fork() types cannot be moved
-// static inline tmc::task<void> spawn_many_compose_fork() {
-//   {
-//     std::array<tmc::aw_spawn_fork<tmc::task<int>>, 2> ts{
-//       tmc::spawn(work(0)).fork(), tmc::spawn(work(1)).fork()
-//     };
-//     std::array<int, 2> results =
-//       co_await tmc::spawn_many<2>(std::move(ts).data());
+TEST_F(CATEGORY, spawn_many_compose_spawn_fork) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    {
+      std::array<tmc::aw_spawn_fork<tmc::task<int>>, 2> ts{
+        tmc::spawn(work(0)).fork(), tmc::spawn(work(1)).fork()
+      };
+      std::array<int, 2> results =
+        co_await tmc::spawn_many<2>(std::move(ts).data());
 
-//     auto sum = results[0] + results[1];
+      auto sum = results[0] + results[1];
 
-//     EXPECT_EQ(sum, (1 << 2) - 1);
-//   }
-//   {
-//     std::array<int, 2> void_results{0, 1};
-//     auto set = [](int& i) -> tmc::task<void> {
-//       i = (1 << i);
-//       co_return;
-//     };
-//     std::array<tmc::aw_spawn_fork<tmc::task<void>>, 2> ts{
-//       tmc::spawn(set(void_results[0])).fork(),
-//       tmc::spawn(set(void_results[1])).fork()
-//     };
-//     co_await tmc::spawn_many<2>(ts.data());
+      EXPECT_EQ(sum, (1 << 2) - 1);
+    }
+    {
+      std::array<int, 2> void_results{0, 1};
+      auto set = [](int& i) -> tmc::task<void> {
+        i = (1 << i);
+        co_return;
+      };
+      std::array<tmc::aw_spawn_fork<tmc::task<void>>, 2> ts{
+        tmc::spawn(set(void_results[0])).fork(),
+        tmc::spawn(set(void_results[1])).fork()
+      };
+      co_await tmc::spawn_many<2>(ts.data());
 
-//     auto sum = void_results[0] + void_results[1];
+      auto sum = void_results[0] + void_results[1];
 
-//     EXPECT_EQ(sum, (1 << 2) - 1);
-//   }
+      EXPECT_EQ(sum, (1 << 2) - 1);
+    }
+  }());
+}
+
+TEST_F(CATEGORY, spawn_many_compose_spawn_tuple_fork) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    {
+      std::array<tmc::aw_spawn_tuple_fork<tmc::task<int>>, 2> ts{
+        tmc::spawn_tuple(work(0)).fork(), tmc::spawn_tuple(work(1)).fork()
+      };
+      std::array<std::tuple<int>, 2> results =
+        co_await tmc::spawn_many<2>(std::move(ts).data());
+
+      auto sum = std::get<0>(results[0]) + std::get<0>(results[1]);
+
+      EXPECT_EQ(sum, (1 << 2) - 1);
+    }
+    {
+      std::array<int, 2> void_results{0, 1};
+      auto set = [](int& i) -> tmc::task<void> {
+        i = (1 << i);
+        co_return;
+      };
+      std::array<tmc::aw_spawn_tuple_fork<tmc::task<void>>, 2> ts{
+        tmc::spawn_tuple(set(void_results[0])).fork(),
+        tmc::spawn_tuple(set(void_results[1])).fork()
+      };
+      co_await tmc::spawn_many<2>(ts.data());
+
+      auto sum = void_results[0] + void_results[1];
+
+      EXPECT_EQ(sum, (1 << 2) - 1);
+    }
+  }());
+}
+
+TEST_F(CATEGORY, multi_level_composition_value) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    {
+      tmc::task<int> t1 = work(0);
+      tmc::task<int> t2 = work(1);
+
+      tmc::aw_spawn<tmc::task<int>> ts1 = tmc::spawn(std::move(t1));
+      tmc::aw_spawn<tmc::task<int>> ts2 = tmc::spawn(std::move(t2));
+
+      std::array<tmc::aw_spawn_tuple<tmc::aw_spawn<tmc::task<int>>>, 2> tt{
+        tmc::spawn_tuple(std::move(ts1)), tmc::spawn_tuple(std::move(ts2))
+      };
+      auto tsm = tmc::spawn_many<2>(std::move(tt).data());
+
+      auto whyNot = tmc::spawn(std::move(tsm));
+      std::array<std::tuple<int>, 2> results = co_await std::move(whyNot);
+
+      auto sum = std::get<0>(results[0]) + std::get<0>(results[1]);
+
+      EXPECT_EQ(sum, (1 << 2) - 1);
+    }
+  }());
+}
+
+TEST_F(CATEGORY, multi_level_composition_rvalue) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    {
+      tmc::task<int> t1 = work(0);
+      tmc::task<int> t2 = work(1);
+
+      tmc::aw_spawn_fork<tmc::task<int>> ts1 = tmc::spawn(std::move(t1)).fork();
+      tmc::aw_spawn_fork<tmc::task<int>> ts2 = tmc::spawn(std::move(t2)).fork();
+
+      std::array<
+        tmc::aw_spawn_tuple_fork<tmc::aw_spawn_fork<tmc::task<int>>&&>, 2>
+        tt{
+          tmc::spawn_tuple(std::move(ts1)).fork(),
+          tmc::spawn_tuple(std::move(ts2)).fork()
+        };
+      auto tsm = tmc::spawn_many<2>(std::move(tt).data()).fork();
+
+      auto whyNot = tmc::spawn(std::move(tsm));
+      std::array<std::tuple<int>, 2> results = co_await std::move(whyNot);
+
+      auto sum = std::get<0>(results[0]) + std::get<0>(results[1]);
+
+      EXPECT_EQ(sum, (1 << 2) - 1);
+    }
+  }());
+}
+
+TEST_F(CATEGORY, multi_level_composition_lvalue) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    {
+      tmc::task<int> t1 = work(0);
+      tmc::task<int> t2 = work(1);
+
+      tmc::aw_spawn_tuple_each<tmc::task<int>> te1 =
+        tmc::spawn_tuple(std::move(t1)).result_each();
+      tmc::aw_spawn_tuple_each<tmc::task<int>> te2 =
+        tmc::spawn_tuple(std::move(t2)).result_each();
+
+      // This is kind of an abuse of the rules - the lvalue only awaitable from
+      // result_each() is turned into an rvalue only awaitable with spawn()
+      // which can then be passed to spawn_many().
+      std::array<tmc::aw_spawn<tmc::aw_spawn_tuple_each<tmc::task<int>>&>, 2>
+        tt{tmc::spawn(te1), tmc::spawn(te2)};
+
+      // Spawn_many is always movable - however the type in the array that it
+      // reads from is not movable, so it should forward the lvalue reference to
+      // the safe_wrap awaitable / co_await expression.
+      auto tsm = tmc::spawn_many<2>(std::move(tt).data());
+
+      auto whyNot = tmc::spawn(std::move(tsm));
+      std::array<size_t, 2> results = co_await std::move(whyNot);
+
+      auto sum = results[0] + results[1];
+      EXPECT_EQ(sum, 0);
+
+      // We can't await this again because the spawn_many is a single-use
+      // awaitable, even though the underlying result_each() awaitables could be
+      // awaited multiple times.
+      // results = co_await std::move(whyNot);
+      // sum = results[0] + results[1];
+      // EXPECT_EQ(sum, 128);
+    }
+  }());
+}
+
+TEST_F(CATEGORY, tuple_compose_each_twice) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    {
+      tmc::aw_spawn_tuple_each<tmc::task<int>, tmc::task<int>> te1 =
+        tmc::spawn_tuple(work(0), work(1)).result_each();
+      tmc::aw_spawn_tuple_each<tmc::task<int>, tmc::task<int>> te2 =
+        tmc::spawn_tuple(work(2), work(3)).result_each();
+
+      int sum = 0;
+
+      // Get the first result from each inner tuple.
+      auto [x, y] = co_await tmc::spawn_tuple(te1, te2);
+      switch (x) {
+      case 0:
+        sum += te1.get<0>();
+        break;
+      case 1:
+        sum += te1.get<1>();
+        break;
+      default:
+        EXPECT_TRUE(false);
+      }
+      switch (y) {
+      case 0:
+        sum += te2.get<0>();
+        break;
+      case 1:
+        sum += te2.get<1>();
+        break;
+      default:
+        EXPECT_TRUE(false);
+      }
+
+      // Get the second result from each inner tuple.
+      std::tie(x, y) = co_await tmc::spawn_tuple(te1, te2);
+      switch (x) {
+      case 0:
+        sum += te1.get<0>();
+        break;
+      case 1:
+        sum += te1.get<1>();
+        break;
+      default:
+        EXPECT_TRUE(false);
+      }
+      switch (y) {
+      case 0:
+        sum += te2.get<0>();
+        break;
+      case 1:
+        sum += te2.get<1>();
+        break;
+      default:
+        EXPECT_TRUE(false);
+      }
+
+      EXPECT_EQ(sum, (1 << 4) - 1);
+
+      // Get the final result from each inner tuple.
+      std::tie(x, y) = co_await tmc::spawn_tuple(te1, te2);
+
+      EXPECT_EQ(x, te1.end());
+      EXPECT_EQ(y, te2.end());
+    }
+  }());
+}
+
+//// Doesn't / shouldn't compile - co_awaiting a temporary result_each() is
+//// invalid - it must be awaited as an lvalue.
+//
+// TEST_F(CATEGORY, co_await_lvalue_tuple_each) {
+//   test_async_main(ex(), []() -> tmc::task<void> {
+//     auto x = co_await tmc::spawn_tuple(work(0)).result_each();
+//   }());
+// }
+//
+// TEST_F(CATEGORY, co_await_lvalue_many_each) {
+//   test_async_main(ex(), []() -> tmc::task<void> {
+//     tmc::task<int> t = work(0);
+//     auto x = co_await tmc::spawn_many(&t, 1).result_each();
+//   }());
 // }
 
-// TEST_F(CATEGORY, spawn_many_compose_fork) {
+//// Doesn't / shouldn't compile - wrapping a temporary result_each() is invalid
+//// - it must be awaited as an lvalue.
+//
+// TEST_F(CATEGORY, multi_level_composition_lvalue_tuple_each_in_tuple) {
 //   test_async_main(ex(), []() -> tmc::task<void> {
-//     co_await spawn_many_compose_fork();
+//     {
+//       tmc::task<int> t1 = work(0);
+//       auto tte =
+//         tmc::spawn_tuple(tmc::spawn_tuple(std::move(t1)).result_each());
+//       co_await std::move(tte);
+//     }
+//   }());
+// }
+//
+// TEST_F(CATEGORY, multi_level_composition_lvalue_many_each_in_tuple) {
+//   test_async_main(ex(), []() -> tmc::task<void> {
+//     {
+//       tmc::task<int> t1 = work(0);
+//       auto tte = tmc::spawn_tuple(tmc::spawn_many(&t1, 1).result_each());
+//       co_await std::move(tte);
+//     }
 //   }());
 // }
