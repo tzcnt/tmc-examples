@@ -11,22 +11,21 @@
 
 static inline tmc::task<void> spawn_tuple_compose() {
   // These fork() types aren't move-constructible directly into the
-  // spawn_tuple, since they initiate their operations immediately. As an
-  // exception to the linear type rules, spawn_tuple is allowed to take lvalues
-  // to these since they don't have a move constructor, and pass them to
-  // safe_wrap which creates a task that awaits that lvalue reference.
-  auto sre = tmc::spawn(work(2)).fork();
-  auto tre = tmc::spawn_tuple(work(4)).fork();
-  auto smare = tmc::spawn_many<1>(tmc::iter_adapter(6, work)).fork();
-  auto smvre = tmc::spawn_many(tmc::iter_adapter(8, work), 1).fork();
-  auto sfre = tmc::spawn_func([]() -> int { return 1 << 10; }).fork();
-  auto sfmare =
+  // spawn_tuple, since they initiate their operations immediately. However,
+  // they can still be awaited by passing rvalue reference parameters to
+  // spawn_tuple (as if they were being co_awaited).
+  auto sf = tmc::spawn(work(2)).fork();
+  auto tf = tmc::spawn_tuple(work(4)).fork();
+  auto smaf = tmc::spawn_many<1>(tmc::iter_adapter(6, work)).fork();
+  auto smvf = tmc::spawn_many(tmc::iter_adapter(8, work), 1).fork();
+  auto sff = tmc::spawn_func([]() -> int { return 1 << 10; }).fork();
+  auto sfmaf =
     tmc::spawn_func_many<1>(
       tmc::iter_adapter(
         12, [](int i) -> auto { return [i]() -> int { return 1 << i; }; }
       )
     ).fork();
-  auto sfmvre =
+  auto sfmvf =
     tmc::spawn_func_many(
       tmc::iter_adapter(
         14, [](int i) -> auto { return [i]() -> int { return 1 << i; }; }
@@ -40,22 +39,22 @@ static inline tmc::task<void> spawn_tuple_compose() {
     std::array<int, 1>, std::vector<int>, std::vector<int>, int, int,
     std::array<int, 1>, std::array<int, 1>, std::vector<int>, std::vector<int>>
     results = co_await tmc::spawn_tuple(
-      work(0), tmc::spawn(work(1)), std::move(sre), tmc::spawn_tuple(work(3)),
-      std::move(tre), tmc::spawn_many<1>(tmc::iter_adapter(5, work)),
-      std::move(smare), tmc::spawn_many(tmc::iter_adapter(7, work), 1),
-      std::move(smvre), tmc::spawn_func([]() -> int { return 1 << 9; }),
-      std::move(sfre),
+      work(0), tmc::spawn(work(1)), std::move(sf), tmc::spawn_tuple(work(3)),
+      std::move(tf), tmc::spawn_many<1>(tmc::iter_adapter(5, work)),
+      std::move(smaf), tmc::spawn_many(tmc::iter_adapter(7, work), 1),
+      std::move(smvf), tmc::spawn_func([]() -> int { return 1 << 9; }),
+      std::move(sff),
       tmc::spawn_func_many<1>(tmc::iter_adapter(
         11, [](int i) -> auto { return [i]() -> int { return 1 << i; }; }
       )),
-      std::move(sfmare),
+      std::move(sfmaf),
       tmc::spawn_func_many(
         tmc::iter_adapter(
           13, [](int i) -> auto { return [i]() -> int { return 1 << i; }; }
         ),
         1
       ),
-      std::move(sfmvre)
+      std::move(sfmvf)
     );
 
   auto sum = std::get<0>(results) + std::get<1>(results) +
@@ -78,17 +77,15 @@ static inline tmc::task<void> spawn_tuple_compose_void() {
   };
 
   // These fork() types aren't move-constructible directly into the
-  // spawn_tuple, since they initiate their operations immediately. As an
-  // exception to the linear type rules, spawn_tuple is allowed to take lvalues
-  // to these since they don't have a move constructor, and pass them to
-  // safe_wrap which creates a task that awaits that lvalue reference.e
-  // rules.
-  auto sre = tmc::spawn(set(results[2])).fork();
-  auto tre = tmc::spawn_tuple(set(results[4])).fork();
+  // spawn_tuple, since they initiate their operations immediately. However,
+  // they can still be awaited by passing rvalue reference parameters to
+  // spawn_tuple (as if they were being co_awaited).
+  auto sf = tmc::spawn(set(results[2])).fork();
+  auto tf = tmc::spawn_tuple(set(results[4])).fork();
   auto t6 = set(results[6]);
-  auto smare = tmc::spawn_many<1>(&t6).fork();
+  auto smaf = tmc::spawn_many<1>(&t6).fork();
   auto t8 = set(results[8]);
-  auto smvre = tmc::spawn_many(&t8, 1).fork();
+  auto smvf = tmc::spawn_many(&t8, 1).fork();
 
   auto t5 = set(results[5]);
   auto t7 = set(results[7]);
@@ -97,11 +94,9 @@ static inline tmc::task<void> spawn_tuple_compose_void() {
     std::tuple<std::monostate>, std::monostate, std::monostate, std::monostate,
     std::monostate, std::tuple<>>
     foo = co_await tmc::spawn_tuple(
-      set(results[0]), tmc::spawn(set(results[1])), std::move(sre),
-      tmc::spawn_tuple(set(results[3])), std::move(tre),
-      tmc::spawn_many<1>(&t5), std::move(smare), tmc::spawn_many(&t7, 1),
-      std::move(smvre),
-      // throw in an empty tuple at the end
+      set(results[0]), tmc::spawn(set(results[1])), std::move(sf),
+      tmc::spawn_tuple(set(results[3])), std::move(tf), tmc::spawn_many<1>(&t5),
+      std::move(smaf), tmc::spawn_many(&t7, 1), std::move(smvf),
       tmc::spawn_tuple()
     );
   auto sum = std::accumulate(results.begin(), results.end(), 0);
