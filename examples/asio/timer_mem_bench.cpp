@@ -22,7 +22,14 @@
 #include "tmc/spawn_many.hpp"
 #include "tmc/task.hpp"
 
+#ifdef TMC_USE_BOOST_ASIO
+#include <boost/asio/steady_timer.hpp>
+
+namespace asio = boost::asio;
+#else
 #include <asio/steady_timer.hpp>
+#endif
+
 #include <chrono>
 #include <cstddef>
 #include <cstdio>

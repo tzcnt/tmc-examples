@@ -28,9 +28,21 @@
 #include "tmc/spawn_tuple.hpp"
 #include "tmc/task.hpp"
 
+#ifdef TMC_USE_BOOST_ASIO
+#include <boost/asio/error.hpp>
+#include <boost/asio/steady_timer.hpp>
+#include <boost/system/error_code.hpp>
+
+namespace asio = boost::asio;
+using boost::system::error_code;
+#else
 #include <asio/error.hpp>
 #include <asio/error_code.hpp>
 #include <asio/steady_timer.hpp>
+
+using asio::error_code;
+#endif
+
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
@@ -49,7 +61,7 @@ void log_event_timestamp(
 }
 
 void log_error_code(
-  asio::error_code ec, std::chrono::high_resolution_clock::time_point startTime
+  error_code ec, std::chrono::high_resolution_clock::time_point startTime
 ) {
   switch (ec.value()) {
   case 0:
