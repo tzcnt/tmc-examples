@@ -10,11 +10,23 @@
 #include "tmc/asio/ex_asio.hpp"
 #include "tmc/ex_cpu.hpp"
 #include "tmc/spawn.hpp"
+#include "tmc/spawn_many.hpp"
 #include "tmc/task.hpp"
 
+#ifdef TMC_USE_BOOST_ASIO
+#include <boost/asio/buffer.hpp>
+#include <boost/asio/ip/tcp.hpp>
+#include <boost/asio/write.hpp>
+
+namespace asio = boost::asio;
+using boost::system::error_code;
+#else
 #include <asio/buffer.hpp>
 #include <asio/ip/tcp.hpp>
 #include <asio/write.hpp>
+
+using asio::error_code;
+#endif
 
 #include <cstdint>
 #include <cstdio>
@@ -52,9 +64,17 @@ tmc::task<void> handler(auto Socket) {
   Socket.close();
 }
 
-static tmc::task<void> accept(uint16_t Port) {
+static tmc::task<void> accept(tmc::ex_asio& Ex, uint16_t Port) {
   std::printf("serving on http://localhost:%d/\n", Port);
-  tcp::acceptor acceptor(tmc::asio_executor(), {tcp::v4(), Port});
+  tcp::acceptor acceptor(Ex);
+  acceptor.open(tcp::v4());
+  int one = 1;
+  setsockopt(
+    acceptor.native_handle(), SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &one,
+    sizeof(one)
+  );
+  acceptor.bind(tcp::endpoint(tcp::v4(), Port));
+  acceptor.listen();
   while (true) {
     auto [error, sock] = co_await acceptor.async_accept(tmc::aw_asio);
     if (error) {
@@ -64,23 +84,32 @@ static tmc::task<void> accept(uint16_t Port) {
   }
 }
 
-int main() {
+int main(int c, char** argv) {
   tmc::cpu_executor().init();
-  tmc::asio_executor().init();
-  return tmc::async_main([]() -> tmc::task<int> {
-    // The default behavior is to submit each I/O call to ASIO, then resume the
-    // coroutine back on tmc::cpu_executor(). This incurs additional overhead,
-    // but enables unfettered access to the CPU executor without any risk of
-    // accidentally blocking the I/O thread.
-    tmc::spawn(accept(55550)).detach();
+  size_t n = 1;
+#ifndef NDEBUG
+#else
+  if (c >= 2) {
+    n = static_cast<size_t>(atoi(argv[1]));
+  }
+#endif
 
-    // This customization runs both the I/O calls and the continuations inline
-    // on the single-threaded tmc::asio_executor(). Although this yields higher
-    // performance for a strictly I/O latency bound benchmark such as this
-    // example, care must be taken to manually offload CPU-bound work to the cpu
-    // executor.
-    co_await tmc::spawn(accept(55551)).run_on(tmc::asio_executor());
+  return tmc::async_main([](int n) -> tmc::task<int> {
+    tmc::detail::tiny_vec<tmc::ex_asio> execs;
+    execs.resize(n);
+    for (size_t i = 0; i < n; ++i) {
+      execs.emplace_at(i);
+      execs[i].init();
+    }
+
+    size_t i = 0;
+    for (; i < n - 1; ++i) {
+      tmc::spawn(accept(execs[i], 55551)).run_on(execs[i]).detach();
+    }
+    co_await tmc::spawn(accept(execs[i], 55551)).run_on(execs[i]);
+
+    // co_await tmc::spawn(accept(port)).run_on(tmc::asio_executor());
 
     co_return 0;
-  }());
+  }(n));
 }

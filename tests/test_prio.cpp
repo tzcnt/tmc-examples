@@ -11,7 +11,14 @@
 #include <cstddef>
 #include <cstdlib>
 
+#ifdef TMC_USE_BOOST_ASIO
+#include <boost/asio/steady_timer.hpp>
+
+namespace asio = boost::asio;
+#else
 #include <asio/steady_timer.hpp>
+#endif
+
 #include <gtest/gtest.h>
 
 #define CATEGORY test_priority

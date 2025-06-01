@@ -48,13 +48,13 @@ else()
     CPMAddPackage(
         NAME TooManyCooks
         GIT_REPOSITORY https://github.com/tzcnt/TooManyCooks.git
-        GIT_TAG v0.0.11
+        GIT_TAG ba5efb5c7c062122adcde2e626920b4c026bb68e
         DOWNLOAD_ONLY)
 
     CPMAddPackage(
         NAME tmc_asio
         GIT_REPOSITORY https://github.com/tzcnt/tmc-asio.git
-        GIT_TAG v0.0.11
+        GIT_TAG c634784057d4fdf07b2ed128e7046cd529abfcad
         DOWNLOAD_ONLY)
 
     set(TMC_INCLUDE_PATH ${TooManyCooks_SOURCE_DIR}/include CACHE STRING "" FORCE)
@@ -64,19 +64,6 @@ endif()
 include_directories(
     ${TMC_INCLUDE_PATH}
     ${TMC_ASIO_INCLUDE_PATH}
-)
-
-CPMAddPackage(
-    NAME asio
-    GIT_REPOSITORY https://github.com/chriskohlhoff/asio.git
-    VERSION 1.28.1
-    GIT_TAG asio-1-28-1
-    DOWNLOAD_ONLY)
-set(ASIO_INCLUDE_PATH ${asio_SOURCE_DIR}/asio/include CACHE STRING "" FORCE)
-
-# mark Asio headers as SYSTEM to ignore warnings
-include_directories(SYSTEM
-    ${ASIO_INCLUDE_PATH}
 )
 
 # TMC HWLOC support
@@ -124,6 +111,45 @@ else()
 endif()
 
 link_libraries(${MALLOC_LIB})
+
+# Standalone asio or boost::asio support
+option(TMC_USE_BOOST_ASIO "Use boost::asio instead of standalone asio" OFF)
+
+if(TMC_USE_BOOST_ASIO)
+    add_compile_definitions(TMC_USE_BOOST_ASIO)
+
+    # Tell cmake to use the target Boost cmake file instead of the built-in
+    cmake_policy(SET CMP0167 NEW)
+    set(Boost_USE_STATIC_LIBS ON)
+    set(Boost_USE_RELEASE_LIBS ON)
+
+    # set(ENV{BOOST_CMAKE_ROOT} "/home/tzcnt/pkg-src/boost-1.88-src/boost_1_88_0/stage/lib/cmake/")
+
+    # By default this will will look for your system boost.
+    # If this fails you can install boost manually and set the system environment variable
+    # BOOST_CMAKE_ROOT with the /stage/lib/cmake directory being where boost places the CMake files after building with b2.
+    if(DEFINED ENV{BOOST_CMAKE_ROOT})
+        find_package(
+            Boost 1.82.0 REQUIRED CONFIG
+            PATHS $ENV{BOOST_CMAKE_ROOT} NO_DEFAULT_PATH
+        )
+    else()
+        find_package(Boost 1.82.0 REQUIRED)
+    endif()
+else()
+    CPMAddPackage(
+        NAME asio
+        GIT_REPOSITORY https://github.com/chriskohlhoff/asio.git
+        VERSION 1.28.1
+        GIT_TAG asio-1-28-1
+        DOWNLOAD_ONLY)
+    set(ASIO_INCLUDE_PATH ${asio_SOURCE_DIR}/asio/include CACHE STRING "" FORCE)
+
+    # mark Asio headers as SYSTEM to ignore warnings
+    include_directories(SYSTEM
+        ${ASIO_INCLUDE_PATH}
+    )
+endif()
 
 # Safety / warnings checks
 

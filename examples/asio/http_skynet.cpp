@@ -16,10 +16,21 @@
 #include "tmc/task.hpp"
 
 #include <array>
+
+#ifdef TMC_USE_BOOST_ASIO
+#include <boost/asio/buffer.hpp>
+#include <boost/asio/ip/tcp.hpp>
+#include <boost/asio/streambuf.hpp>
+#include <boost/asio/write.hpp>
+
+namespace asio = boost::asio;
+#else
 #include <asio/buffer.hpp>
 #include <asio/ip/tcp.hpp>
 #include <asio/streambuf.hpp>
 #include <asio/write.hpp>
+#endif
+
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
@@ -36,6 +47,10 @@
 // defined so it will wrap to this number.
 static constexpr inline size_t EXPECTED_RESULT =
   sizeof(size_t) == 8 ? 499999500000 : 1783293664;
+
+#ifdef TMC_USE_BOOST_ASIO
+namespace asio = boost::asio;
+#endif
 
 using asio::ip::tcp;
 
