@@ -17,9 +17,6 @@ add_definitions(
 
     # "-DTMC_TRIVIAL_TASK" # enabled in this repo for Release builds via CMakePresets.json
     # "-DTMC_PRIORITY_COUNT=1" # unsigned integer between 1 and 63
-
-    # Other
-    # "-DTMC_USE_BOOST_ASIO"
 )
 
 # Optional flags can be passed at the command line. Used by GitHub Actions workflow.
