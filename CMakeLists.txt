@@ -95,6 +95,19 @@ if(TMC_USE_HWLOC)
     endif()
 endif()
 
+option(USE_IO_URING "USE_IO_URING" ON)
+if(USE_IO_URING)
+    message(STATUS "USE_IO_URING: running find_package(liburing)...")
+    find_package(liburing)
+
+    if(NOT LIBURING_FOUND)
+        message(STATUS "USE_IO_URING: WARN package liburing not found")
+    else()
+        message(STATUS "USE_IO_URING: using ${LIBURING_LIBRARY}")
+        add_compile_definitions(ASIO_HAS_IO_URING ASIO_DISABLE_EPOLL)
+    endif()
+endif()
+
 # Since each new coroutine requires an allocation,
 # they are sensitive to allocator performance.
 # Any of tcmalloc, mimalloc, or jemalloc provide
@@ -248,5 +261,14 @@ make_exe(asio_http_server
 make_exe(asio_http_skynet
     examples/asio/http_skynet.cpp
 )
+
+if (USE_IO_URING)
+    target_link_libraries(asio_prio ${LIBURING_LIBRARY})
+    target_link_libraries(asio_cancellation ${LIBURING_LIBRARY})
+    target_link_libraries(asio_delay ${LIBURING_LIBRARY})
+    target_link_libraries(asio_timer_mem_bench ${LIBURING_LIBRARY})
+    target_link_libraries(asio_http_server ${LIBURING_LIBRARY})
+    target_link_libraries(asio_http_skynet ${LIBURING_LIBRARY})
+endif()
 
 add_subdirectory(tests)
