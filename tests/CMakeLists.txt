@@ -55,6 +55,7 @@ make_exe(
   test_manual_reset_event.cpp
   test_mutex.cpp
   test_semaphore.cpp
+  test_ex_any.cpp
   test_ex_cpu.cpp
   test_ex_asio.cpp
   test_ex_braid.cpp

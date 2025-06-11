@@ -39,15 +39,16 @@ template <typename Executor> tmc::task<size_t> bounce(Executor& Exec) {
   size_t result = 0;
   for (size_t i = 0; i < 10; ++i) {
     auto outerExec = tmc::current_executor();
+    auto innerExec = tmc::detail::executor_traits<Executor>::type_erased(Exec);
     auto scope = co_await tmc::enter(Exec);
-    EXPECT_EQ(tmc::current_executor(), Exec.type_erased());
+    EXPECT_EQ(tmc::current_executor(), innerExec);
     ++result;
     {
       // Re-entering / exiting the same executor should do nothing.
       auto innerScope = co_await tmc::enter(Exec);
-      EXPECT_EQ(tmc::current_executor(), Exec.type_erased());
+      EXPECT_EQ(tmc::current_executor(), innerExec);
       co_await innerScope.exit();
-      EXPECT_EQ(tmc::current_executor(), Exec.type_erased());
+      EXPECT_EQ(tmc::current_executor(), innerExec);
     }
     co_await scope.exit();
     EXPECT_EQ(tmc::current_executor(), outerExec);
@@ -87,6 +88,28 @@ TEST_F(CATEGORY, nested_ex_braid) {
     auto result = co_await bounce(localEx);
     EXPECT_EQ(result, 20);
     result = co_await tmc::spawn(bounce(ex())).run_on(localEx);
+    EXPECT_EQ(result, 20);
+  }());
+}
+
+TEST_F(CATEGORY, nested_ex_any_ptr) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    tmc::ex_any* localEx = ex().type_erased();
+
+    auto result = co_await bounce(localEx);
+    EXPECT_EQ(result, 20);
+    result = co_await tmc::spawn(bounce(ex())).run_on(localEx);
+    EXPECT_EQ(result, 20);
+  }());
+}
+
+TEST_F(CATEGORY, nested_ex_any_ref) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    tmc::ex_any* localEx = ex().type_erased();
+
+    auto result = co_await bounce(*localEx);
+    EXPECT_EQ(result, 20);
+    result = co_await tmc::spawn(bounce(ex())).run_on(*localEx);
     EXPECT_EQ(result, 20);
   }());
 }
