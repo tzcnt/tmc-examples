@@ -59,8 +59,7 @@ template <typename T> struct atomic_awaitable : private AtomicAwaitableTag {
 
   bool await_ready() { return value.load() == until; }
 
-  TMC_FORCE_INLINE inline void await_suspend(std::coroutine_handle<> Outer
-  ) noexcept {
+  inline void await_suspend(std::coroutine_handle<> Outer) noexcept {
     customizer.continuation = Outer.address();
     async_initiate();
   }
