@@ -23,7 +23,6 @@
 #pragma once
 
 #include "tmc/detail/awaitable_customizer.hpp"
-#include "tmc/detail/compat.hpp"             // for TMC_FORCE_INLINE
 #include "tmc/detail/concepts_awaitable.hpp" // for result_storage_t, awaitable_traits
 
 #include <coroutine>
@@ -46,8 +45,7 @@ template <typename Awaitable> struct callback_awaitable_impl {
 
   bool await_ready() { return false; }
 
-  TMC_FORCE_INLINE inline void await_suspend(std::coroutine_handle<> Outer
-  ) noexcept {
+  inline void await_suspend(std::coroutine_handle<> Outer) noexcept {
     handle.customizer.continuation = Outer.address();
     handle.customizer.result_ptr = &result;
     handle.async_initiate();
