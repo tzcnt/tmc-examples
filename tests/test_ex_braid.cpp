@@ -20,9 +20,6 @@ protected:
   }
 
   static void TearDownTestSuite() {
-#ifdef TSAN_ENABLED
-    __tsan_acquire(&braid);
-#endif
     braid.reset();
     tmc::cpu_executor().teardown();
   }
@@ -54,10 +51,6 @@ TEST_F(CATEGORY, destroy_running_braid) {
     // A separately allocated boolean is used to track when this occurs and exit
     // the runloop safely.
   }());
-
-#ifdef TSAN_ENABLED
-  __tsan_release(&ex());
-#endif
 }
 
 #undef CATEGORY
