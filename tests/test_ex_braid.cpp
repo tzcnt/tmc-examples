@@ -5,10 +5,6 @@
 #include <gtest/gtest.h>
 #include <optional>
 
-#ifdef TSAN_ENABLED
-#include "sanitizer/tsan_interface.h"
-#endif
-
 #define CATEGORY test_ex_braid
 
 class CATEGORY : public testing::Test {
