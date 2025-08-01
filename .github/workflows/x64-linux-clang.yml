@@ -45,12 +45,12 @@ jobs:
     - name: run tests
       run: ./build/${{matrix.PRESET}}/tests/tests
     # Upload the core dump and the test binary, only if test failed
-    - uses: actions/upload-artifact@v3
+    - uses: actions/upload-artifact@v4
       if: ${{ failure() }}
       with:
         name: cores
         path: /cores
-    - uses: actions/upload-artifact@v3
+    - uses: actions/upload-artifact@v4
       if: ${{ failure() }}
       with:
         name: executable
