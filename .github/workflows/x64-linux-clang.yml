@@ -35,5 +35,23 @@ jobs:
       run: cmake -G "Unix Makefiles" -DTMC_AS_SUBMODULE=ON -DCMD_COMPILE_FLAGS='-DTMC_WORK_ITEM=${{matrix.WORK_ITEM}}' --preset ${{matrix.PRESET}} .
     - name: build
       run: cmake --build ./build/${{matrix.PRESET}} --parallel $(nproc) --target all
+    # Core filenames will be of the form executable.pid.timestamp
+    - name: Set cores to get stored in /cores
+      run: |
+        sudo mkdir /cores
+        sudo chmod 777 /cores
+        sudo bash -c 'echo "/cores/%e.%p.%t" > /proc/sys/kernel/core_pattern'
+        ulimit -c unlimited
     - name: run tests
       run: ./build/${{matrix.PRESET}}/tests/tests
+    # Upload the core dump and the test binary, only if test failed
+    - uses: actions/upload-artifact@v4
+      if: ${{ failure() }}
+      with:
+        name: cores
+        path: /cores
+    - uses: actions/upload-artifact@v4
+      if: ${{ failure() }}
+      with:
+        name: executable
+        path: ./build/${{matrix.PRESET}}/tests/tests
