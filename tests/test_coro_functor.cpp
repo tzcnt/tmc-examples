@@ -1,9 +1,3 @@
-// Most places use TMC_PLATFORM_BITS, but for conditional compilation here we
-// need this hacky check
-#include <climits>
-
-#if ULONG_MAX == 18446744073709551615ULL
-
 #include "test_common.hpp"
 #include "tmc/detail/coro_functor.hpp"
 
@@ -269,5 +263,3 @@ TEST_F(CATEGORY, coro_take) {
 }
 
 #undef CATEGORY
-
-#endif
