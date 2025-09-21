@@ -2,7 +2,6 @@
 
 #include <array>
 #include <gtest/gtest.h>
-#include <ostream>
 #include <ranges>
 
 #define CATEGORY test_ex_any
