@@ -267,4 +267,37 @@ TEST_F(CATEGORY, push_single_threaded) {
   }());
 }
 
+// Test post_bulk of 0 items
+TEST_F(CATEGORY, post_bulk_none) {
+  tmc::ex_cpu ex;
+  ex.set_thread_count(1).init();
+  test_async_main(ex, []() -> tmc::task<void> {
+    auto chan = tmc::make_channel<size_t, chan_config<0>>();
+    size_t i = 0;
+    for (; i < 4; ++i) {
+      chan.post_bulk(std::ranges::views::iota(i, i));
+      chan.post_bulk(std::ranges::views::iota(i, i));
+      chan.post(i);
+    }
+    for (; i < 8; ++i) {
+      chan.post_bulk(std::ranges::views::iota(i, i));
+      chan.post_bulk(std::ranges::views::iota(i, i));
+      chan.post_bulk(std::ranges::views::iota(i, i + 1));
+    }
+    size_t count = 0;
+    size_t sum = 0;
+    for (size_t j = 0; j < i; ++j) {
+      std::optional<size_t> v = co_await chan.pull();
+      sum += v.value();
+      ++count;
+    }
+    chan.close();
+    EXPECT_EQ(28, sum);
+    EXPECT_EQ(8, count);
+
+    std::optional<size_t> v = co_await chan.pull();
+    EXPECT_FALSE(v.has_value());
+  }());
+}
+
 #undef CATEGORY
