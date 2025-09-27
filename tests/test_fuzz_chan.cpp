@@ -11,6 +11,7 @@
 #include <chrono>
 #include <cstdio>
 #include <exception>
+#include <ranges>
 #include <thread>
 
 constexpr int ELEMS_PER_ACTION = 1000;
@@ -48,6 +49,12 @@ tmc::task<void> producer(token Chan, size_t Base, size_t Count) {
   co_return;
 }
 
+tmc::task<void> bulk_producer(token Chan, size_t Base, size_t Count) {
+  Chan.post_bulk(std::ranges::views::iota(Base, Base + Count));
+  producers_done.fetch_add(1);
+  co_return;
+}
+
 tmc::task<void> consumer(token chan, size_t Count) {
   size_t sum = 0;
   for (size_t i = 0; i < Count; ++i) {
@@ -60,7 +67,7 @@ tmc::task<void> consumer(token chan, size_t Count) {
   consumers_done.fetch_add(1);
 }
 
-int choose_action() { return prng.sample(0, 1); }
+int choose_action() { return prng.sample(0, 2); }
 
 tmc::task<void> do_action(token& Chan) {
   int action = choose_action();
@@ -72,7 +79,14 @@ tmc::task<void> do_action(token& Chan) {
     base += count;
     break;
   }
-  case 1:
+  case 1: {
+    producers_started.fetch_add(1);
+    size_t count = prng.sample(0, 5); // include 0 to test posting empty range
+    tmc::spawn(bulk_producer(Chan, base, count)).detach();
+    base += count;
+    break;
+  }
+  case 2:
     consumers_started.fetch_add(1);
     tmc::spawn(consumer(Chan, prng.sample(1, ELEMS_PER_ACTION))).detach();
     break;

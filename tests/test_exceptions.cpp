@@ -155,7 +155,7 @@ TEST_F(CATEGORY, throw_catch_unknown_awaitable_void) {
 TEST_F(CATEGORY, throw_catch_known_awaitable_result) {
   test_async_main(ex(), []() -> tmc::task<void> {
     // Known awaitables are awaited directly and their exception can be caught
-    int x;
+    [[maybe_unused]] int x;
     bool caught = false;
     try {
       x = co_await aw_throw_int<true, 0>{};
@@ -189,7 +189,7 @@ TEST_F(CATEGORY, throw_catch_unknown_awaitable_result) {
   test_async_main(ex(), []() -> tmc::task<void> {
     // Unknown awaitables are wrapped in tmc::wrapper_task,
     // which stores and rethrows exceptions
-    int x;
+    [[maybe_unused]] int x;
     bool caught = false;
     caught = false;
     try {
@@ -356,7 +356,7 @@ TEST(exceptions_DeathTest, unhandled_in_child_result) {
         // tmc::task does not have machinery to capture and rethrow exceptions
         // thus, try-catch does not work around a task
         try {
-          auto x = co_await throwing_task_int();
+          [[maybe_unused]] auto x = co_await throwing_task_int();
         } catch (std::exception) {
         }
         co_return;
@@ -386,7 +386,7 @@ TEST(exceptions_DeathTest, unhandled_known_awaitable_result) {
       tmc::ex_cpu ex;
       ex.set_thread_count(1).init();
       test_async_main(ex, []() -> tmc::task<void> {
-        auto x = co_await aw_throw_int<true, 2>{};
+        [[maybe_unused]] auto x = co_await aw_throw_int<true, 2>{};
         co_return;
       }());
     },
@@ -414,7 +414,7 @@ TEST(exceptions_DeathTest, unhandled_unknown_awaitable_result) {
       tmc::ex_cpu ex;
       ex.set_thread_count(1).init();
       test_async_main(ex, []() -> tmc::task<void> {
-        auto x = co_await aw_throw_int<false, 2>{};
+        [[maybe_unused]] auto x = co_await aw_throw_int<false, 2>{};
         co_return;
       }());
     },
