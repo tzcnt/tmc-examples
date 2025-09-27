@@ -2,13 +2,12 @@
 #include "tmc/channel.hpp"
 #include "tmc/detail/compat.hpp"
 
+#include <array>
 #include <chrono>
 #include <cstddef>
-#include <optional>
-#include <thread>
-
-#include <array>
 #include <gtest/gtest.h>
+#include <optional>
+#include <ranges>
 #include <thread>
 
 #define CATEGORY test_channel
@@ -33,7 +32,7 @@ template <size_t PackingLevel, typename Executor>
 void do_chan_test(Executor& Exec, size_t HeavyLoadThreshold, bool ReuseBlocks) {
   test_async_main(Exec, [](size_t Threshold, bool Reuse) -> tmc::task<void> {
     {
-      // general test
+      // general test - single push
       static constexpr size_t NITEMS = 1000;
       struct result {
         size_t count;
@@ -49,6 +48,54 @@ void do_chan_test(Executor& Exec, size_t HeavyLoadThreshold, bool ReuseBlocks) {
           size_t i = 0;
           for (; i < NITEMS; ++i) {
             bool ok = co_await Chan.push(i);
+            EXPECT_EQ(true, ok);
+          }
+          co_await Chan.drain();
+          co_return i;
+        }(chan),
+        [](auto Chan) -> tmc::task<result> {
+          size_t count = 0;
+          size_t sum = 0;
+          std::optional<size_t> v = co_await Chan.pull();
+          while (v.has_value()) {
+            sum += v.value();
+            ++count;
+            v = co_await Chan.pull();
+          }
+          co_return result{count, sum};
+        }(chan)
+      );
+      auto& prod = std::get<0>(results);
+      auto& cons = std::get<1>(results);
+      EXPECT_EQ(NITEMS, prod);
+      EXPECT_EQ(NITEMS, cons.count);
+      size_t expectedSum = 0;
+      for (size_t i = 0; i < NITEMS; ++i) {
+        expectedSum += i;
+      }
+      EXPECT_EQ(expectedSum, cons.sum);
+    }
+    {
+      // general test - post_bulk
+      static constexpr size_t NITEMS = 1000;
+      struct result {
+        size_t count;
+        size_t sum;
+      };
+
+      auto chan = tmc::make_channel<size_t, chan_config<PackingLevel>>()
+                    .set_reuse_blocks(Reuse)
+                    .set_heavy_load_threshold(Threshold);
+
+      auto results = co_await tmc::spawn_tuple(
+        [](auto Chan) -> tmc::task<size_t> {
+          size_t i = 0;
+          for (; i < NITEMS; i += (NITEMS / 10)) {
+            size_t j = i + (NITEMS / 10);
+            if (j > NITEMS) {
+              j = NITEMS;
+            }
+            bool ok = Chan.post_bulk(std::ranges::views::iota(i, j));
             EXPECT_EQ(true, ok);
           }
           co_await Chan.drain();
@@ -114,13 +161,20 @@ void do_chan_test(Executor& Exec, size_t HeavyLoadThreshold, bool ReuseBlocks) {
       EXPECT_EQ(count.load(), 12);
     }
     {
-      // producer post after chan closed
+      // producer post / post_bulk after chan closed
       auto chan = tmc::make_channel<size_t, chan_config<PackingLevel>>()
                     .set_reuse_blocks(Reuse)
                     .set_heavy_load_threshold(Threshold);
       chan.close();
       auto p = chan.post(5);
       EXPECT_FALSE(p);
+      std::vector<size_t> vs{0, 1, 2, 3, 4};
+      auto p1 = chan.post_bulk(vs.begin(), 5);
+      EXPECT_FALSE(p1);
+      auto p2 = chan.post_bulk(vs.begin(), vs.end());
+      EXPECT_FALSE(p2);
+      auto p3 = chan.post_bulk(std::ranges::views::iota(0, 5));
+      EXPECT_FALSE(p3);
     }
     {
       // drain while there is a waiting consumer
@@ -159,6 +213,8 @@ TEST_F(CATEGORY, misc) {
   }
 }
 
+// Running 1 consumer and 1 producer at the same time on a single thread
+// To ensure there are no deadlocks
 TEST_F(CATEGORY, push_single_threaded) {
   tmc::ex_cpu ex;
   ex.set_thread_count(1).init();
@@ -174,7 +230,14 @@ TEST_F(CATEGORY, push_single_threaded) {
       [](auto Chan) -> tmc::task<size_t> {
         size_t i = 0;
         for (; i < NITEMS; ++i) {
-          bool ok = co_await Chan.push(i);
+          bool ok;
+          if ((i & 0x2) == 0) {
+            // 2 pushes
+            ok = co_await Chan.push(i);
+          } else {
+            // then 2 post_bulks
+            ok = Chan.post_bulk(std::ranges::views::iota(i, i + 1));
+          }
           EXPECT_EQ(true, ok);
         }
         co_await Chan.drain();
