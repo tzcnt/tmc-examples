@@ -137,20 +137,25 @@ inline unk_awaitable operator co_await(unk_co_await_free&& f) {
 // only to get the correct awaitable type here it is evaluated for test
 // coverage, and to ensure that it returns the correct awaitable type
 TEST_F(CATEGORY, unknown_awaitable_traits) {
-  unk_co_await_member a;
-  unk_awaitable x =
-    tmc::detail::unknown_awaitable_traits<unk_co_await_member>::guess_awaiter(a
-    );
-
-  unk_co_await_free b;
-  unk_awaitable y =
-    tmc::detail::unknown_awaitable_traits<unk_co_await_member>::guess_awaiter(a
-    );
-
-  unk_awaitable c;
-  unk_awaitable z =
-    tmc::detail::unknown_awaitable_traits<unk_co_await_member>::guess_awaiter(a
-    );
+  {
+    unk_co_await_member a;
+    [[maybe_unused]] unk_awaitable x =
+      tmc::detail::unknown_awaitable_traits<unk_co_await_member>::guess_awaiter(
+        a
+      );
+  }
+  {
+    unk_co_await_free b;
+    [[maybe_unused]] unk_awaitable y =
+      tmc::detail::unknown_awaitable_traits<unk_co_await_free>::guess_awaiter(
+        std::move(b)
+      );
+  }
+  {
+    unk_awaitable c;
+    [[maybe_unused]] unk_awaitable z =
+      tmc::detail::unknown_awaitable_traits<unk_awaitable>::guess_awaiter(c);
+  }
 }
 
 #undef CATEGORY
