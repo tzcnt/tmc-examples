@@ -274,15 +274,22 @@ TEST_F(CATEGORY, post_bulk_none) {
   test_async_main(ex, []() -> tmc::task<void> {
     auto chan = tmc::make_channel<size_t, chan_config<0>>();
     size_t i = 0;
+    bool ok;
     for (; i < 4; ++i) {
-      chan.post_bulk(std::ranges::views::iota(i, i));
-      chan.post_bulk(std::ranges::views::iota(i, i));
-      chan.post(i);
+      ok = chan.post_bulk(std::ranges::views::iota(i, i));
+      EXPECT_EQ(true, ok);
+      ok = chan.post_bulk(std::ranges::views::iota(i, i));
+      EXPECT_EQ(true, ok);
+      ok = chan.post(i);
+      EXPECT_EQ(true, ok);
     }
     for (; i < 8; ++i) {
-      chan.post_bulk(std::ranges::views::iota(i, i));
-      chan.post_bulk(std::ranges::views::iota(i, i));
-      chan.post_bulk(std::ranges::views::iota(i, i + 1));
+      ok = chan.post_bulk(std::ranges::views::iota(i, i));
+      EXPECT_EQ(true, ok);
+      ok = chan.post_bulk(std::ranges::views::iota(i, i));
+      EXPECT_EQ(true, ok);
+      ok = chan.post_bulk(std::ranges::views::iota(i, i + 1));
+      EXPECT_EQ(true, ok);
     }
     size_t count = 0;
     size_t sum = 0;
@@ -297,6 +304,13 @@ TEST_F(CATEGORY, post_bulk_none) {
 
     std::optional<size_t> v = co_await chan.pull();
     EXPECT_FALSE(v.has_value());
+
+    ok = chan.post_bulk(std::ranges::views::iota(1, 1));
+    EXPECT_EQ(false, ok);
+    ok = chan.post_bulk(std::ranges::views::iota(1, 2));
+    EXPECT_EQ(false, ok);
+    ok = chan.post(5);
+    EXPECT_EQ(false, ok);
   }());
 }
 
