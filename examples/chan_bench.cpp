@@ -56,87 +56,96 @@ std::string formatWithCommas(size_t n) {
 }
 
 int main() {
-  tmc::cpu_executor().init();
+  tmc::ex_cpu_st exec;
+  exec.init();
   std::printf(
-    "chan_bench: %zu threads | %s elements\n",
-    tmc::cpu_executor().thread_count(), formatWithCommas(NELEMS).c_str()
+    "chan_bench: %zu threads | %s elements\n", exec.thread_count(),
+    formatWithCommas(NELEMS).c_str()
   );
-  return tmc::async_main([]() -> tmc::task<int> {
-    auto overallStart = std::chrono::high_resolution_clock::now();
+  return tmc::post_waitable(
+           exec,
+           [](tmc::ex_cpu_st& exec) -> tmc::task<int> {
+             auto overallStart = std::chrono::high_resolution_clock::now();
 
-    for (size_t consCount = 1; consCount <= 10; ++consCount) {
-      for (size_t prodCount = 1; prodCount <= 10; ++prodCount) {
-        auto chan = tmc::make_channel<size_t, chan_config>();
-        size_t per_task = NELEMS / prodCount;
-        size_t rem = NELEMS % prodCount;
-        std::vector<tmc::task<void>> prod(prodCount);
-        size_t base = 0;
-        for (size_t i = 0; i < prodCount; ++i) {
-          size_t count = i < rem ? per_task + 1 : per_task;
-          prod[i] = producer(chan, count, base);
-          base += count;
-        }
-        std::vector<tmc::task<result>> cons(consCount);
-        for (size_t i = 0; i < consCount; ++i) {
-          cons[i] = consumer(chan);
-        }
-        auto startTime = std::chrono::high_resolution_clock::now();
-        auto c = tmc::spawn_many(cons).fork();
-        co_await tmc::spawn_many(prod);
+             for (size_t consCount = 1; consCount <= 10; ++consCount) {
+               for (size_t prodCount = 1; prodCount <= 10; ++prodCount) {
+                 auto chan = tmc::make_channel<size_t, chan_config>();
+                 size_t per_task = NELEMS / prodCount;
+                 size_t rem = NELEMS % prodCount;
+                 std::vector<tmc::task<void>> prod(prodCount);
+                 size_t base = 0;
+                 for (size_t i = 0; i < prodCount; ++i) {
+                   size_t count = i < rem ? per_task + 1 : per_task;
+                   prod[i] = producer(chan, count, base);
+                   base += count;
+                 }
+                 std::vector<tmc::task<result>> cons(consCount);
+                 for (size_t i = 0; i < consCount; ++i) {
+                   cons[i] = consumer(chan);
+                 }
+                 auto startTime = std::chrono::high_resolution_clock::now();
+                 auto c = tmc::spawn_many(cons).fork();
+                 co_await tmc::spawn_many(prod);
 
-        // The call to close() is not necessary, but is included here for
-        // exposition.
-        chan.close();
-        co_await chan.drain();
-        auto consResults = co_await std::move(c);
+                 // The call to close() is not necessary, but is included here
+                 // for exposition.
+                 chan.close();
+                 co_await chan.drain();
+                 auto consResults = co_await std::move(c);
 
-        auto endTime = std::chrono::high_resolution_clock::now();
+                 auto endTime = std::chrono::high_resolution_clock::now();
 
-        size_t count = 0;
-        size_t sum = 0;
-        for (size_t i = 0; i < consResults.size(); ++i) {
-          count += consResults[i].count;
-          sum += consResults[i].sum;
-        }
-        if (count != NELEMS) {
-          std::printf(
-            "FAIL: Expected %zu elements but consumed %zu elements\n",
-            static_cast<size_t>(NELEMS), count
-          );
-        }
+                 size_t count = 0;
+                 size_t sum = 0;
+                 for (size_t i = 0; i < consResults.size(); ++i) {
+                   count += consResults[i].count;
+                   sum += consResults[i].sum;
+                 }
+                 if (count != NELEMS) {
+                   std::printf(
+                     "FAIL: Expected %zu elements but consumed %zu elements\n",
+                     static_cast<size_t>(NELEMS), count
+                   );
+                 }
 
-        size_t expectedSum = 0;
-        for (size_t i = 0; i < NELEMS; ++i) {
-          expectedSum += i;
-        }
-        if (sum != expectedSum) {
-          std::printf(
-            "FAIL: Expected %zu sum but got %zu sum\n", expectedSum, sum
-          );
-        }
+                 size_t expectedSum = 0;
+                 for (size_t i = 0; i < NELEMS; ++i) {
+                   expectedSum += i;
+                 }
+                 if (sum != expectedSum) {
+                   std::printf(
+                     "FAIL: Expected %zu sum but got %zu sum\n", expectedSum,
+                     sum
+                   );
+                 }
 
-        size_t execDur = std::chrono::duration_cast<std::chrono::microseconds>(
-                           endTime - startTime
-        )
-                           .count();
+                 size_t execDur =
+                   std::chrono::duration_cast<std::chrono::microseconds>(
+                     endTime - startTime
+                   )
+                     .count();
 
-        float durMs = static_cast<float>(execDur) / 1000.0f;
-        size_t elementsPerSec =
-          static_cast<size_t>(static_cast<float>(NELEMS) * 1000.0f / durMs);
-        std::printf(
-          "%zu prod\t%zu cons\t %.2f ms\t%s elements/sec\n", prodCount,
-          consCount, durMs, formatWithCommas(elementsPerSec).c_str()
-        );
-      }
-    }
+                 float durMs = static_cast<float>(execDur) / 1000.0f;
+                 size_t elementsPerSec = static_cast<size_t>(
+                   static_cast<float>(NELEMS) * 1000.0f / durMs
+                 );
+                 std::printf(
+                   "%zu prod\t%zu cons\t %.2f ms\t%s elements/sec\n", prodCount,
+                   consCount, durMs, formatWithCommas(elementsPerSec).c_str()
+                 );
+               }
+             }
 
-    auto overallEnd = std::chrono::high_resolution_clock::now();
-    size_t overallDur = std::chrono::duration_cast<std::chrono::microseconds>(
-                          overallEnd - overallStart
-    )
-                          .count();
-    float overallSec = static_cast<float>(overallDur) / 1000000.0f;
-    std::printf("overall: %.2f sec\n", overallSec);
-    co_return 0;
-  }());
+             auto overallEnd = std::chrono::high_resolution_clock::now();
+             size_t overallDur =
+               std::chrono::duration_cast<std::chrono::microseconds>(
+                 overallEnd - overallStart
+               )
+                 .count();
+             float overallSec = static_cast<float>(overallDur) / 1000000.0f;
+             std::printf("overall: %.2f sec\n", overallSec);
+             co_return 0;
+           }(exec)
+  )
+    .get();
 }
