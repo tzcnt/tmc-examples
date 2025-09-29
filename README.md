@@ -22,6 +22,9 @@ Windows:
 - Clang 17 or newer (via clang-cl.exe)
 - MSVC Build Tools v145 (Visual Studio 2026 Insiders) or newer due to [this bug](https://developercommunity.visualstudio.com/t/Incorrect-code-generation-for-symmetric/1659260?scope=follow&viewtype=all) which exists in prior versions
 
+MacOS:
+- Apple Clang based on Clang 17 or newer with -fexperimental-library
+
 ### Supported Hardware
 - x86 (32- or 64-bit)
 - AArch64
