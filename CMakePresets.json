@@ -329,7 +329,7 @@
     {
       "name": "clang-macos-debug",
       "displayName": "Clang-MacOS Debug",
-      "generator": "Ninja",
+      "generator": "Unix Makefiles",
       "description": "Using compilers: C = clang, CXX = clang++",
       "binaryDir": "${sourceDir}/build/${presetName}",
       "installDir": "${sourceDir}/install/${presetName}",
@@ -350,7 +350,7 @@
     {
       "name": "clang-macos-release",
       "displayName": "Clang-MacOS Release",
-      "generator": "Ninja",
+      "generator": "Unix Makefiles",
       "description": "Using compilers: C = clang, CXX = clang++",
       "binaryDir": "${sourceDir}/build/${presetName}",
       "installDir": "${sourceDir}/install/${presetName}",
@@ -371,7 +371,7 @@
     {
       "name": "clang-macos-relwithdebinfo",
       "displayName": "Clang-MacOS Release with Debug Info",
-      "generator": "Ninja",
+      "generator": "Unix Makefiles",
       "description": "Using compilers: C = clang, CXX = clang++",
       "binaryDir": "${sourceDir}/build/${presetName}",
       "installDir": "${sourceDir}/install/${presetName}",
