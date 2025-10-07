@@ -5,6 +5,8 @@
 
 #include "tmc/all_headers.hpp"
 
+#include "mpmcq.h"
+
 #include <cassert>
 #include <chrono>
 #include <cstdio>
@@ -14,20 +16,16 @@
 
 #define NELEMS 10000000
 
-struct chan_config : tmc::chan_default_config {
-  // static inline constexpr size_t BlockSize = 4096;
-  // static inline constexpr size_t PackingLevel = 0;
-  // static inline constexpr bool EmbedFirstBlock = false;
-};
-using token = tmc::chan_tok<size_t, chan_config>;
+queue_t queue;
 
-tmc::task<void> producer(token chan, size_t count, size_t base) {
+tmc::task<void> producer(size_t count, size_t base) {
   // It would be more efficient to call `chan.post_bulk()`,
   // but for this benchmark we test pushing 1 at a time.
   for (size_t i = 0; i < count; ++i) {
-    bool ok = co_await chan.push(base + i);
-    assert(ok);
+    size_t v = base + i;
+    enqueue(&queue, &v);
   }
+  co_return;
 }
 
 struct result {
@@ -35,14 +33,14 @@ struct result {
   size_t sum;
 };
 
-tmc::task<result> consumer(token chan) {
+tmc::task<result> consumer(size_t TotalCount) {
   size_t count = 0;
   size_t sum = 0;
-  auto data = co_await chan.pull();
-  while (data.has_value()) {
+  for (size_t i = 0; i < TotalCount; i++) {
+    size_t v;
+    dequeue(&queue, &v);
+    sum += v;
     ++count;
-    sum += data.value();
-    data = co_await chan.pull();
   }
   co_return result{count, sum};
 }
@@ -58,6 +56,8 @@ std::string formatWithCommas(size_t n) {
 }
 
 int main() {
+  memset(&queue, 0, sizeof(queue_t));
+
   tmc::cpu_executor().init();
   std::printf(
     "chan_bench: %zu threads | %s elements\n",
@@ -68,29 +68,26 @@ int main() {
 
     for (size_t consCount = 1; consCount <= 10; ++consCount) {
       for (size_t prodCount = 1; prodCount <= 10; ++prodCount) {
-        auto chan = tmc::make_channel<size_t, chan_config>();
-        chan.set_consumer_spins(50);
         size_t per_task = NELEMS / prodCount;
         size_t rem = NELEMS % prodCount;
         std::vector<tmc::task<void>> prod(prodCount);
         size_t base = 0;
         for (size_t i = 0; i < prodCount; ++i) {
           size_t count = i < rem ? per_task + 1 : per_task;
-          prod[i] = producer(chan, count, base);
+          prod[i] = producer(count, base);
           base += count;
         }
         std::vector<tmc::task<result>> cons(consCount);
+        per_task = NELEMS / consCount;
+        rem = NELEMS % consCount;
         for (size_t i = 0; i < consCount; ++i) {
-          cons[i] = consumer(chan);
+          size_t count = i < rem ? per_task + 1 : per_task;
+          cons[i] = consumer(count);
         }
         auto startTime = std::chrono::high_resolution_clock::now();
         auto c = tmc::spawn_many(cons).fork();
         co_await tmc::spawn_many(prod);
 
-        // The call to close() is not necessary, but is included here for
-        // exposition.
-        chan.close();
-        co_await chan.drain();
         auto consResults = co_await std::move(c);
 
         auto endTime = std::chrono::high_resolution_clock::now();
