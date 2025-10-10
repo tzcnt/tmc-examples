@@ -30,8 +30,7 @@ TEST_F(CATEGORY, post_checked_default_executor) {
   test_async_main(ex(), []() -> tmc::task<void> {
     atomic_awaitable<int> aa(1);
     tmc::detail::post_checked(
-      nullptr,
-      [](atomic_awaitable<int>& AA) -> tmc::task<void> {
+      nullptr, [](atomic_awaitable<int>& AA) -> tmc::task<void> {
         AA.inc();
         co_return;
       }(aa)
@@ -39,7 +38,7 @@ TEST_F(CATEGORY, post_checked_default_executor) {
     co_await aa;
   }());
 
-  tmc::set_default_executor(nullptr);
+  tmc::set_default_executor(static_cast<tmc::ex_any*>(nullptr));
 }
 
 TEST_F(CATEGORY, post_bulk_checked_default_executor) {
@@ -58,7 +57,7 @@ TEST_F(CATEGORY, post_bulk_checked_default_executor) {
     co_await aa;
   }());
 
-  tmc::set_default_executor(nullptr);
+  tmc::set_default_executor(static_cast<tmc::ex_any*>(nullptr));
 }
 
 TEST_F(CATEGORY, tiny_vec_resize_zero) {

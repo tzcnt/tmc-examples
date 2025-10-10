@@ -25,9 +25,9 @@ constexpr size_t TASK_COUNT = 10000;
 // Confirm that the current task is running on the expected
 // executor and with the expected priority.
 template <typename Exec>
-void check_exec_prio(Exec& ExpectedExecutor, size_t ExpectedPriority) {
+void check_exec_prio(Exec&& ExpectedExecutor, size_t ExpectedPriority) {
   if (tmc::current_executor() !=
-      tmc::detail::executor_traits<Exec>::type_erased(ExpectedExecutor)) {
+      tmc::detail::get_executor_traits<Exec>::type_erased(ExpectedExecutor)) {
     std::printf("FAIL | expected executor did not match\n");
   }
 
@@ -73,6 +73,8 @@ int main() {
   return tmc::async_main([]() -> tmc::task<int> {
     tmc::ex_braid cpuBraid(tmc::cpu_executor());
     tmc::ex_braid asioBraid(tmc::asio_executor());
+
+    check_exec_prio(tmc::current_executor(), tmc::current_priority());
 
     std::array<tmc::task<void>, TASK_COUNT> tasks;
     for (size_t i = 0; i < TASK_COUNT; ++i) {

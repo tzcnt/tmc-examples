@@ -1,5 +1,7 @@
 #include "test_common.hpp"
 
+#include "tmc/detail/concepts_awaitable.hpp"
+
 #include <array>
 #include <gtest/gtest.h>
 #include <ranges>
@@ -38,13 +40,14 @@ template <typename Exec> void test_post_bulk_coro(Exec e) {
     std::array<int, 2> results = {5, 5};
     tmc::post_bulk_waitable(
       e,
-      (std::ranges::views::iota(0) |
-       std::ranges::views::transform([&results](int i) -> tmc::task<void> {
-         return [](int* out, int val) -> tmc::task<void> {
-           *out = val;
-           co_return;
-         }(&results[i], i);
-       })
+      (
+        std::ranges::views::iota(0) |
+        std::ranges::views::transform([&results](int i) -> tmc::task<void> {
+          return [](int* out, int val) -> tmc::task<void> {
+            *out = val;
+            co_return;
+          }(&results[i], i);
+        })
       ).begin(),
       2, 0
     )
@@ -95,9 +98,10 @@ TEST_F(CATEGORY, post_bulk_work_item_ref) { test_post_bulk_work_item(ex()); }
 // tmc::enter() always delegates to the reference version.
 // Add a special test for it here.
 TEST_F(CATEGORY, task_enter_context_ptr) {
-  auto entry = tmc::detail::executor_traits<tmc::ex_any*>::task_enter_context(
-    &ex(), []() -> tmc::task<void> { co_return; }(), 0
-  );
+  auto entry =
+    tmc::detail::get_executor_traits<tmc::ex_any*>::task_enter_context(
+      &ex(), []() -> tmc::task<void> { co_return; }(), 0
+    );
   EXPECT_EQ(entry, std::noop_coroutine());
 }
 
