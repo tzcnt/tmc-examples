@@ -234,6 +234,10 @@ make_exe(fib
     examples/fib.cpp
 )
 
+make_exe(halo
+    examples/halo.cpp
+)
+
 make_exe(chan_bench
     examples/chan_bench.cpp
 )

@@ -67,6 +67,8 @@ make_exe(
   test_coro_functor.cpp
   test_qu_lockfree.cpp
   test_thread_layout.cpp
+  test_fork_group.cpp
+  test_spawn_group.cpp
 )
 target_compile_definitions(tests PRIVATE TMC_NO_UNKNOWN_AWAITABLES)
 
