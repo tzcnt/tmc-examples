@@ -44,7 +44,7 @@ template <typename Exec>
 void check_exec_prio(Exec& ExpectedExecutor, size_t ExpectedPriority) {
   EXPECT_EQ(
     tmc::detail::this_thread::executor,
-    tmc::detail::executor_traits<Exec>::type_erased(ExpectedExecutor)
+    tmc::detail::get_executor_traits<Exec>::type_erased(ExpectedExecutor)
   );
 
   EXPECT_EQ(tmc::current_priority(), ExpectedPriority);
@@ -58,39 +58,52 @@ tmc::task<void> jump_around(
   co_await tmc::change_priority(ExpectedPriority);
   EXPECT_EQ(
     tmc::detail::this_thread::executor,
-    tmc::detail::executor_traits<tmc::ex_cpu>::type_erased(tmc::cpu_executor())
+    tmc::detail::get_executor_traits<tmc::ex_cpu>::type_erased(
+      tmc::cpu_executor()
+    )
   );
   EXPECT_EQ(tmc::current_priority(), ExpectedPriority);
 
   // Also test the exec_is, prio_is, and exec_prio_is detail functions
-  EXPECT_TRUE(tmc::detail::this_thread::exec_is(
-    tmc::detail::executor_traits<tmc::ex_cpu>::type_erased(tmc::cpu_executor())
-  ));
+  EXPECT_TRUE(
+    tmc::detail::this_thread::exec_is(
+      tmc::detail::get_executor_traits<tmc::ex_cpu>::type_erased(
+        tmc::cpu_executor()
+      )
+    )
+  );
   EXPECT_TRUE(tmc::detail::this_thread::prio_is(ExpectedPriority));
 
-  EXPECT_TRUE(tmc::detail::this_thread::exec_prio_is(
-    tmc::detail::executor_traits<tmc::ex_cpu>::type_erased(tmc::cpu_executor()),
-    ExpectedPriority
-  ));
+  EXPECT_TRUE(
+    tmc::detail::this_thread::exec_prio_is(
+      tmc::detail::get_executor_traits<tmc::ex_cpu>::type_erased(
+        tmc::cpu_executor()
+      ),
+      ExpectedPriority
+    )
+  );
 
   auto cpuBraidScope = co_await tmc::enter(CpuBraid);
   EXPECT_EQ(
     tmc::detail::this_thread::executor,
-    tmc::detail::executor_traits<tmc::ex_braid>::type_erased(*CpuBraid)
+    tmc::detail::get_executor_traits<tmc::ex_braid>::type_erased(*CpuBraid)
   );
   EXPECT_EQ(tmc::current_priority(), ExpectedPriority);
 
   co_await cpuBraidScope.exit();
   EXPECT_EQ(
     tmc::detail::this_thread::executor,
-    tmc::detail::executor_traits<tmc::ex_cpu>::type_erased(tmc::cpu_executor())
+    tmc::detail::get_executor_traits<tmc::ex_cpu>::type_erased(
+      tmc::cpu_executor()
+    )
   );
   EXPECT_EQ(tmc::current_priority(), ExpectedPriority);
 
   auto asioScope = co_await tmc::enter(tmc::asio_executor());
   EXPECT_EQ(
     tmc::detail::this_thread::executor,
-    tmc::detail::executor_traits<tmc::ex_asio>::type_erased(tmc::asio_executor()
+    tmc::detail::get_executor_traits<tmc::ex_asio>::type_erased(
+      tmc::asio_executor()
     )
   );
   EXPECT_EQ(tmc::current_priority(), ExpectedPriority);
@@ -99,7 +112,7 @@ tmc::task<void> jump_around(
     auto asioBraidScope = co_await tmc::enter(AsioBraid);
     EXPECT_EQ(
       tmc::detail::this_thread::executor,
-      tmc::detail::executor_traits<tmc::ex_braid>::type_erased(*AsioBraid)
+      tmc::detail::get_executor_traits<tmc::ex_braid>::type_erased(*AsioBraid)
     );
     EXPECT_EQ(tmc::current_priority(), ExpectedPriority);
     co_await asioBraidScope.exit();

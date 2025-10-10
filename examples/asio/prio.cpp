@@ -27,7 +27,7 @@ constexpr size_t TASK_COUNT = 10000;
 template <typename Exec>
 void check_exec_prio(Exec& ExpectedExecutor, size_t ExpectedPriority) {
   if (tmc::current_executor() !=
-      tmc::detail::executor_traits<Exec>::type_erased(ExpectedExecutor)) {
+      tmc::detail::get_executor_traits<Exec>::type_erased(ExpectedExecutor)) {
     std::printf("FAIL | expected executor did not match\n");
   }
 

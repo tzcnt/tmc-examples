@@ -2,6 +2,7 @@
 #include "test_common.hpp"
 #include "tmc/asio/ex_asio.hpp"
 #include "tmc/current.hpp"
+#include "tmc/detail/concepts_awaitable.hpp"
 #include "tmc/detail/thread_locals.hpp"
 #include "tmc/ex_braid.hpp"
 #include "tmc/spawn.hpp"
@@ -16,7 +17,8 @@ template <typename Executor> tmc::task<size_t> bounce(Executor& Exec) {
   size_t result = 0;
   for (size_t i = 0; i < 10; ++i) {
     auto outerExec = tmc::current_executor();
-    auto innerExec = tmc::detail::executor_traits<Executor>::type_erased(Exec);
+    auto innerExec =
+      tmc::detail::get_executor_traits<Executor>::type_erased(Exec);
     auto scope = co_await tmc::enter(Exec);
     EXPECT_EQ(tmc::current_executor(), innerExec);
     ++result;
