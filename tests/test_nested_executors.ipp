@@ -100,7 +100,7 @@ TEST_F(CATEGORY, construct_braid_on_default_executor) {
     EXPECT_EQ(tmc::detail::this_thread::executor, Br.type_erased());
     co_return;
   }(br));
-  tmc::set_default_executor(nullptr);
+  tmc::set_default_executor(static_cast<tmc::ex_any*>(nullptr));
 }
 
 TEST_F(CATEGORY, test_spawn_run_resume) {

@@ -41,7 +41,7 @@ constexpr size_t TASK_COUNT = 1000;
 // Confirm that the current task is running on the expected
 // executor and with the expected priority.
 template <typename Exec>
-void check_exec_prio(Exec& ExpectedExecutor, size_t ExpectedPriority) {
+void check_exec_prio(Exec&& ExpectedExecutor, size_t ExpectedPriority) {
   EXPECT_EQ(
     tmc::detail::this_thread::executor,
     tmc::detail::get_executor_traits<Exec>::type_erased(ExpectedExecutor)
