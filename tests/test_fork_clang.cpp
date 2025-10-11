@@ -1,4 +1,4 @@
-// Tests for fork_clang and fork_clang_tuple
+// Tests for fork_clang and fork_tuple_clang
 
 #include "test_common.hpp"
 #include "tmc/current.hpp"
@@ -71,19 +71,19 @@ TEST_F(CATEGORY, fork_clang_custom_priority) {
   }());
 }
 
-// Test fork_clang_tuple with no tasks
-TEST_F(CATEGORY, fork_clang_tuple_empty) {
+// Test fork_tuple_clang with no tasks
+TEST_F(CATEGORY, fork_tuple_clang_empty) {
   test_async_main(ex(), []() -> tmc::task<void> {
-    auto forked = co_await tmc::fork_clang_tuple();
+    auto forked = co_await tmc::fork_tuple_clang();
     auto results = co_await std::move(forked);
   }());
 }
 
-// Test fork_clang_tuple with multiple tasks returning int
-TEST_F(CATEGORY, fork_clang_tuple_int) {
+// Test fork_tuple_clang with multiple tasks returning int
+TEST_F(CATEGORY, fork_tuple_clang_int) {
   test_async_main(ex(), []() -> tmc::task<void> {
     auto forked =
-      co_await tmc::fork_clang_tuple(task_int(1), task_int(2), task_int(3));
+      co_await tmc::fork_tuple_clang(task_int(1), task_int(2), task_int(3));
     auto results = co_await std::move(forked);
     EXPECT_EQ(std::get<0>(results), 1);
     EXPECT_EQ(std::get<1>(results), 2);
@@ -91,29 +91,29 @@ TEST_F(CATEGORY, fork_clang_tuple_int) {
   }());
 }
 
-// Test fork_clang_tuple with mixed return types
-TEST_F(CATEGORY, fork_clang_tuple_mixed) {
+// Test fork_tuple_clang with mixed return types
+TEST_F(CATEGORY, fork_tuple_clang_mixed) {
   test_async_main(ex(), []() -> tmc::task<void> {
-    auto forked = co_await tmc::fork_clang_tuple(task_int(10), task_void());
+    auto forked = co_await tmc::fork_tuple_clang(task_int(10), task_void());
     auto results = co_await std::move(forked);
     EXPECT_EQ(std::get<0>(results), 10);
     // std::get<1>(results) is std::monostate for void
   }());
 }
 
-// Test fork_clang_tuple with all void tasks
-TEST_F(CATEGORY, fork_clang_tuple_void) {
+// Test fork_tuple_clang with all void tasks
+TEST_F(CATEGORY, fork_tuple_clang_void) {
   test_async_main(ex(), []() -> tmc::task<void> {
     auto forked =
-      co_await tmc::fork_clang_tuple(task_void(), task_void(), task_void());
+      co_await tmc::fork_tuple_clang(task_void(), task_void(), task_void());
     co_await std::move(forked);
   }());
 }
 
-// Test fork_clang_tuple with single task
-TEST_F(CATEGORY, fork_clang_tuple_single) {
+// Test fork_tuple_clang with single task
+TEST_F(CATEGORY, fork_tuple_clang_single) {
   test_async_main(ex(), []() -> tmc::task<void> {
-    auto forked = co_await tmc::fork_clang_tuple(task_int(99));
+    auto forked = co_await tmc::fork_tuple_clang(task_int(99));
     auto results = co_await std::move(forked);
     EXPECT_EQ(std::get<0>(results), 99);
   }());
@@ -128,10 +128,10 @@ TEST_F(CATEGORY, fork_clang_with_wrapper) {
   }());
 }
 
-// Test fork_clang_tuple with tmc::spawn() wrappers
-TEST_F(CATEGORY, fork_clang_tuple_with_wrapper) {
+// Test fork_tuple_clang with tmc::spawn() wrappers
+TEST_F(CATEGORY, fork_tuple_clang_with_wrapper) {
   test_async_main(ex(), []() -> tmc::task<void> {
-    auto forked = co_await tmc::fork_clang_tuple(
+    auto forked = co_await tmc::fork_tuple_clang(
       tmc::spawn(task_int(5)), tmc::spawn(task_int(6))
     );
     auto results = co_await std::move(forked);
