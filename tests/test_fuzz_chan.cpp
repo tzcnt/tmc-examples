@@ -20,18 +20,10 @@ constexpr size_t ACTION_COUNT = 1000;
 xso::rng prng;
 size_t base;
 std::atomic<size_t> full_sum;
-std::atomic<size_t> producers_started;
-std::atomic<size_t> producers_done;
-std::atomic<size_t> consumers_started;
-std::atomic<size_t> consumers_done;
 
 void reset() {
   base = 0;
   full_sum = 0;
-  producers_started = 0;
-  producers_done = 0;
-  consumers_started = 0;
-  consumers_done = 0;
 }
 
 struct chan_config : tmc::chan_default_config {
@@ -45,13 +37,11 @@ tmc::task<void> producer(token Chan, size_t Base, size_t Count) {
   for (size_t i = 0; i < Count; ++i) {
     Chan.post(Base + i);
   }
-  producers_done.fetch_add(1);
   co_return;
 }
 
 tmc::task<void> bulk_producer(token Chan, size_t Base, size_t Count) {
   Chan.post_bulk(std::ranges::views::iota(Base, Base + Count));
-  producers_done.fetch_add(1);
   co_return;
 }
 
@@ -64,31 +54,30 @@ tmc::task<void> consumer(token chan, size_t Count) {
     }
   }
   full_sum.fetch_add(sum);
-  consumers_done.fetch_add(1);
 }
 
 int choose_action() { return prng.sample(0, 2); }
 
-tmc::task<void> do_action(token& Chan) {
+tmc::task<void> do_action(
+  token& Chan, tmc::aw_fork_group<0, void>& Producers,
+  tmc::aw_fork_group<0, void>& Consumers
+) {
   int action = choose_action();
   switch (action) {
   case 0: {
-    producers_started.fetch_add(1);
     size_t count = prng.sample(1, ELEMS_PER_ACTION);
-    tmc::spawn(producer(Chan, base, count)).detach();
+    Producers.fork(producer(Chan, base, count));
     base += count;
     break;
   }
   case 1: {
-    producers_started.fetch_add(1);
     size_t count = prng.sample(0, 5); // include 0 to test posting empty range
-    tmc::spawn(bulk_producer(Chan, base, count)).detach();
+    Producers.fork(bulk_producer(Chan, base, count));
     base += count;
     break;
   }
   case 2:
-    consumers_started.fetch_add(1);
-    tmc::spawn(consumer(Chan, prng.sample(1, ELEMS_PER_ACTION))).detach();
+    Consumers.fork(consumer(Chan, prng.sample(1, ELEMS_PER_ACTION)));
     break;
   default:
     std::terminate();
@@ -96,29 +85,15 @@ tmc::task<void> do_action(token& Chan) {
   co_return;
 }
 
-void wait_for_producers_to_finish() {
-  size_t p = producers_started.load();
-  for (size_t d = producers_done.load(std::memory_order_relaxed); d < p;
-       d = producers_done.load(std::memory_order_relaxed)) {
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-  }
-}
-
-void wait_for_consumers_to_finish() {
-  size_t p = consumers_started.load();
-  for (size_t d = consumers_done.load(std::memory_order_relaxed); d < p;
-       d = consumers_done.load(std::memory_order_relaxed)) {
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-  }
-}
-
 auto run_one_test(bool wait_on_producers) -> tmc::task<int> {
   auto chan = tmc::make_channel<size_t, chan_config>();
+  auto producers = tmc::fork_group();
+  auto consumers = tmc::fork_group();
   for (size_t tick = 0; tick < ACTION_COUNT; ++tick) {
-    co_await do_action(chan);
+    co_await do_action(chan, producers, consumers);
   }
   if (wait_on_producers) {
-    wait_for_producers_to_finish();
+    co_await std::move(producers);
   }
   chan.close();
   // Drain remaining data
@@ -133,7 +108,7 @@ auto run_one_test(bool wait_on_producers) -> tmc::task<int> {
   }
   // Just wake the remaining waiting consumers
   co_await chan.drain();
-  wait_for_consumers_to_finish();
+  co_await std::move(consumers);
 
   if (wait_on_producers) {
     size_t expectedSum = 0;
@@ -141,6 +116,10 @@ auto run_one_test(bool wait_on_producers) -> tmc::task<int> {
       expectedSum += i;
     }
     EXPECT_EQ(expectedSum, full_sum.load());
+  } else {
+    // If we didn't wait for them before, we still have to wait now
+    // to ensure no tasks leak.
+    co_await std::move(producers);
   }
   co_return 0;
 }

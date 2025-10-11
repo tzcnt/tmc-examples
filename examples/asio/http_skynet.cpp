@@ -11,6 +11,7 @@
 #include "tmc/asio/aw_asio.hpp"
 #include "tmc/asio/ex_asio.hpp"
 #include "tmc/ex_cpu.hpp"
+#include "tmc/fork_group.hpp"
 #include "tmc/spawn.hpp"
 #include "tmc/spawn_many.hpp"
 #include "tmc/task.hpp"
@@ -66,10 +67,11 @@ tmc::task<size_t> skynet_one(size_t BaseNum, size_t Depth) {
   }
 
   std::array<size_t, 10> results = co_await tmc::spawn_many<10>(
-    (std::ranges::views::iota(0UL) |
-     std::ranges::views::transform([=](size_t idx) {
-       return skynet_one<DepthMax>(BaseNum + depthOffset * idx, Depth + 1);
-     })
+    (
+      std::ranges::views::iota(0UL) |
+      std::ranges::views::transform([=](size_t idx) {
+        return skynet_one<DepthMax>(BaseNum + depthOffset * idx, Depth + 1);
+      })
     ).begin()
   );
 
@@ -127,24 +129,31 @@ tmc::task<void> handler(auto Socket) {
 }
 
 static tmc::task<void> accept(uint16_t Port) {
+  auto handlers = tmc::fork_group();
   tcp::acceptor acceptor(tmc::asio_executor(), {tcp::v4(), Port});
   while (true) {
     auto [error, sock] = co_await acceptor.async_accept(tmc::aw_asio);
     if (error) {
       break;
     }
-    tmc::spawn(handler(std::move(sock))).detach();
+    handlers.fork(handler(std::move(sock)));
   }
+  // Wait for all running handlers to complete.
+  co_await std::move(handlers);
 }
 
 int main() {
   tmc::cpu_executor().set_priority_count(2).init();
   tmc::asio_executor().init();
   return tmc::async_main([]() -> tmc::task<int> {
+    auto acceptors = tmc::fork_group();
+
     std::printf("serving low priority on http://localhost::55551/\n");
-    tmc::spawn(accept(55551)).with_priority(1).detach();
+    co_await acceptors.fork_clang(accept(55551), tmc::current_executor(), 1);
+
     std::printf("serving high priority on http://localhost::55550/\n");
-    co_await accept(55550);
+    co_await acceptors.fork_clang(accept(55550));
+    co_await std::move(acceptors.resume_on(tmc::asio_executor()));
     co_return 0;
   }());
 }

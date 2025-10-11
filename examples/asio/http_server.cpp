@@ -9,6 +9,7 @@
 #include "tmc/asio/aw_asio.hpp"
 #include "tmc/asio/ex_asio.hpp"
 #include "tmc/ex_cpu.hpp"
+#include "tmc/fork_group.hpp"
 #include "tmc/spawn.hpp"
 #include "tmc/task.hpp"
 
@@ -66,33 +67,39 @@ tmc::task<void> handler(auto Socket) {
 static tmc::task<void> accept(uint16_t Port) {
   std::printf("serving on http://localhost:%d/\n", Port);
   tcp::acceptor acceptor(tmc::asio_executor(), {tcp::v4(), Port});
+  auto handlers = tmc::fork_group();
   while (true) {
     auto [error, sock] = co_await acceptor.async_accept(tmc::aw_asio);
     if (error) {
       break;
     }
-    tmc::spawn(handler(std::move(sock))).detach();
+    handlers.fork(handler(std::move(sock)));
   }
+  // Wait for all running handlers to complete.
+  co_await std::move(handlers);
 }
 
 int main() {
   tmc::cpu_executor().init();
   tmc::asio_executor().init();
   return tmc::async_main([]() -> tmc::task<int> {
+    auto acceptors = tmc::fork_group();
     // The default behavior is to submit each I/O call to ASIO, then resume the
     // coroutine back on tmc::cpu_executor(). Although there is additional
     // overhead with this thread transition, it may still improve overall
     // throughput since the Asio executor doesn't need to process any
     // continuations inline. Additionally, it eliminates any risk of
     // accidentally blocking the I/O thread.
-    tmc::spawn(accept(55550)).detach();
+    acceptors.fork(accept(55550));
 
     // This customization runs both the I/O calls and the continuations inline
     // on the single-threaded tmc::asio_executor(). This may or may not yield
     // higher performance for a strictly I/O latency bound benchmark such as
     // this example, and care must be taken to manually offload CPU-bound work
     // to the cpu executor.
-    co_await tmc::spawn(accept(55551)).run_on(tmc::asio_executor());
+    acceptors.fork(accept(55551), tmc::asio_executor());
+
+    co_await std::move(acceptors);
 
     co_return 0;
   }());
