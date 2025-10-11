@@ -209,3 +209,108 @@ TEST_F(CATEGORY, empty_int) {
     co_await std::move(sg);
   }());
 }
+
+// Test spawn_group capacity() with fixed size
+TEST_F(CATEGORY, capacity_fixed_size) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    auto sg = tmc::spawn_group<5, tmc::task<int>>();
+    EXPECT_EQ(sg.capacity(), 5);
+    sg.add(task_int(1));
+    EXPECT_EQ(sg.capacity(), 5);
+    sg.add(task_int(2));
+    EXPECT_EQ(sg.capacity(), 5);
+    auto results = co_await std::move(sg);
+  }());
+}
+
+// Test spawn_group capacity() with dynamic size (unlimited)
+TEST_F(CATEGORY, capacity_dynamic_unlimited) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    auto sg = tmc::spawn_group(task_int(1));
+    EXPECT_EQ(sg.capacity(), static_cast<size_t>(-1));
+    sg.add(task_int(2));
+    EXPECT_EQ(sg.capacity(), static_cast<size_t>(-1));
+    auto results = co_await std::move(sg);
+  }());
+}
+
+// Test spawn_group capacity() with void result (unlimited)
+TEST_F(CATEGORY, capacity_void_unlimited) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    auto sg = tmc::spawn_group();
+    EXPECT_EQ(sg.capacity(), static_cast<size_t>(-1));
+    sg.add(task_void());
+    sg.add(task_void());
+    EXPECT_EQ(sg.capacity(), static_cast<size_t>(-1));
+    co_await std::move(sg);
+  }());
+}
+
+// Test spawn_group size() with constructor init
+TEST_F(CATEGORY, size_init) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    auto sg = tmc::spawn_group<4, tmc::task<int>>(task_int(1));
+    EXPECT_EQ(sg.size(), 1);
+    sg.add(task_int(2));
+    EXPECT_EQ(sg.size(), 2);
+    sg.add(task_int(3));
+    EXPECT_EQ(sg.size(), 3);
+    auto results = co_await std::move(sg);
+    EXPECT_EQ(results[0], 1);
+    EXPECT_EQ(results[1], 2);
+    EXPECT_EQ(results[2], 3);
+  }());
+}
+
+// Test spawn_group size() with constructor init, dynamic size
+TEST_F(CATEGORY, size_init_dynamic) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    auto sg = tmc::spawn_group(task_int(1));
+    EXPECT_EQ(sg.size(), 1);
+    sg.add(task_int(2));
+    EXPECT_EQ(sg.size(), 2);
+    sg.add(task_int(3));
+    EXPECT_EQ(sg.size(), 3);
+    auto results = co_await std::move(sg);
+    EXPECT_EQ(results[0], 1);
+    EXPECT_EQ(results[1], 2);
+    EXPECT_EQ(results[2], 3);
+  }());
+}
+
+// Test spawn_group size() with reset
+TEST_F(CATEGORY, size_after_reset) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    auto sg = tmc::spawn_group<2, tmc::task<int>>();
+    EXPECT_EQ(sg.size(), 0);
+    sg.add(task_int(1));
+    sg.add(task_int(2));
+    EXPECT_EQ(sg.size(), 2);
+    auto results1 = co_await std::move(sg);
+
+    sg.reset();
+    EXPECT_EQ(sg.size(), 0);
+    sg.add(task_int(3));
+    EXPECT_EQ(sg.size(), 1);
+    auto results2 = co_await std::move(sg);
+  }());
+}
+
+// Test spawn_group size() with dynamic size
+TEST_F(CATEGORY, size_after_reset_dynamic) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    auto sg = tmc::spawn_group(task_int(10));
+    EXPECT_EQ(sg.size(), 1);
+    sg.add(task_int(20));
+    EXPECT_EQ(sg.size(), 2);
+    auto results = co_await std::move(sg);
+    EXPECT_EQ(results[0], 10);
+    EXPECT_EQ(results[1], 20);
+
+    sg.reset();
+    EXPECT_EQ(sg.size(), 0);
+    sg.add(task_int(3));
+    EXPECT_EQ(sg.size(), 1);
+    auto results2 = co_await std::move(sg);
+  }());
+}

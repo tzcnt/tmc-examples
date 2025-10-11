@@ -383,3 +383,114 @@ TEST_F(CATEGORY, empty_runtime_size) {
     auto results = co_await std::move(fg);
   }());
 }
+
+// Test fork_group capacity() with fixed size
+TEST_F(CATEGORY, capacity_fixed_size) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    auto fg = tmc::fork_group<5, int>();
+    EXPECT_EQ(fg.capacity(), 5);
+    fg.fork(task_int(1));
+    EXPECT_EQ(fg.capacity(), 5);
+    fg.fork(task_int(2));
+    EXPECT_EQ(fg.capacity(), 5);
+    auto results = co_await std::move(fg);
+    EXPECT_EQ(fg.capacity(), 5);
+  }());
+}
+
+// Test fork_group capacity() with runtime size
+TEST_F(CATEGORY, capacity_runtime_size) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    auto fg = tmc::fork_group<int>(7);
+    EXPECT_EQ(fg.capacity(), 7);
+    fg.fork(task_int(1));
+    EXPECT_EQ(fg.capacity(), 7);
+    auto results = co_await std::move(fg);
+  }());
+}
+
+// Test fork_group capacity() with void result (unlimited)
+TEST_F(CATEGORY, capacity_void_unlimited) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    auto fg = tmc::fork_group();
+    EXPECT_EQ(fg.capacity(), static_cast<size_t>(-1));
+    fg.fork(task_void());
+    fg.fork(task_void());
+    EXPECT_EQ(fg.capacity(), static_cast<size_t>(-1));
+    co_await std::move(fg);
+  }());
+}
+
+// Test fork_group size() with reset
+TEST_F(CATEGORY, size_after_reset) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    auto fg = tmc::fork_group<2, int>();
+    EXPECT_EQ(fg.size(), 0);
+    fg.fork(task_int(1));
+    fg.fork(task_int(2));
+    EXPECT_EQ(fg.size(), 2);
+    auto results1 = co_await std::move(fg);
+
+    fg.reset();
+    EXPECT_EQ(fg.size(), 0);
+    fg.fork(task_int(3));
+    EXPECT_EQ(fg.size(), 1);
+    auto results2 = co_await std::move(fg);
+  }());
+}
+
+// Test fork_group size() with reset with constructor init
+TEST_F(CATEGORY, size_after_reset_init) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    auto fg = tmc::fork_group<2>(task_int(1));
+    EXPECT_EQ(fg.size(), 1);
+    fg.fork(task_int(2));
+    EXPECT_EQ(fg.size(), 2);
+    auto results1 = co_await std::move(fg);
+
+    fg.reset();
+    EXPECT_EQ(fg.size(), 0);
+    fg.fork(task_int(3));
+    EXPECT_EQ(fg.size(), 1);
+    auto results2 = co_await std::move(fg);
+  }());
+}
+
+// Test fork_group size() with runtime size
+TEST_F(CATEGORY, size_after_reset_dynamic) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    auto fg = tmc::fork_group<int>(2);
+    EXPECT_EQ(fg.size(), 0);
+    EXPECT_EQ(fg.capacity(), 2);
+    fg.fork(task_int(10));
+    fg.fork(task_int(20));
+    EXPECT_EQ(fg.size(), 2);
+    auto results = co_await std::move(fg);
+
+    fg.reset(4);
+    EXPECT_EQ(fg.size(), 0);
+    EXPECT_EQ(fg.capacity(), 4);
+    fg.fork(task_int(3));
+    EXPECT_EQ(fg.size(), 1);
+    auto results2 = co_await std::move(fg);
+  }());
+}
+
+// Test fork_group size() with runtime size + constructor init
+TEST_F(CATEGORY, size_after_reset_dynamic_init) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    auto fg = tmc::fork_group(2, task_int(10));
+    EXPECT_EQ(fg.size(), 1);
+    EXPECT_EQ(fg.capacity(), 2);
+    fg.fork(task_int(20));
+    EXPECT_EQ(fg.size(), 2);
+    auto results = co_await std::move(fg);
+
+    fg.reset(4);
+    EXPECT_EQ(fg.size(), 0);
+    EXPECT_EQ(fg.capacity(), 4);
+    fg.fork(task_int(3));
+    EXPECT_EQ(fg.size(), 1);
+    auto results2 = co_await std::move(fg);
+  }());
+}
