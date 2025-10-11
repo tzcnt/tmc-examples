@@ -359,3 +359,27 @@ TEST_F(CATEGORY, runtime_maxcount_reset) {
     EXPECT_EQ(results2[2], 50);
   }());
 }
+
+// Test fork_group with no awaitables (void result)
+TEST_F(CATEGORY, empty_void) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    auto fg = tmc::fork_group();
+    co_await std::move(fg);
+  }());
+}
+
+// Test fork_group with no awaitables (fixed-size array)
+TEST_F(CATEGORY, empty_fixed_size) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    auto fg = tmc::fork_group<3, int>();
+    auto results = co_await std::move(fg);
+  }());
+}
+
+// Test fork_group with no awaitables (runtime size)
+TEST_F(CATEGORY, empty_runtime_size) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    auto fg = tmc::fork_group<int>(3);
+    auto results = co_await std::move(fg);
+  }());
+}

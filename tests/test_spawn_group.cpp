@@ -1,4 +1,3 @@
-#include "atomic_awaitable.hpp"
 #include "test_common.hpp"
 #include "tmc/spawn.hpp"
 #include "tmc/spawn_group.hpp"
@@ -192,5 +191,21 @@ TEST_F(CATEGORY, fork) {
     auto results = co_await std::move(forked);
     EXPECT_EQ(results[0], 1);
     EXPECT_EQ(results[1], 2);
+  }());
+}
+
+// Test spawn_group with no awaitables (void result)
+TEST_F(CATEGORY, empty_void) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    auto sg = tmc::spawn_group();
+    co_await std::move(sg);
+  }());
+}
+
+// Test spawn_group with no awaitables (fixed-size array)
+TEST_F(CATEGORY, empty_int) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    auto sg = tmc::spawn_group<1, tmc::task<int>>();
+    co_await std::move(sg);
   }());
 }

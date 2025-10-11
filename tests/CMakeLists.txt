@@ -69,6 +69,7 @@ make_exe(
   test_thread_layout.cpp
   test_fork_group.cpp
   test_spawn_group.cpp
+  test_fork_clang.cpp
 )
 target_compile_definitions(tests PRIVATE TMC_NO_UNKNOWN_AWAITABLES)
 
