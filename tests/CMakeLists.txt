@@ -67,6 +67,9 @@ make_exe(
   test_coro_functor.cpp
   test_qu_lockfree.cpp
   test_thread_layout.cpp
+  test_fork_group.cpp
+  test_spawn_group.cpp
+  test_fork_clang.cpp
 )
 target_compile_definitions(tests PRIVATE TMC_NO_UNKNOWN_AWAITABLES)
 
@@ -76,18 +79,22 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
   target_compile_options(tests PRIVATE -Wno-subobject-linkage)
 endif()
 
+make_exe(test_exceptions test_exceptions.cpp)
+
+make_exe(test_halo test_halo.cpp)
+target_compile_definitions(test_halo PRIVATE TMC_DEBUG_TASK_ALLOC_COUNT TMC_NO_UNKNOWN_AWAITABLES)
+
 make_exe(
   test_fuzz_chan
   test_fuzz_chan.cpp
 )
 target_compile_definitions(test_fuzz_chan PRIVATE TMC_NO_UNKNOWN_AWAITABLES)
 
-make_exe(test_exceptions test_exceptions.cpp)
-
 if(TMC_USE_HWLOC AND LIBHWLOC_FOUND)
   target_link_libraries(tests ${LIBHWLOC_LIBRARY})
-  target_link_libraries(test_fuzz_chan ${LIBHWLOC_LIBRARY})
   target_link_libraries(test_exceptions ${LIBHWLOC_LIBRARY})
+  target_link_libraries(test_halo ${LIBHWLOC_LIBRARY})
+  target_link_libraries(test_fuzz_chan ${LIBHWLOC_LIBRARY})
 endif()
 
 include(GoogleTest)
