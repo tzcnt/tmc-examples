@@ -17,6 +17,11 @@ add_definitions(
 
     # "-DTMC_TRIVIAL_TASK" # enabled in this repo for Release builds via CMakePresets.json
     # "-DTMC_PRIORITY_COUNT=1" # unsigned integer between 1 and 63
+
+    # Debug / diagnostics options
+    # tracks the number of tmc::task allocations which lets you determine
+    # how effectively Heap Allocation Elision (HALO) is being applied by the compiler
+    # "-DTMC_DEBUG_TASK_ALLOC_COUNT"
 )
 
 # Optional flags can be passed at the command line. Used by GitHub Actions workflow.
