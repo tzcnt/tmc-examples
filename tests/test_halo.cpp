@@ -62,12 +62,12 @@ static tmc::task<void> task_void() { co_return; }
 // Test HALO with tmc::task
 TEST_F(CATEGORY, task) {
   test_async_main(ex(), []() -> tmc::task<void> {
-    tmc::debug::set_coro_alloc_count(0);
+    tmc::debug::set_task_alloc_count(0);
     {
       // HALO: This allocation can be elided as it is directly awaited
       auto result = co_await task_int(1);
       EXPECT_EQ(result, 1);
-      size_t alloc_count = tmc::debug::get_coro_alloc_count();
+      size_t alloc_count = tmc::debug::get_task_alloc_count();
       EXPECT_EQ(alloc_count, 0);
     }
     {
@@ -76,7 +76,7 @@ TEST_F(CATEGORY, task) {
       auto t = task_int(2);
       auto result = co_await std::move(t);
       EXPECT_EQ(result, 2);
-      size_t alloc_count = tmc::debug::get_coro_alloc_count();
+      size_t alloc_count = tmc::debug::get_task_alloc_count();
       EXPECT_EQ(alloc_count, 1);
     }
     {
@@ -86,7 +86,7 @@ TEST_F(CATEGORY, task) {
       // https://clang.llvm.org/docs/AttributeReference.html#coro-await-elidable
       auto result = co_await task_int(2).resume_on(tmc::current_executor());
       EXPECT_EQ(result, 2);
-      size_t alloc_count = tmc::debug::get_coro_alloc_count();
+      size_t alloc_count = tmc::debug::get_task_alloc_count();
       EXPECT_EQ(alloc_count, 2);
     }
   }());
@@ -98,12 +98,12 @@ TEST_F(CATEGORY, task) {
 // directly. And if you do apply any customizations, it will prevent HALO.
 TEST_F(CATEGORY, spawn) {
   test_async_main(ex(), []() -> tmc::task<void> {
-    tmc::debug::set_coro_alloc_count(0);
+    tmc::debug::set_task_alloc_count(0);
     {
       // HALO: This allocation can be elided as it is directly awaited
       auto result = co_await tmc::spawn(task_int(1));
       EXPECT_EQ(result, 1);
-      size_t alloc_count = tmc::debug::get_coro_alloc_count();
+      size_t alloc_count = tmc::debug::get_task_alloc_count();
       EXPECT_EQ(alloc_count, 0);
     }
     {
@@ -112,7 +112,7 @@ TEST_F(CATEGORY, spawn) {
       auto t = tmc::spawn(task_int(2));
       auto result = co_await std::move(t);
       EXPECT_EQ(result, 2);
-      size_t alloc_count = tmc::debug::get_coro_alloc_count();
+      size_t alloc_count = tmc::debug::get_task_alloc_count();
       EXPECT_EQ(alloc_count, 1);
     }
     {
@@ -121,7 +121,7 @@ TEST_F(CATEGORY, spawn) {
       auto result =
         co_await tmc::spawn(task_int(1)).run_on(tmc::current_executor());
       EXPECT_EQ(result, 1);
-      size_t alloc_count = tmc::debug::get_coro_alloc_count();
+      size_t alloc_count = tmc::debug::get_task_alloc_count();
       EXPECT_EQ(alloc_count, 2);
     }
   }());
@@ -130,13 +130,13 @@ TEST_F(CATEGORY, spawn) {
 // Test HALO with tmc::fork_clang()
 TEST_F(CATEGORY, fork_clang) {
   test_async_main(ex(), []() -> tmc::task<void> {
-    tmc::debug::set_coro_alloc_count(0);
+    tmc::debug::set_task_alloc_count(0);
     {
       // HALO: fork_clang() is directly awaited
       auto forked = co_await tmc::fork_clang(task_int(5));
       auto result = co_await std::move(forked);
       EXPECT_EQ(result, 5);
-      size_t alloc_count = tmc::debug::get_coro_alloc_count();
+      size_t alloc_count = tmc::debug::get_task_alloc_count();
       EXPECT_EQ(alloc_count, 0);
     }
     {
@@ -145,7 +145,7 @@ TEST_F(CATEGORY, fork_clang) {
       auto forked = co_await std::move(dummy);
       auto result = co_await std::move(forked);
       EXPECT_EQ(result, 6);
-      size_t alloc_count = tmc::debug::get_coro_alloc_count();
+      size_t alloc_count = tmc::debug::get_task_alloc_count();
       EXPECT_EQ(alloc_count, 1);
     }
     {
@@ -154,7 +154,7 @@ TEST_F(CATEGORY, fork_clang) {
       auto forked = tmc::spawn(task_int(7)).fork();
       auto result = co_await std::move(forked);
       EXPECT_EQ(result, 7);
-      size_t alloc_count = tmc::debug::get_coro_alloc_count();
+      size_t alloc_count = tmc::debug::get_task_alloc_count();
       EXPECT_EQ(alloc_count, 2);
     }
   }());
@@ -163,7 +163,7 @@ TEST_F(CATEGORY, fork_clang) {
 // Test HALO with multiple fork_clang() calls (not in a loop)
 TEST_F(CATEGORY, fork_clang_multiple) {
   test_async_main(ex(), []() -> tmc::task<void> {
-    tmc::debug::set_coro_alloc_count(0);
+    tmc::debug::set_task_alloc_count(0);
     {
       // HALO: All fork_clang() calls are directly awaited
       auto forked1 = co_await tmc::fork_clang(task_int(1));
@@ -178,7 +178,7 @@ TEST_F(CATEGORY, fork_clang_multiple) {
       EXPECT_EQ(result2, 2);
       EXPECT_EQ(result3, 3);
 
-      size_t alloc_count = tmc::debug::get_coro_alloc_count();
+      size_t alloc_count = tmc::debug::get_task_alloc_count();
       EXPECT_EQ(alloc_count, 0);
     }
     {
@@ -196,7 +196,7 @@ TEST_F(CATEGORY, fork_clang_multiple) {
       EXPECT_EQ(result2, 5);
       EXPECT_EQ(result3, 6);
 
-      size_t alloc_count = tmc::debug::get_coro_alloc_count();
+      size_t alloc_count = tmc::debug::get_task_alloc_count();
       EXPECT_EQ(alloc_count, 3);
     }
   }());
@@ -205,7 +205,7 @@ TEST_F(CATEGORY, fork_clang_multiple) {
 // Test HALO with tmc::spawn_tuple()
 TEST_F(CATEGORY, spawn_tuple) {
   test_async_main(ex(), []() -> tmc::task<void> {
-    tmc::debug::set_coro_alloc_count(0);
+    tmc::debug::set_task_alloc_count(0);
     {
       // HALO: spawn_tuple() is directly awaited
       auto results = co_await tmc::spawn_tuple(task_int(1), task_int(2));
@@ -213,7 +213,7 @@ TEST_F(CATEGORY, spawn_tuple) {
       EXPECT_EQ(std::get<0>(results), 1);
       EXPECT_EQ(std::get<1>(results), 2);
 
-      size_t alloc_count = tmc::debug::get_coro_alloc_count();
+      size_t alloc_count = tmc::debug::get_task_alloc_count();
       EXPECT_EQ(alloc_count, 0);
     }
     {
@@ -224,7 +224,7 @@ TEST_F(CATEGORY, spawn_tuple) {
       EXPECT_EQ(std::get<0>(results), 3);
       EXPECT_EQ(std::get<1>(results), 4);
 
-      size_t alloc_count = tmc::debug::get_coro_alloc_count();
+      size_t alloc_count = tmc::debug::get_task_alloc_count();
       EXPECT_EQ(alloc_count, 2);
     }
     {
@@ -236,7 +236,7 @@ TEST_F(CATEGORY, spawn_tuple) {
       EXPECT_EQ(std::get<0>(results), 3);
       EXPECT_EQ(std::get<1>(results), 4);
 
-      size_t alloc_count = tmc::debug::get_coro_alloc_count();
+      size_t alloc_count = tmc::debug::get_task_alloc_count();
       EXPECT_EQ(alloc_count, 4);
     }
   }());
@@ -245,7 +245,7 @@ TEST_F(CATEGORY, spawn_tuple) {
 // Test HALO with tmc::fork_tuple_clang()
 TEST_F(CATEGORY, fork_tuple_clang) {
   test_async_main(ex(), []() -> tmc::task<void> {
-    tmc::debug::set_coro_alloc_count(0);
+    tmc::debug::set_task_alloc_count(0);
     {
       // HALO: fork_tuple_clang() is directly awaited
       auto forked = co_await tmc::fork_tuple_clang(
@@ -257,7 +257,7 @@ TEST_F(CATEGORY, fork_tuple_clang) {
       EXPECT_EQ(std::get<1>(results), 20);
       EXPECT_EQ(std::get<2>(results), 30);
 
-      size_t alloc_count = tmc::debug::get_coro_alloc_count();
+      size_t alloc_count = tmc::debug::get_task_alloc_count();
       EXPECT_EQ(alloc_count, 0);
     }
     {
@@ -271,7 +271,7 @@ TEST_F(CATEGORY, fork_tuple_clang) {
       EXPECT_EQ(std::get<1>(results), 21);
       EXPECT_EQ(std::get<2>(results), 31);
 
-      size_t alloc_count = tmc::debug::get_coro_alloc_count();
+      size_t alloc_count = tmc::debug::get_task_alloc_count();
       EXPECT_EQ(alloc_count, 3);
     }
     {
@@ -285,7 +285,7 @@ TEST_F(CATEGORY, fork_tuple_clang) {
       EXPECT_EQ(std::get<1>(results), 22);
       EXPECT_EQ(std::get<2>(results), 32);
 
-      size_t alloc_count = tmc::debug::get_coro_alloc_count();
+      size_t alloc_count = tmc::debug::get_task_alloc_count();
       EXPECT_EQ(alloc_count, 6);
     }
   }());
@@ -294,7 +294,7 @@ TEST_F(CATEGORY, fork_tuple_clang) {
 // Test HALO with tmc::fork_tuple_clang() mixed types
 TEST_F(CATEGORY, fork_tuple_clang_mixed) {
   test_async_main(ex(), []() -> tmc::task<void> {
-    tmc::debug::set_coro_alloc_count(0);
+    tmc::debug::set_task_alloc_count(0);
     {
       // HALO: fork_tuple_clang() is directly awaited
       auto forked =
@@ -304,7 +304,7 @@ TEST_F(CATEGORY, fork_tuple_clang_mixed) {
       EXPECT_EQ(std::get<0>(results), 10);
       EXPECT_EQ(std::get<2>(results), 20);
 
-      size_t alloc_count = tmc::debug::get_coro_alloc_count();
+      size_t alloc_count = tmc::debug::get_task_alloc_count();
       EXPECT_EQ(alloc_count, 0);
     }
     {
@@ -317,7 +317,7 @@ TEST_F(CATEGORY, fork_tuple_clang_mixed) {
       EXPECT_EQ(std::get<0>(results), 11);
       EXPECT_EQ(std::get<2>(results), 21);
 
-      size_t alloc_count = tmc::debug::get_coro_alloc_count();
+      size_t alloc_count = tmc::debug::get_task_alloc_count();
       EXPECT_EQ(alloc_count, 3);
     }
     {
@@ -330,7 +330,7 @@ TEST_F(CATEGORY, fork_tuple_clang_mixed) {
       EXPECT_EQ(std::get<0>(results), 12);
       EXPECT_EQ(std::get<2>(results), 22);
 
-      size_t alloc_count = tmc::debug::get_coro_alloc_count();
+      size_t alloc_count = tmc::debug::get_task_alloc_count();
       EXPECT_EQ(alloc_count, 6);
     }
   }());
@@ -339,7 +339,7 @@ TEST_F(CATEGORY, fork_tuple_clang_mixed) {
 // Test HALO with aw_fork_group constructor initialized with a task
 TEST_F(CATEGORY, fork_group_constructor) {
   test_async_main(ex(), []() -> tmc::task<void> {
-    tmc::debug::set_coro_alloc_count(0);
+    tmc::debug::set_task_alloc_count(0);
     {
       // A task passed directly to the constructor cannot be HALO'd
       auto fg = tmc::fork_group<3>(task_int(5));
@@ -347,7 +347,7 @@ TEST_F(CATEGORY, fork_group_constructor) {
 
       EXPECT_EQ(results[0], 5);
 
-      size_t alloc_count = tmc::debug::get_coro_alloc_count();
+      size_t alloc_count = tmc::debug::get_task_alloc_count();
       EXPECT_EQ(alloc_count, 1);
     }
   }());
@@ -356,7 +356,7 @@ TEST_F(CATEGORY, fork_group_constructor) {
 // Test HALO with aw_fork_group::fork_clang()
 TEST_F(CATEGORY, fork_group_fork_clang) {
   test_async_main(ex(), []() -> tmc::task<void> {
-    tmc::debug::set_coro_alloc_count(0);
+    tmc::debug::set_task_alloc_count(0);
     {
       // HALO: fork_clang() is directly awaited for each task
       auto fg = tmc::fork_group<3, int>();
@@ -369,7 +369,7 @@ TEST_F(CATEGORY, fork_group_fork_clang) {
       EXPECT_EQ(results[1], 6);
       EXPECT_EQ(results[2], 7);
 
-      size_t alloc_count = tmc::debug::get_coro_alloc_count();
+      size_t alloc_count = tmc::debug::get_task_alloc_count();
       EXPECT_EQ(alloc_count, 0);
     }
     // {
@@ -385,7 +385,7 @@ TEST_F(CATEGORY, fork_group_fork_clang) {
     //   EXPECT_EQ(results[1], 1);
     //   EXPECT_EQ(results[2], 2);
 
-    //   size_t alloc_count = tmc::debug::get_coro_alloc_count();
+    //   size_t alloc_count = tmc::debug::get_task_alloc_count();
     //   EXPECT_EQ(alloc_count, 0);
     // }
     {
@@ -400,7 +400,7 @@ TEST_F(CATEGORY, fork_group_fork_clang) {
       EXPECT_EQ(results[1], 9);
       EXPECT_EQ(results[2], 10);
 
-      size_t alloc_count = tmc::debug::get_coro_alloc_count();
+      size_t alloc_count = tmc::debug::get_task_alloc_count();
       EXPECT_EQ(alloc_count, 3);
     }
     {
@@ -415,7 +415,7 @@ TEST_F(CATEGORY, fork_group_fork_clang) {
       EXPECT_EQ(results[1], 1);
       EXPECT_EQ(results[2], 2);
 
-      size_t alloc_count = tmc::debug::get_coro_alloc_count();
+      size_t alloc_count = tmc::debug::get_task_alloc_count();
       EXPECT_EQ(alloc_count, 6);
     }
   }());
@@ -424,7 +424,7 @@ TEST_F(CATEGORY, fork_group_fork_clang) {
 // Test HALO with aw_fork_group::fork_clang() void result
 TEST_F(CATEGORY, fork_group_fork_clang_void) {
   test_async_main(ex(), []() -> tmc::task<void> {
-    tmc::debug::set_coro_alloc_count(0);
+    tmc::debug::set_task_alloc_count(0);
     {
       // HALO: fork_clang() is directly awaited for each task
       auto fg = tmc::fork_group();
@@ -433,7 +433,7 @@ TEST_F(CATEGORY, fork_group_fork_clang_void) {
       co_await fg.fork_clang(task_void());
       co_await std::move(fg);
 
-      size_t alloc_count = tmc::debug::get_coro_alloc_count();
+      size_t alloc_count = tmc::debug::get_task_alloc_count();
       EXPECT_EQ(alloc_count, 0);
     }
     // {
@@ -445,7 +445,7 @@ TEST_F(CATEGORY, fork_group_fork_clang_void) {
     //   }
     //   co_await std::move(fg);
 
-    //   size_t alloc_count = tmc::debug::get_coro_alloc_count();
+    //   size_t alloc_count = tmc::debug::get_task_alloc_count();
     //   EXPECT_EQ(alloc_count, 0);
     // }
     {
@@ -456,7 +456,7 @@ TEST_F(CATEGORY, fork_group_fork_clang_void) {
       fg.fork(task_void());
       co_await std::move(fg);
 
-      size_t alloc_count = tmc::debug::get_coro_alloc_count();
+      size_t alloc_count = tmc::debug::get_task_alloc_count();
       EXPECT_EQ(alloc_count, 3);
     }
     {
@@ -467,7 +467,7 @@ TEST_F(CATEGORY, fork_group_fork_clang_void) {
       }
       co_await std::move(fg);
 
-      size_t alloc_count = tmc::debug::get_coro_alloc_count();
+      size_t alloc_count = tmc::debug::get_task_alloc_count();
       EXPECT_EQ(alloc_count, 6);
     }
   }());
@@ -476,7 +476,7 @@ TEST_F(CATEGORY, fork_group_fork_clang_void) {
 // Test HALO with aw_spawn_group constructor initialized with a task
 TEST_F(CATEGORY, spawn_group_constructor) {
   test_async_main(ex(), []() -> tmc::task<void> {
-    tmc::debug::set_coro_alloc_count(0);
+    tmc::debug::set_task_alloc_count(0);
     {
       // A task passed directly to the constructor cannot be HALO'd
       auto sg = tmc::spawn_group<3>(task_int(5));
@@ -484,7 +484,7 @@ TEST_F(CATEGORY, spawn_group_constructor) {
 
       EXPECT_EQ(results[0], 5);
 
-      size_t alloc_count = tmc::debug::get_coro_alloc_count();
+      size_t alloc_count = tmc::debug::get_task_alloc_count();
       EXPECT_EQ(alloc_count, 1);
     }
   }());
@@ -493,7 +493,7 @@ TEST_F(CATEGORY, spawn_group_constructor) {
 // Test HALO with aw_spawn_group::add_clang()
 TEST_F(CATEGORY, spawn_group_add_clang) {
   test_async_main(ex(), []() -> tmc::task<void> {
-    tmc::debug::set_coro_alloc_count(0);
+    tmc::debug::set_task_alloc_count(0);
     {
       // HALO: add_clang() is directly awaited for each task
       auto sg = tmc::spawn_group<3, tmc::task<int>>();
@@ -506,7 +506,7 @@ TEST_F(CATEGORY, spawn_group_add_clang) {
       EXPECT_EQ(results[1], 22);
       EXPECT_EQ(results[2], 33);
 
-      size_t alloc_count = tmc::debug::get_coro_alloc_count();
+      size_t alloc_count = tmc::debug::get_task_alloc_count();
       EXPECT_EQ(alloc_count, 0);
     }
     // {
@@ -522,7 +522,7 @@ TEST_F(CATEGORY, spawn_group_add_clang) {
     //   EXPECT_EQ(results[1], 1);
     //   EXPECT_EQ(results[2], 2);
 
-    //   size_t alloc_count = tmc::debug::get_coro_alloc_count();
+    //   size_t alloc_count = tmc::debug::get_task_alloc_count();
     //   EXPECT_EQ(alloc_count, 0);
     // }
     {
@@ -537,7 +537,7 @@ TEST_F(CATEGORY, spawn_group_add_clang) {
       EXPECT_EQ(results[1], 55);
       EXPECT_EQ(results[2], 66);
 
-      size_t alloc_count = tmc::debug::get_coro_alloc_count();
+      size_t alloc_count = tmc::debug::get_task_alloc_count();
       EXPECT_EQ(alloc_count, 3);
     }
     {
@@ -552,7 +552,7 @@ TEST_F(CATEGORY, spawn_group_add_clang) {
       EXPECT_EQ(results[1], 1);
       EXPECT_EQ(results[2], 2);
 
-      size_t alloc_count = tmc::debug::get_coro_alloc_count();
+      size_t alloc_count = tmc::debug::get_task_alloc_count();
       EXPECT_EQ(alloc_count, 6);
     }
   }());
@@ -561,7 +561,7 @@ TEST_F(CATEGORY, spawn_group_add_clang) {
 // Test HALO with aw_spawn_group::add_clang() void result
 TEST_F(CATEGORY, spawn_group_add_clang_void) {
   test_async_main(ex(), []() -> tmc::task<void> {
-    tmc::debug::set_coro_alloc_count(0);
+    tmc::debug::set_task_alloc_count(0);
     {
       // HALO: add_clang() is directly awaited for each task
       auto sg = tmc::spawn_group();
@@ -570,7 +570,7 @@ TEST_F(CATEGORY, spawn_group_add_clang_void) {
       co_await sg.add_clang(task_void());
       co_await std::move(sg);
 
-      size_t alloc_count = tmc::debug::get_coro_alloc_count();
+      size_t alloc_count = tmc::debug::get_task_alloc_count();
       EXPECT_EQ(alloc_count, 0);
     }
     // {
@@ -582,7 +582,7 @@ TEST_F(CATEGORY, spawn_group_add_clang_void) {
     //   }
     //   co_await std::move(sg);
 
-    //   size_t alloc_count = tmc::debug::get_coro_alloc_count();
+    //   size_t alloc_count = tmc::debug::get_task_alloc_count();
     //   EXPECT_EQ(alloc_count, 0);
     // }
     {
@@ -593,7 +593,7 @@ TEST_F(CATEGORY, spawn_group_add_clang_void) {
       sg.add(task_void());
       co_await std::move(sg);
 
-      size_t alloc_count = tmc::debug::get_coro_alloc_count();
+      size_t alloc_count = tmc::debug::get_task_alloc_count();
       EXPECT_EQ(alloc_count, 3);
     }
     {
@@ -604,7 +604,7 @@ TEST_F(CATEGORY, spawn_group_add_clang_void) {
       }
       co_await std::move(sg);
 
-      size_t alloc_count = tmc::debug::get_coro_alloc_count();
+      size_t alloc_count = tmc::debug::get_task_alloc_count();
       EXPECT_EQ(alloc_count, 6);
     }
   }());

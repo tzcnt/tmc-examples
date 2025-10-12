@@ -82,7 +82,7 @@ endif()
 make_exe(test_exceptions test_exceptions.cpp)
 
 make_exe(test_halo test_halo.cpp)
-target_compile_definitions(test_halo PRIVATE TMC_DEBUG_CORO_ALLOC_COUNT TMC_NO_UNKNOWN_AWAITABLES)
+target_compile_definitions(test_halo PRIVATE TMC_DEBUG_TASK_ALLOC_COUNT TMC_NO_UNKNOWN_AWAITABLES)
 
 make_exe(
   test_fuzz_chan
