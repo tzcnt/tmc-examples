@@ -52,7 +52,7 @@ template <typename T> struct atomic_awaitable : private AtomicAwaitableTag {
         value.wait(old);
         old = value.load();
       }
-      auto next = customizer.resume_continuation();
+      [[maybe_unused]] auto next = customizer.resume_continuation();
       assert(next == std::noop_coroutine());
     });
   }

@@ -77,7 +77,12 @@ TEST_F(CATEGORY, task) {
       auto result = co_await std::move(t);
       EXPECT_EQ(result, 2);
       size_t alloc_count = tmc::debug::get_task_alloc_count();
+#ifdef _MSC_VER
+      // Except on Windows... where clang-cl.exe is able to elide it...
+      EXPECT_EQ(alloc_count, 0);
+#else
       EXPECT_EQ(alloc_count, 1);
+#endif
     }
     {
       // Non-HALO: This allocation cannot be elided because the .resume_on()
@@ -87,7 +92,12 @@ TEST_F(CATEGORY, task) {
       auto result = co_await task_int(2).resume_on(tmc::current_executor());
       EXPECT_EQ(result, 2);
       size_t alloc_count = tmc::debug::get_task_alloc_count();
+#ifdef _MSC_VER
+      // Except on Windows... where clang-cl.exe is able to elide it...
+      EXPECT_EQ(alloc_count, 0);
+#else
       EXPECT_EQ(alloc_count, 2);
+#endif
     }
   }());
 }
@@ -485,7 +495,16 @@ TEST_F(CATEGORY, spawn_group_constructor) {
       EXPECT_EQ(results[0], 5);
 
       size_t alloc_count = tmc::debug::get_task_alloc_count();
+#ifdef _MSC_VER
+      // Except on Windows... where clang-cl.exe is able to elide it...
+      // However, this does not work if you use the constructor initialization
+      // in the following test (spawn_group::add_clang()), so it may be related
+      // to the presence of a single active subtask which gets completely
+      // inlined?
+      EXPECT_EQ(alloc_count, 0);
+#else
       EXPECT_EQ(alloc_count, 1);
+#endif
     }
   }());
 }
