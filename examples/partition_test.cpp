@@ -4,7 +4,8 @@
 #include "tmc/ex_cpu.hpp"
 
 #include <cstdio>
-#include <iostream>
+#include <memory>
+#include <vector>
 
 tmc::task<int> example() {
 #ifdef TMC_USE_HWLOC
@@ -17,17 +18,25 @@ tmc::task<int> example() {
   std::printf("Created executor with %zu threads\n", exec1.thread_count());
   exec1.teardown();
 
-  // Test 2: Query topology and test L3 partitioning
+  // Test 2: Query topology and create an executor for each L3 partition
   auto topology = tmc::query_system_topology();
   std::printf("\nSystem has %zu L3 groups\n", topology.l3_groups.size());
 
-  if (topology.l3_groups.size() >= 2) {
-    std::printf("\n=== Test 2: Partition to L3 group 0 ===\n");
-    tmc::ex_cpu exec2;
-    exec2.set_partition_l3({0});
-    exec2.init();
-    std::printf("Created executor with %zu threads\n", exec2.thread_count());
-    exec2.teardown();
+  if (topology.l3_groups.size() > 0) {
+    std::printf("\n=== Test 2: Create executor for each L3 partition ===\n");
+    
+    // Create and teardown each executor sequentially
+    for (size_t i = 0; i < topology.l3_groups.size(); ++i) {
+      std::printf("L3 group %zu: ", i);
+      std::fflush(stdout);
+      auto exec = std::make_unique<tmc::ex_cpu>();
+      exec->set_partition_l3({static_cast<unsigned>(i)});
+      exec->init();
+      std::printf("Created executor with %zu threads\n", exec->thread_count());
+      exec->teardown();
+    }
+    std::printf("Successfully created and tore down %zu partitioned executors\n",
+                topology.l3_groups.size());
   }
 
   std::printf("\n=== All tests completed successfully ===\n");
