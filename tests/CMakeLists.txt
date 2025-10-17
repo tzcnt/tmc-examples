@@ -64,6 +64,7 @@ make_exe(
   test_channel.cpp
   test_yield.cpp
   test_misc.cpp
+  test_and_then.cpp
   test_coro_functor.cpp
   test_qu_lockfree.cpp
   test_thread_layout.cpp
