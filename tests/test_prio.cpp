@@ -245,7 +245,7 @@ TEST_F(CATEGORY, spawn_many_with_priority) {
     co_await tmc::change_priority(1);
     EXPECT_EQ(tmc::current_priority(), 1);
     co_await tmc::spawn_many(
-      tmc::iter_adapter(
+      tmc::util::iter_adapter(
         0,
         [](int i) -> tmc::task<void> {
           EXPECT_EQ(tmc::current_priority(), 2);
@@ -266,7 +266,7 @@ TEST_F(CATEGORY, spawn_many_with_priority_run_on) {
     co_await tmc::change_priority(1);
     EXPECT_EQ(tmc::current_priority(), 1);
     co_await tmc::spawn_many(
-      tmc::iter_adapter(
+      tmc::util::iter_adapter(
         0,
         [](int i) -> tmc::task<void> {
           EXPECT_EQ(tmc::current_priority(), 2);
@@ -288,7 +288,7 @@ TEST_F(CATEGORY, spawn_many_each_with_priority) {
     co_await tmc::change_priority(1);
     EXPECT_EQ(tmc::current_priority(), 1);
     auto t = tmc::spawn_many(
-               tmc::iter_adapter(
+               tmc::util::iter_adapter(
                  0,
                  [](int i) -> tmc::task<void> {
                    EXPECT_EQ(tmc::current_priority(), 2);
@@ -316,7 +316,7 @@ TEST_F(CATEGORY, spawn_many_each_with_priority_run_on) {
     co_await tmc::change_priority(1);
     EXPECT_EQ(tmc::current_priority(), 1);
     auto t = tmc::spawn_many(
-               tmc::iter_adapter(
+               tmc::util::iter_adapter(
                  0,
                  [](int i) -> tmc::task<void> {
                    EXPECT_EQ(tmc::current_priority(), 2);
@@ -345,7 +345,7 @@ TEST_F(CATEGORY, spawn_func_many_with_priority) {
     co_await tmc::change_priority(1);
     EXPECT_EQ(tmc::current_priority(), 1);
     co_await tmc::spawn_func_many(
-      tmc::iter_adapter(
+      tmc::util::iter_adapter(
         0,
         [](int i) -> auto {
           return []() -> void { EXPECT_EQ(tmc::current_priority(), 2); };
@@ -365,7 +365,7 @@ TEST_F(CATEGORY, spawn_func_many_with_priority_run_on) {
     co_await tmc::change_priority(1);
     EXPECT_EQ(tmc::current_priority(), 1);
     co_await tmc::spawn_func_many(
-      tmc::iter_adapter(
+      tmc::util::iter_adapter(
         0,
         [](int i) -> auto {
           return []() -> void { EXPECT_EQ(tmc::current_priority(), 2); };

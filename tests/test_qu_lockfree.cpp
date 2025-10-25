@@ -24,12 +24,14 @@ protected:
 
 TEST_F(CATEGORY, expand_implicit_producer_index) {
   auto t1 = tmc::post_bulk_waitable(
-    ex(), tmc::iter_adapter(0, [](int i) -> tmc::task<void> { co_return; }),
+    ex(),
+    tmc::util::iter_adapter(0, [](int i) -> tmc::task<void> { co_return; }),
     8000
   );
 
   auto t2 = tmc::post_bulk_waitable(
-    ex(), tmc::iter_adapter(0, [](int i) -> tmc::task<void> { co_return; }),
+    ex(),
+    tmc::util::iter_adapter(0, [](int i) -> tmc::task<void> { co_return; }),
     32000
   );
   t1.wait();
@@ -40,11 +42,13 @@ TEST_F(CATEGORY, expand_explicit_producer_index) {
   test_async_main(ex(), []() -> tmc::task<void> {
     auto t1 =
       tmc::spawn_many(
-        tmc::iter_adapter(0, [](int i) -> tmc::task<void> { co_return; }), 8000
+        tmc::util::iter_adapter(0, [](int i) -> tmc::task<void> { co_return; }),
+        8000
       )
         .fork();
     co_await tmc::spawn_many(
-      tmc::iter_adapter(0, [](int i) -> tmc::task<void> { co_return; }), 32000
+      tmc::util::iter_adapter(0, [](int i) -> tmc::task<void> { co_return; }),
+      32000
     );
     co_await std::move(t1);
   }());

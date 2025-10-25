@@ -11,7 +11,7 @@
 TEST_F(CATEGORY, overfull_thread_hint_push_bulk) {
   auto t1 = tmc::post_bulk_waitable(
     ex(),
-    tmc::iter_adapter(
+    tmc::util::iter_adapter(
       0,
       [](int i) -> tmc::task<void> {
         EXPECT_EQ(tmc::current_priority(), 1);
@@ -151,7 +151,7 @@ TEST_F(CATEGORY, post_bulk_coro_begin_count) {
     std::array<int, 2> results = {5, 5};
     tmc::post_bulk(
       ex(),
-      tmc::iter_adapter(
+      tmc::util::iter_adapter(
         0,
         [&results, &flag](int i) -> tmc::task<void> {
           return [](int* out, int val, std::atomic<int>& x) -> tmc::task<void> {
@@ -444,7 +444,8 @@ TEST_F(CATEGORY, post_bulk_func_unknown_sized_range) {
 
 TEST_F(CATEGORY, post_bulk_waitable_coro_begin_count) {
   tmc::post_bulk_waitable(
-    ex(), tmc::iter_adapter(0, [](int) -> tmc::task<void> { co_return; }), 10, 0
+    ex(), tmc::util::iter_adapter(0, [](int) -> tmc::task<void> { co_return; }),
+    10, 0
   )
     .get();
 

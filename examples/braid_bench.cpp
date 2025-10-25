@@ -5,7 +5,7 @@
 #define TMC_IMPL
 
 #include "tmc/all_headers.hpp"
-#include "tmc/utils.hpp"
+#include "tmc/util/iter_adapter.hpp"
 
 #include <chrono>
 #include <cstdio>
@@ -20,7 +20,8 @@ tmc::task<void> consumer([[maybe_unused]] int i) {
 }
 
 tmc::task<void> producer(tmc::ex_braid& q, size_t count) {
-  co_await tmc::spawn_many(tmc::iter_adapter(0, consumer), count).run_on(q);
+  co_await tmc::spawn_many(tmc::util::iter_adapter(0, consumer), count)
+    .run_on(q);
 }
 
 std::string formatWithCommas(size_t n) {

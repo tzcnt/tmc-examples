@@ -1,7 +1,7 @@
 #pragma once
 
-#include "tmc/all_headers.hpp" // IWYU pragma: export
-#include "tmc/utils.hpp"       // IWYU pragma: export
+#include "tmc/all_headers.hpp"       // IWYU pragma: export
+#include "tmc/util/iter_adapter.hpp" // IWYU pragma: export
 
 #if defined(__has_feature)
 #if __has_feature(thread_sanitizer)

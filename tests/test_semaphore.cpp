@@ -1,7 +1,7 @@
 #include "atomic_awaitable.hpp"
 #include "test_common.hpp"
 #include "tmc/semaphore.hpp"
-#include "tmc/utils.hpp"
+#include "tmc/util/iter_adapter.hpp"
 
 #include <gtest/gtest.h>
 
@@ -185,7 +185,7 @@ TEST_F(CATEGORY, access_control) {
     tmc::semaphore sem(1);
 
     co_await tmc::spawn_many(
-      tmc::iter_adapter(
+      tmc::util::iter_adapter(
         0,
         [&sem, &count](int i) -> tmc::task<void> {
           return [](tmc::semaphore& Sem, size_t& Count) -> tmc::task<void> {
@@ -209,7 +209,7 @@ TEST_F(CATEGORY, access_control_scope) {
 
     auto ts =
       tmc::spawn_many(
-        tmc::iter_adapter(
+        tmc::util::iter_adapter(
           0,
           [&sem, &count](int i) -> tmc::task<void> {
             return [](tmc::semaphore& Sem, size_t& Count) -> tmc::task<void> {
