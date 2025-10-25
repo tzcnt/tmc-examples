@@ -62,7 +62,7 @@ TEST_F(CATEGORY, post_bulk_checked_default_executor) {
 
 TEST_F(CATEGORY, tiny_vec_resize_zero) {
   std::atomic<size_t> count;
-  tmc::detail::tiny_vec<destructor_counter> tv;
+  tmc::util::tiny_vec<destructor_counter> tv;
   tv.resize(2);
   tv.emplace_at(0, &count);
   tv.emplace_at(1, &count);
