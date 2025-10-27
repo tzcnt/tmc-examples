@@ -76,6 +76,7 @@ make_exe(
   test_semaphore.cpp
   test_ex_any.cpp
   test_ex_cpu.cpp
+  test_ex_cpu_st.cpp
   test_ex_asio.cpp
   test_ex_braid.cpp
   test_prio.cpp
