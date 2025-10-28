@@ -43,9 +43,10 @@ asio::steady_timer sleep_timer(ptrdiff_t seconds) {
   };
 }
 
-tmc::task<int> wait_on_tasks(size_t TaskCount) {
+tmc::task<int> wait_on_tasks(size_t Count) {
   std::vector<tmc::task<void>> tasks;
-  for (size_t i = 0; i < TaskCount; ++i) {
+  tasks.reserve(Count);
+  for (size_t i = 0; i < Count; ++i) {
     tasks.emplace_back([]() -> tmc::task<void> {
       co_await sleep_timer(10).async_wait(tmc::aw_asio);
     }());
@@ -54,17 +55,19 @@ tmc::task<int> wait_on_tasks(size_t TaskCount) {
   co_return 0;
 }
 
-tmc::task<int> wait_on_timers(size_t TaskCount) {
+tmc::task<int> wait_on_timers(size_t Count) {
   std::vector<asio::steady_timer> timers;
-  for (size_t i = 0; i < TaskCount; ++i) {
+  timers.reserve(Count);
+  for (size_t i = 0; i < Count; ++i) {
     timers.emplace_back(sleep_timer(10));
   }
-  co_await tmc::spawn_many(std::ranges::views::transform(
-    timers,
-    [](asio::steady_timer& timer) -> auto {
-      return timer.async_wait(tmc::aw_asio);
-    }
-  ));
+  co_await tmc::spawn_many(
+    std::ranges::views::transform(
+      timers, [](asio::steady_timer& timer) -> auto {
+        return timer.async_wait(tmc::aw_asio);
+      }
+    )
+  );
   co_return 0;
 }
 
