@@ -5,8 +5,9 @@
 
 #define TMC_IMPL
 
-#include "tmc/ex_cpu.hpp"
+#include "tmc/ex_cpu_st.hpp"
 #include "tmc/spawn_many.hpp"
+#include "tmc/sync.hpp"
 #include "tmc/task.hpp"
 
 #include <array>
@@ -416,22 +417,28 @@ static tmc::task<void> detach_maxCount_template_greater_uncountable_iter() {
 }
 
 int main() {
-  return tmc::async_main([]() -> tmc::task<int> {
-    co_await static_sized_iterator<IterMax>();
-    co_await static_bounded_iterator<IterMax>();
-    co_await dynamic_known_sized_iterator<IterMax>();
-    co_await dynamic_unknown_sized_iterator<IterMax>();
-    co_await dynamic_bounded_iterator<IterMax>();
-    co_await detach_maxCount_less();
-    co_await detach_maxCount_greater();
-    co_await detach_maxCount_template_less();
-    co_await detach_maxCount_template_greater();
+  tmc::ex_cpu_st ex;
+  ex.init();
+  return tmc::post_waitable(
+           ex,
+           []() -> tmc::task<int> {
+             co_await static_sized_iterator<IterMax>();
+             co_await static_bounded_iterator<IterMax>();
+             co_await dynamic_known_sized_iterator<IterMax>();
+             co_await dynamic_unknown_sized_iterator<IterMax>();
+             co_await dynamic_bounded_iterator<IterMax>();
+             co_await detach_maxCount_less();
+             co_await detach_maxCount_greater();
+             co_await detach_maxCount_template_less();
+             co_await detach_maxCount_template_greater();
 
-    co_await detach_maxCount_less_uncountable_iter();
-    co_await detach_maxCount_greater_uncountable_iter();
-    co_await detach_maxCount_template_less_uncountable_iter();
-    co_await detach_maxCount_template_greater_uncountable_iter();
+             co_await detach_maxCount_less_uncountable_iter();
+             co_await detach_maxCount_greater_uncountable_iter();
+             co_await detach_maxCount_template_less_uncountable_iter();
+             co_await detach_maxCount_template_greater_uncountable_iter();
 
-    co_return 0;
-  }());
+             co_return 0;
+           }()
+  )
+    .get();
 }
