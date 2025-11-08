@@ -226,6 +226,14 @@ make_exe(external_awaitable
     examples/external_awaitable.cpp
 )
 
+make_exe(pool_eager
+    examples/pool_eager.cpp
+)
+
+make_exe(pool_lazy
+    examples/pool_lazy.cpp
+)
+
 make_exe(braid
     examples/braid.cpp
 )
