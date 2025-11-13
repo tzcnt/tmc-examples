@@ -128,7 +128,7 @@ struct unk_co_await_member {
 
 struct unk_co_await_free {};
 
-inline unk_awaitable operator co_await(unk_co_await_free&& f) {
+inline unk_awaitable operator co_await(unk_co_await_free&&) {
   return unk_awaitable{};
 }
 

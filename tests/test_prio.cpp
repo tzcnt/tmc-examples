@@ -247,7 +247,7 @@ TEST_F(CATEGORY, spawn_many_with_priority) {
     co_await tmc::spawn_many(
       tmc::iter_adapter(
         0,
-        [](int i) -> tmc::task<void> {
+        [](int) -> tmc::task<void> {
           EXPECT_EQ(tmc::current_priority(), 2);
           co_return;
         }
@@ -268,7 +268,7 @@ TEST_F(CATEGORY, spawn_many_with_priority_run_on) {
     co_await tmc::spawn_many(
       tmc::iter_adapter(
         0,
-        [](int i) -> tmc::task<void> {
+        [](int) -> tmc::task<void> {
           EXPECT_EQ(tmc::current_priority(), 2);
           co_return;
         }
@@ -290,7 +290,7 @@ TEST_F(CATEGORY, spawn_many_each_with_priority) {
     auto t = tmc::spawn_many(
                tmc::iter_adapter(
                  0,
-                 [](int i) -> tmc::task<void> {
+                 [](int) -> tmc::task<void> {
                    EXPECT_EQ(tmc::current_priority(), 2);
                    co_return;
                  }
@@ -318,7 +318,7 @@ TEST_F(CATEGORY, spawn_many_each_with_priority_run_on) {
     auto t = tmc::spawn_many(
                tmc::iter_adapter(
                  0,
-                 [](int i) -> tmc::task<void> {
+                 [](int) -> tmc::task<void> {
                    EXPECT_EQ(tmc::current_priority(), 2);
                    co_return;
                  }
@@ -347,7 +347,7 @@ TEST_F(CATEGORY, spawn_func_many_with_priority) {
     co_await tmc::spawn_func_many(
       tmc::iter_adapter(
         0,
-        [](int i) -> auto {
+        [](int) -> auto {
           return []() -> void { EXPECT_EQ(tmc::current_priority(), 2); };
         }
       ),
@@ -367,7 +367,7 @@ TEST_F(CATEGORY, spawn_func_many_with_priority_run_on) {
     co_await tmc::spawn_func_many(
       tmc::iter_adapter(
         0,
-        [](int i) -> auto {
+        [](int) -> auto {
           return []() -> void { EXPECT_EQ(tmc::current_priority(), 2); };
         }
       ),

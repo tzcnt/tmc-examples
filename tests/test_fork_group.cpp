@@ -372,7 +372,7 @@ TEST_F(CATEGORY, empty_void) {
 TEST_F(CATEGORY, empty_fixed_size) {
   test_async_main(ex(), []() -> tmc::task<void> {
     auto fg = tmc::fork_group<3, int>();
-    auto results = co_await std::move(fg);
+    [[maybe_unused]] auto results = co_await std::move(fg);
   }());
 }
 
@@ -393,7 +393,7 @@ TEST_F(CATEGORY, capacity_fixed_size) {
     EXPECT_EQ(fg.capacity(), 5);
     fg.fork(task_int(2));
     EXPECT_EQ(fg.capacity(), 5);
-    auto results = co_await std::move(fg);
+    [[maybe_unused]] auto results = co_await std::move(fg);
     EXPECT_EQ(fg.capacity(), 5);
   }());
 }
@@ -429,13 +429,13 @@ TEST_F(CATEGORY, size_after_reset) {
     fg.fork(task_int(1));
     fg.fork(task_int(2));
     EXPECT_EQ(fg.size(), 2);
-    auto results1 = co_await std::move(fg);
+    [[maybe_unused]] auto results1 = co_await std::move(fg);
 
     fg.reset();
     EXPECT_EQ(fg.size(), 0);
     fg.fork(task_int(3));
     EXPECT_EQ(fg.size(), 1);
-    auto results2 = co_await std::move(fg);
+    [[maybe_unused]] auto results2 = co_await std::move(fg);
   }());
 }
 
@@ -446,13 +446,13 @@ TEST_F(CATEGORY, size_after_reset_init) {
     EXPECT_EQ(fg.size(), 1);
     fg.fork(task_int(2));
     EXPECT_EQ(fg.size(), 2);
-    auto results1 = co_await std::move(fg);
+    [[maybe_unused]] auto results1 = co_await std::move(fg);
 
     fg.reset();
     EXPECT_EQ(fg.size(), 0);
     fg.fork(task_int(3));
     EXPECT_EQ(fg.size(), 1);
-    auto results2 = co_await std::move(fg);
+    [[maybe_unused]] auto results2 = co_await std::move(fg);
   }());
 }
 

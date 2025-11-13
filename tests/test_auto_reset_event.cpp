@@ -197,7 +197,7 @@ TEST_F(CATEGORY, access_control) {
     co_await tmc::spawn_many(
       tmc::iter_adapter(
         0,
-        [&event, &count](int i) -> tmc::task<void> {
+        [&event, &count](int) -> tmc::task<void> {
           return
             [](tmc::auto_reset_event& Event, size_t& Count) -> tmc::task<void> {
               co_await Event;

@@ -154,7 +154,7 @@ TEST_F(CATEGORY, access_control) {
     co_await tmc::spawn_many(
       tmc::iter_adapter(
         0,
-        [&mut, &count](int i) -> tmc::task<void> {
+        [&mut, &count](int) -> tmc::task<void> {
           return [](tmc::mutex& Mut, size_t& Count) -> tmc::task<void> {
             co_await Mut;
             ++Count;
@@ -179,7 +179,7 @@ TEST_F(CATEGORY, access_control_scope) {
       tmc::spawn_many(
         tmc::iter_adapter(
           0,
-          [&mut, &count](int i) -> tmc::task<void> {
+          [&mut, &count](int) -> tmc::task<void> {
             return [](tmc::mutex& Mut, size_t& Count) -> tmc::task<void> {
               auto s = co_await Mut.lock_scope();
               ++Count;

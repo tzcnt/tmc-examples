@@ -187,7 +187,7 @@ TEST_F(CATEGORY, access_control) {
     co_await tmc::spawn_many(
       tmc::iter_adapter(
         0,
-        [&sem, &count](int i) -> tmc::task<void> {
+        [&sem, &count](int) -> tmc::task<void> {
           return [](tmc::semaphore& Sem, size_t& Count) -> tmc::task<void> {
             co_await Sem;
             ++Count;
@@ -211,7 +211,7 @@ TEST_F(CATEGORY, access_control_scope) {
       tmc::spawn_many(
         tmc::iter_adapter(
           0,
-          [&sem, &count](int i) -> tmc::task<void> {
+          [&sem, &count](int) -> tmc::task<void> {
             return [](tmc::semaphore& Sem, size_t& Count) -> tmc::task<void> {
               auto s = co_await Sem.acquire_scope();
               ++Count;
