@@ -237,11 +237,11 @@ TEST_F(CATEGORY, spawn_many_each_resume_after) {
       atomic_awaitable<size_t> aa(i);
       auto iter =
         std::ranges::views::iota(0, i) |
-        std::ranges::views::transform([&](int) -> tmc::task<int> {
+        std::ranges::views::transform([&aa](int idx) -> tmc::task<int> {
           return [](int I, atomic_awaitable<size_t>& AA) -> tmc::task<int> {
             AA.inc();
             co_return 1 << I;
-          }(i, aa);
+          }(idx, aa);
         });
       auto ts = tmc::spawn_many(iter).result_each();
       co_await aa;
