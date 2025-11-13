@@ -4,9 +4,8 @@
 
 #include <array>
 
-#define CATEGORY assert_spawn_many_DeathTest
-
 #ifndef NDEBUG
+#define CATEGORY assert_spawn_many_DeathTest
 
 static std::array<tmc::task<void>, 1> task_array() {
   return std::array<tmc::task<void>, 1>{[]() -> tmc::task<void> {
@@ -144,6 +143,5 @@ TEST(CATEGORY, each_twice) {
   );
 }
 
-#endif
-
 #undef CATEGORY
+#endif

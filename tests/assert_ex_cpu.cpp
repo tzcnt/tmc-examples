@@ -14,9 +14,8 @@
 #pragma warning(push, 0)
 #endif
 
-#define CATEGORY assert_ex_cpu_DeathTest
-
 #ifndef NDEBUG
+#define CATEGORY assert_ex_cpu_DeathTest
 TEST(CATEGORY, too_many_threads) {
   EXPECT_DEATH(
     {
@@ -65,7 +64,7 @@ TEST(CATEGORY, spawn_tuple_without_executor) {
     "executor != nullptr"
   );
 }
-
+#undef CATEGORY
 #endif
 
 #if defined(__clang__)

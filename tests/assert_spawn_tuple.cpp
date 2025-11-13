@@ -2,9 +2,8 @@
 
 #include <gtest/gtest.h>
 
-#define CATEGORY assert_spawn_tuple_DeathTest
-
 #ifndef NDEBUG
+#define CATEGORY assert_spawn_tuple_DeathTest
 
 TEST(CATEGORY, none) {
   EXPECT_DEATH(
@@ -131,6 +130,5 @@ TEST(CATEGORY, each_twice) {
   );
 }
 
-#endif
-
 #undef CATEGORY
+#endif
