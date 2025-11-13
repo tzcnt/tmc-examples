@@ -19,12 +19,11 @@ static inline tmc::task<void> spawn_tuple_compose() {
   auto smaf = tmc::spawn_many<1>(tmc::iter_adapter(6, work)).fork();
   auto smvf = tmc::spawn_many(tmc::iter_adapter(8, work), 1).fork();
   auto sff = tmc::spawn_func([]() -> int { return 1 << 10; }).fork();
-  auto sfmaf =
-    tmc::spawn_func_many<1>(
-      tmc::iter_adapter(
-        12, [](int i) -> auto { return [i]() -> int { return 1 << i; }; }
-      )
-    ).fork();
+  auto sfmaf = tmc::spawn_func_many<1>(
+                 tmc::iter_adapter(12, [](int i) -> auto {
+                   return [i]() -> int { return 1 << i; };
+                 })
+  ).fork();
   auto sfmvf =
     tmc::spawn_func_many(
       tmc::iter_adapter(
@@ -89,11 +88,11 @@ static inline tmc::task<void> spawn_tuple_compose_void() {
 
   auto t5 = set(results[5]);
   auto t7 = set(results[7]);
-  std::tuple<
+  [[maybe_unused]] std::tuple<
     std::monostate, std::monostate, std::monostate, std::tuple<std::monostate>,
     std::tuple<std::monostate>, std::monostate, std::monostate, std::monostate,
-    std::monostate, std::tuple<>>
-    foo = co_await tmc::spawn_tuple(
+    std::monostate, std::tuple<>> foo =
+    co_await tmc::spawn_tuple(
       set(results[0]), tmc::spawn(set(results[1])), std::move(sf),
       tmc::spawn_tuple(set(results[3])), std::move(tf), tmc::spawn_many<1>(&t5),
       std::move(smaf), tmc::spawn_many(&t7, 1), std::move(smvf),
@@ -235,10 +234,11 @@ static inline tmc::task<void> spawn_many_compose_spawn_func_many() {
     auto iter =
       std::ranges::views::iota(0) | std::ranges::views::transform([](int i) {
         return tmc::spawn_func_many<2>(
-          (std::ranges::views::iota(i * 2) |
-           std::ranges::views::transform([](int j) -> auto {
-             return [j]() -> int { return 1 << j; };
-           })
+          (
+            std::ranges::views::iota(i * 2) |
+            std::ranges::views::transform([](int j) -> auto {
+              return [j]() -> int { return 1 << j; };
+            })
           ).begin()
         );
       });
@@ -262,10 +262,11 @@ static inline tmc::task<void> spawn_many_compose_spawn_func_many() {
     auto iter =
       std::ranges::views::iota(0) | std::ranges::views::transform([&](int i) {
         return tmc::spawn_func_many<2>(
-          (std::ranges::views::iota(void_results.data() + (i * 2)) |
-           std::ranges::views::transform([](int* j) -> auto {
-             return [j]() { *j = (1 << *j); };
-           })
+          (
+            std::ranges::views::iota(void_results.data() + (i * 2)) |
+            std::ranges::views::transform([](int* j) -> auto {
+              return [j]() { *j = (1 << *j); };
+            })
           ).begin()
         );
       });
@@ -364,13 +365,13 @@ TEST_F(CATEGORY, spawn_compose_void) {
     };
     {
       int i = 1;
-      auto [x] = co_await tmc::spawn(tmc::spawn_tuple(set(i)));
+      [[maybe_unused]] auto [x] = co_await tmc::spawn(tmc::spawn_tuple(set(i)));
       EXPECT_EQ(i, 2);
     }
     {
       int i = 1;
       auto t = tmc::spawn(tmc::spawn_tuple(set(i))).fork();
-      auto [x] = co_await std::move(t);
+      [[maybe_unused]] auto [x] = co_await std::move(t);
       EXPECT_EQ(i, 2);
     }
     {

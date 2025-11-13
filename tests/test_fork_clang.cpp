@@ -75,7 +75,7 @@ TEST_F(CATEGORY, fork_clang_custom_priority) {
 TEST_F(CATEGORY, fork_tuple_clang_empty) {
   test_async_main(ex(), []() -> tmc::task<void> {
     auto forked = co_await tmc::fork_tuple_clang();
-    auto results = co_await std::move(forked);
+    [[maybe_unused]] auto results = co_await std::move(forked);
   }());
 }
 

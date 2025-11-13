@@ -164,6 +164,7 @@ endif()
 # add_definitions("-fsanitize=undefined -fno-sanitize-recover")
 # add_link_options("-fsanitize=undefined")
 
+# extra warnings on Clang
 # add_definitions(
 # "-Weverything"
 
@@ -181,6 +182,14 @@ endif()
 # "-Wno-missing-prototypes"
 # "-Wno-missing-variable-declarations"
 # "-Wno-double-promotion"
+# )
+
+# extra warnings on GCC
+# add_definitions(
+# "-Wall"
+# "-Wextra"
+
+# "-Wno-pessimizing-move"
 # )
 
 # copy compile_commands.json to the build directory after build so clangd can find it

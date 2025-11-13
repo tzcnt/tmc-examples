@@ -37,7 +37,7 @@ protected:
   static tmc::ex_cpu& ex() { return tmc::cpu_executor(); }
 };
 
-void throws() { throw(std::runtime_error("foo")); }
+[[noreturn]] void throws() { throw(std::runtime_error("foo")); }
 
 struct empty {};
 template <bool Known>
@@ -93,7 +93,7 @@ TEST_F(CATEGORY, throw_catch_known_awaitable_void) {
     bool caught = false;
     try {
       co_await aw_throw_void<true, 0>{};
-    } catch (std::runtime_error ex) {
+    } catch (std::runtime_error const& ex) {
       EXPECT_EQ(0, strcmp(ex.what(), "foo"));
       caught = true;
     }
@@ -102,7 +102,7 @@ TEST_F(CATEGORY, throw_catch_known_awaitable_void) {
     caught = false;
     try {
       co_await aw_throw_void<true, 1>{};
-    } catch (std::runtime_error ex) {
+    } catch (std::runtime_error const& ex) {
       EXPECT_EQ(0, strcmp(ex.what(), "foo"));
       caught = true;
     }
@@ -111,7 +111,7 @@ TEST_F(CATEGORY, throw_catch_known_awaitable_void) {
     caught = false;
     try {
       co_await aw_throw_void<true, 2>{};
-    } catch (std::runtime_error ex) {
+    } catch (std::runtime_error const& ex) {
       EXPECT_EQ(0, strcmp(ex.what(), "foo"));
       caught = true;
     }
@@ -126,7 +126,7 @@ TEST_F(CATEGORY, throw_catch_unknown_awaitable_void) {
     bool caught = false;
     try {
       co_await aw_throw_void<false, 0>{};
-    } catch (std::runtime_error ex) {
+    } catch (std::runtime_error const& ex) {
       EXPECT_EQ(0, strcmp(ex.what(), "foo"));
       caught = true;
     }
@@ -135,7 +135,7 @@ TEST_F(CATEGORY, throw_catch_unknown_awaitable_void) {
     caught = false;
     try {
       co_await aw_throw_void<false, 1>{};
-    } catch (std::runtime_error ex) {
+    } catch (std::runtime_error const& ex) {
       EXPECT_EQ(0, strcmp(ex.what(), "foo"));
       caught = true;
     }
@@ -144,7 +144,7 @@ TEST_F(CATEGORY, throw_catch_unknown_awaitable_void) {
     caught = false;
     try {
       co_await aw_throw_void<false, 2>{};
-    } catch (std::runtime_error ex) {
+    } catch (std::runtime_error const& ex) {
       caught = true;
       EXPECT_EQ(0, strcmp(ex.what(), "foo"));
     }
@@ -159,7 +159,7 @@ TEST_F(CATEGORY, throw_catch_known_awaitable_result) {
     bool caught = false;
     try {
       x = co_await aw_throw_int<true, 0>{};
-    } catch (std::runtime_error ex) {
+    } catch (std::runtime_error const& ex) {
       EXPECT_EQ(0, strcmp(ex.what(), "foo"));
       caught = true;
     }
@@ -168,7 +168,7 @@ TEST_F(CATEGORY, throw_catch_known_awaitable_result) {
     caught = false;
     try {
       x = co_await aw_throw_int<true, 1>{};
-    } catch (std::runtime_error ex) {
+    } catch (std::runtime_error const& ex) {
       EXPECT_EQ(0, strcmp(ex.what(), "foo"));
       caught = true;
     }
@@ -177,7 +177,7 @@ TEST_F(CATEGORY, throw_catch_known_awaitable_result) {
     caught = false;
     try {
       x = co_await aw_throw_int<true, 2>{};
-    } catch (std::runtime_error ex) {
+    } catch (std::runtime_error const& ex) {
       EXPECT_EQ(0, strcmp(ex.what(), "foo"));
       caught = true;
     }
@@ -194,7 +194,7 @@ TEST_F(CATEGORY, throw_catch_unknown_awaitable_result) {
     caught = false;
     try {
       x = co_await aw_throw_int<false, 0>{};
-    } catch (std::runtime_error ex) {
+    } catch (std::runtime_error const& ex) {
       EXPECT_EQ(0, strcmp(ex.what(), "foo"));
       caught = true;
     }
@@ -203,7 +203,7 @@ TEST_F(CATEGORY, throw_catch_unknown_awaitable_result) {
     caught = false;
     try {
       x = co_await aw_throw_int<false, 1>{};
-    } catch (std::runtime_error ex) {
+    } catch (std::runtime_error const& ex) {
       EXPECT_EQ(0, strcmp(ex.what(), "foo"));
       caught = true;
     }
@@ -212,7 +212,7 @@ TEST_F(CATEGORY, throw_catch_unknown_awaitable_result) {
     caught = false;
     try {
       x = co_await aw_throw_int<false, 2>{};
-    } catch (std::runtime_error ex) {
+    } catch (std::runtime_error const& ex) {
       caught = true;
       EXPECT_EQ(0, strcmp(ex.what(), "foo"));
     }
@@ -224,7 +224,7 @@ TEST_F(CATEGORY, throw_catch) {
   test_async_main(ex(), []() -> tmc::task<void> {
     try {
       throws();
-    } catch (std::runtime_error ex) {
+    } catch (std::runtime_error const&) {
     }
     co_return;
   }());
@@ -253,7 +253,7 @@ TEST_F(CATEGORY, wrapper_throws_no_await) {
     std::coroutine_handle<> tc = std::move(t);
     try {
       tc.resume();
-    } catch (std::runtime_error ex) {
+    } catch (std::runtime_error const& ex) {
       EXPECT_EQ(0, strcmp(ex.what(), "foo"));
       caught = true;
     }
@@ -271,7 +271,7 @@ TEST_F(CATEGORY, wrapper_throws_no_await) {
     std::coroutine_handle<> tc = std::move(t);
     try {
       tc.resume();
-    } catch (std::runtime_error ex) {
+    } catch (std::runtime_error const& ex) {
       EXPECT_EQ(0, strcmp(ex.what(), "foo"));
       caught = true;
     }
@@ -338,7 +338,7 @@ TEST(exceptions_DeathTest, unhandled_in_child_void) {
         // thus, try-catch does not work around a task
         try {
           co_await throwing_task_void();
-        } catch (std::exception) {
+        } catch (std::exception const&) {
         }
         co_return;
       }());
@@ -357,7 +357,7 @@ TEST(exceptions_DeathTest, unhandled_in_child_result) {
         // thus, try-catch does not work around a task
         try {
           [[maybe_unused]] auto x = co_await throwing_task_int();
-        } catch (std::exception) {
+        } catch (std::exception const&) {
         }
         co_return;
       }());
@@ -431,7 +431,7 @@ TEST(exceptions_DeathTest, spawn_exception) {
         bool caught = false;
         try {
           co_await tmc::spawn(aw_throw_void<false, 2>{});
-        } catch (std::runtime_error ex) {
+        } catch (std::runtime_error const& ex) {
           caught = true;
           EXPECT_EQ(0, strcmp(ex.what(), "foo"));
         }
@@ -451,10 +451,10 @@ TEST(exceptions_DeathTest, spawn_tuple_exceptions) {
       test_async_main(ex, []() -> tmc::task<void> {
         bool caught = false;
         try {
-          auto [a, b] = co_await tmc::spawn_tuple(
+          [[maybe_unused]] auto [a, b] = co_await tmc::spawn_tuple(
             aw_throw_void<false, 2>{}, aw_throw_int<false, 2>{}
           );
-        } catch (std::runtime_error ex) {
+        } catch (std::runtime_error const& ex) {
           caught = true;
           EXPECT_EQ(0, strcmp(ex.what(), "foo"));
         }

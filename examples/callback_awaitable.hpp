@@ -146,10 +146,10 @@ auto await_callback(
            std::type_identity<std::tuple<void*, ResultArgs...>>,
            void (*fn)(void*, CallbackFunc*, InitArgs...), InitArgs... args
          ) -> auto {
-    typename wrapper<ResultArgs...>::template callback_awaitable<
-      void (*)(void*, CallbackFunc*, InitArgs...), InitArgs...>
-    aw(fn, std::forward<InitArgs>(args)...);
-    return aw;
+    return typename wrapper<ResultArgs...>::template callback_awaitable<
+      void (*)(void*, CallbackFunc*, InitArgs...), InitArgs...>(
+      fn, std::forward<InitArgs>(args)...
+    );
   }(std::type_identity<typename func_params<CallbackFunc>::arg_tuple>{},
            async_func, std::forward<InitArgs>(async_init_args)...);
 }

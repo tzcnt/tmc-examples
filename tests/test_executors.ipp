@@ -13,7 +13,7 @@ TEST_F(CATEGORY, overfull_thread_hint_push_bulk) {
     ex(),
     tmc::iter_adapter(
       0,
-      [](int i) -> tmc::task<void> {
+      [](int) -> tmc::task<void> {
         EXPECT_EQ(tmc::current_priority(), 1);
         co_return;
       }
@@ -299,7 +299,7 @@ TEST_F(CATEGORY, post_bulk_coro_unknown_sized_range) {
     std::array<int, 2> results = {5, 5};
     auto range =
       std::ranges::views::iota(0, 2) |
-      std::ranges::views::filter([](int i) -> bool { return true; }) |
+      std::ranges::views::filter([](int) -> bool { return true; }) |
       std::ranges::views::transform(
         [&results, &flag](int i) -> tmc::task<void> {
           return [](int* out, int val, std::atomic<int>& x) -> tmc::task<void> {
@@ -423,7 +423,7 @@ TEST_F(CATEGORY, post_bulk_func_unknown_sized_range) {
     std::atomic<int> flag = 0;
     std::array<int, 2> results = {5, 5};
     auto ts = std::ranges::views::iota(0, 2) |
-              std::ranges::views::filter([](int i) -> bool { return true; }) |
+              std::ranges::views::filter([](int) -> bool { return true; }) |
               std::ranges::views::transform([&](int i) {
                 return [&results, &flag, i]() {
                   results[i] = i;
@@ -508,7 +508,7 @@ TEST_F(CATEGORY, post_bulk_waitable_coro_unknown_sized_range) {
     std::array<int, 2> results = {5, 5};
     auto ts =
       (std::ranges::views::iota(0, 2) |
-       std::ranges::views::filter([](int i) -> bool { return true; }) |
+       std::ranges::views::filter([](int) -> bool { return true; }) |
        std::ranges::views::transform([&results](int i) -> tmc::task<void> {
          return [](int* out, int val) -> tmc::task<void> {
            *out = val;
@@ -564,7 +564,7 @@ TEST_F(CATEGORY, post_bulk_waitable_func_unknown_sized_range) {
   {
     std::array<int, 2> results = {5, 5};
     auto ts = std::ranges::views::iota(0, 2) |
-              std::ranges::views::filter([](int i) -> bool { return true; }) |
+              std::ranges::views::filter([](int) -> bool { return true; }) |
               std::ranges::views::transform([&](int i) {
                 return [&results, i]() { results[i] = i; };
               });

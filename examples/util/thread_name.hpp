@@ -26,13 +26,12 @@ inline void hook_init_ex_cpu_thread_name(tmc::ex_cpu& Executor) {
 // suspend points. The issue has been resolved in Clang 17.
 inline std::string get_thread_name() {
   std::string tmc_tid = this_thread::thread_name;
-  if (!tmc_tid.empty()) {
-    return tmc_tid;
-  } else {
+  if (tmc_tid.empty()) {
     std::ostringstream id;
     id << std::this_thread::get_id();
-    return "external thread " + id.str();
+    tmc_tid = "external thread " + id.str();
   }
+  return tmc_tid;
 }
 
 inline void print_thread_name() {

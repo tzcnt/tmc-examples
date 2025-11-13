@@ -97,7 +97,7 @@ TEST_F(CATEGORY, spawn_tuple_each_resume_after) {
 
 TEST_F(CATEGORY, spawn_tuple_empty) {
   test_async_main(ex(), []() -> tmc::task<void> {
-    std::tuple<> results = co_await tmc::spawn_tuple();
+    [[maybe_unused]] std::tuple<> results = co_await tmc::spawn_tuple();
   }());
 }
 

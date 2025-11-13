@@ -4,16 +4,18 @@
 
 // This file does bad things on purpose, so disable the compiler warnings for
 // them.
-#pragma warning(push, 0)
+#if defined(__clang__)
 #pragma clang diagnostic push
-#pragma GCC diagnostic push
-
 #pragma clang diagnostic ignored "-Wunused-result"
+#elif defined(__GNUC__)
+#pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-result"
-
-#define CATEGORY assert_ex_cpu_DeathTest
+#elif defined(_MSC_VER)
+#pragma warning(push, 0)
+#endif
 
 #ifndef NDEBUG
+#define CATEGORY assert_ex_cpu_DeathTest
 TEST(CATEGORY, too_many_threads) {
   EXPECT_DEATH(
     {
@@ -62,9 +64,13 @@ TEST(CATEGORY, spawn_tuple_without_executor) {
     "executor != nullptr"
   );
 }
-
+#undef CATEGORY
 #endif
 
-#pragma GCC diagnostic pop
+#if defined(__clang__)
 #pragma clang diagnostic pop
+#elif defined(__GNUC__)
+#pragma GCC diagnostic pop
+#elif defined(_MSC_VER)
 #pragma warning(pop)
+#endif

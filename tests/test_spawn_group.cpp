@@ -219,7 +219,7 @@ TEST_F(CATEGORY, capacity_fixed_size) {
     EXPECT_EQ(sg.capacity(), 5);
     sg.add(task_int(2));
     EXPECT_EQ(sg.capacity(), 5);
-    auto results = co_await std::move(sg);
+    [[maybe_unused]] auto results = co_await std::move(sg);
   }());
 }
 
@@ -286,13 +286,13 @@ TEST_F(CATEGORY, size_after_reset) {
     sg.add(task_int(1));
     sg.add(task_int(2));
     EXPECT_EQ(sg.size(), 2);
-    auto results1 = co_await std::move(sg);
+    [[maybe_unused]] auto results1 = co_await std::move(sg);
 
     sg.reset();
     EXPECT_EQ(sg.size(), 0);
     sg.add(task_int(3));
     EXPECT_EQ(sg.size(), 1);
-    auto results2 = co_await std::move(sg);
+    [[maybe_unused]] auto results2 = co_await std::move(sg);
   }());
 }
 

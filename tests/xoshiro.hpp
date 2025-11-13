@@ -300,7 +300,7 @@ private:
     z = (z ^ (z >> 27)) * 0x94d049bb133111eb;
     z = (z ^ (z >> 31));
     return z;
-  };
+  }
 
   /// @brief Uses the murmur algorithm to return a word that is a scrambled
   /// version of the 64 input bits.
@@ -333,10 +333,9 @@ private:
 
 /// @brief  The state class for the @c xoshiro family of pseudorandom
 /// generators.
-/// @tparam N, T The state is stored as @c N words of some unsigned integer type
-/// @c T
-/// @tparam A, B These are the parameters used in the @c step() method that
-/// advances the state.
+/// N, T are The state is stored as @c N words of some unsigned integer type T
+/// A, B are the parameters used in the @c step() method that advances the
+/// state.
 template <
   std::size_t N, std::unsigned_integral T, std::uint8_t A, std::uint8_t B>
 class xoshiro {
@@ -400,7 +399,7 @@ public:
         "No xoshiro step() implementation for this number of words of state!"
       );
     }
-  };
+  }
 
   /// @brief  The state's characteristic polynomial is c(x) = x^n + p(x) where n
   /// = digits() and degree[p] < n.
@@ -442,9 +441,8 @@ private:
 };
 
 /// @brief  The state for the @c xoroshiro family of pseudorandom generators.
-/// @tparam N, T    The state is stored as @c N words of some unsigned integer
-/// type @c T
-/// @tparam A, B, C These are the parameters used in the @c step() method that
+/// The state is stored as @c N words of some unsigned integer type @c T
+/// A, B, C are the parameters used in the @c step() method that
 /// advances the state.
 template <
   std::size_t N, std::unsigned_integral T, std::uint8_t A, std::uint8_t B,
@@ -505,10 +503,10 @@ public:
   static constexpr void characteristic_coefficients(Iter dst) {
     static_assert(
       (std::is_same_v<T, uint32_t> && N == 2 && A == 26 && B == 9 && C == 13) ||
-      (std::is_same_v<T, uint64_t> && N == 2 && A == 24 && B == 16 && C == 37
-      ) ||
-      (std::is_same_v<T, uint64_t> && N == 2 && A == 49 && B == 21 && C == 28
-      ) ||
+      (std::is_same_v<T, uint64_t> && N == 2 && A == 24 && B == 16 &&
+       C == 37) ||
+      (std::is_same_v<T, uint64_t> && N == 2 && A == 49 && B == 21 &&
+       C == 28) ||
       (std::is_same_v<T, uint64_t> && N == 16 && A == 25 && B == 27 && C == 36)
     );
     if constexpr (std::is_same_v<T, uint32_t> && N == 2 && A == 26 && B == 9 &&
@@ -538,7 +536,8 @@ public:
   }
 
 private:
-  std::array<T, N> m_state = {1
+  std::array<T, N> m_state = {
+    1
   }; // The state is an array of words -- should never be all zeros!
   std::size_t m_final = N - 1; // Current location of the final word of state.
 
@@ -605,7 +604,7 @@ template <auto S, std::size_t w> struct star {
 
 /// @brief  The "**" scrambler returns a scrambled version of one of the state
 /// words.
-/// @tparam S, R, T Parameters in the scramble method.
+/// S, R, T Parameters in the scramble method.
 /// @tparam w Index of the state word being in question.
 template <auto S, auto R, auto T, std::size_t w> struct star_star {
   /// @brief Reduces the state input to a single word of output.
@@ -615,7 +614,7 @@ template <auto S, auto R, auto T, std::size_t w> struct star_star {
 };
 
 /// @brief  The "+" scrambler returns the sum of two of the state words.
-/// @tparam w0, w1 Indices of the two state words in question.
+/// w0, w1 Indices of the two state words in question.
 template <std::size_t w0, std::size_t w1> struct plus {
   /// @brief Reduces the state input to a single word of output.
   constexpr auto operator()(const auto& state) const {
@@ -626,7 +625,7 @@ template <std::size_t w0, std::size_t w1> struct plus {
 /// @brief  The "++" scrambler returns a scrambled version of two of the state
 /// words.
 /// @tparam R Parameter in the scramble method.
-/// @tparam w0, w1 Indices of the two state words in question.
+/// w0, w1 Indices of the two state words in question.
 template <auto R, std::size_t w0, std::size_t w1> struct plus_plus {
   /// @brief Reduces the state input to a single word of output.
   constexpr auto operator()(const auto& state) const {
@@ -698,7 +697,7 @@ namespace xso::internal {
 
 /// @brief  Riffle a word into two other words containing the bits from @c src
 /// interleaved with zeros.
-/// @return With an 8-bit word @c src = `abcdefgh`, on return @c lo = `a0b0c0d0
+/// With an 8-bit word @c src = `abcdefgh`, on return @c lo = `a0b0c0d0
 /// and @c hi = `e0f0g0h0`.
 template <std::unsigned_integral word_type>
 constexpr void riffle(word_type src, word_type& lo, word_type& hi) {
@@ -723,7 +722,7 @@ constexpr void riffle(word_type src, word_type& lo, word_type& hi) {
 
 /// @brief  Riffle an array of unsigneds into two others which will get the bits
 /// from @c src interleaved with zeros.
-/// @return We treat @c [lo|hi] as contiguous storage and fill the elements of
+/// We treat @c [lo|hi] as contiguous storage and fill the elements of
 /// @c lo first and then @c hi
 /// @note   You can reuse @c src for the output array @c lo -- the call @c
 /// riffle(src,src,hi) will work fine.

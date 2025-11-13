@@ -2,9 +2,8 @@
 
 #include <gtest/gtest.h>
 
-#define CATEGORY assert_spawn_DeathTest
-
 #ifndef NDEBUG
+#define CATEGORY assert_spawn_DeathTest
 
 TEST(CATEGORY, none) {
   EXPECT_DEATH(
@@ -98,6 +97,5 @@ TEST(CATEGORY, detach_twice) {
   );
 }
 
-#endif
-
 #undef CATEGORY
+#endif
