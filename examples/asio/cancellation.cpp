@@ -17,7 +17,7 @@
 // example serves to also demonstrate how to use the result_each() function when
 // you need the awaiting thread involved in the process.
 #ifdef _WIN32
-#include <SDKDDKVer.h>
+#include <sdkddkver.h>
 #endif
 
 #define TMC_IMPL

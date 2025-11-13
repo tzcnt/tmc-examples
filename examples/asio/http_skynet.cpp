@@ -3,7 +3,7 @@
 // Connections on http://localhost:55550/ will be served at higher priority
 // Try load testing both sockets at the same time and observe
 #ifdef _WIN32
-#include <SDKDDKVer.h>
+#include <sdkddkver.h>
 #endif
 
 #define TMC_IMPL
@@ -67,11 +67,10 @@ tmc::task<size_t> skynet_one(size_t BaseNum, size_t Depth) {
   }
 
   std::array<size_t, 10> results = co_await tmc::spawn_many<10>(
-    (
-      std::ranges::views::iota(0UL) |
-      std::ranges::views::transform([=](size_t idx) {
-        return skynet_one<DepthMax>(BaseNum + depthOffset * idx, Depth + 1);
-      })
+    (std::ranges::views::iota(0UL) |
+     std::ranges::views::transform([=](size_t idx) {
+       return skynet_one<DepthMax>(BaseNum + depthOffset * idx, Depth + 1);
+     })
     ).begin()
   );
 

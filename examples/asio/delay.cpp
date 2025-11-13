@@ -2,7 +2,7 @@
 // Use resume_on() to send the task back and forth
 // between asio_executor() and cpu_executor()
 #ifdef _WIN32
-#include <SDKDDKVer.h>
+#include <sdkddkver.h>
 #endif
 
 #define TMC_IMPL

@@ -11,7 +11,7 @@
 // So most of the overhead is coming from the asio timer itself.
 // Perhaps someday I can write a smaller timer.
 #ifdef _WIN32
-#include <SDKDDKVer.h>
+#include <sdkddkver.h>
 #endif
 
 #define TMC_IMPL
@@ -61,13 +61,12 @@ tmc::task<int> wait_on_timers(size_t Count) {
   for (size_t i = 0; i < Count; ++i) {
     timers.emplace_back(sleep_timer(10));
   }
-  co_await tmc::spawn_many(
-    std::ranges::views::transform(
-      timers, [](asio::steady_timer& timer) -> auto {
-        return timer.async_wait(tmc::aw_asio);
-      }
-    )
-  );
+  co_await tmc::spawn_many(std::ranges::views::transform(
+    timers,
+    [](asio::steady_timer& timer) -> auto {
+      return timer.async_wait(tmc::aw_asio);
+    }
+  ));
   co_return 0;
 }
 

@@ -2,7 +2,7 @@
 // enter() / exit() functions, the priority should be restored on the original
 // executor.
 #ifdef _WIN32
-#include <SDKDDKVer.h>
+#include <sdkddkver.h>
 #endif
 
 #define TMC_IMPL
