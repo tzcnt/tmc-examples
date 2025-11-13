@@ -224,7 +224,7 @@ TEST_F(CATEGORY, throw_catch) {
   test_async_main(ex(), []() -> tmc::task<void> {
     try {
       throws();
-    } catch (std::runtime_error const& ex) {
+    } catch (std::runtime_error const&) {
     }
     co_return;
   }());
