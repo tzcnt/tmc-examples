@@ -5,6 +5,7 @@ project(tmc_tests)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_EXPORT_COMPILE_COMMANDS "1")
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+set(gtest_hide_internal_symbols ON CACHE BOOL "" FORCE)
 set(BUILD_GMOCK OFF CACHE BOOL "" FORCE)
 set(INSTALL_GTEST OFF CACHE BOOL "" FORCE)
 
@@ -26,6 +27,24 @@ include_directories(
 include_directories(SYSTEM
   ${ASIO_INCLUDE_PATH}
 )
+
+include(GoogleTest)
+
+# GoogleTest library itself (gtest-all.cc) emits a fair amount of warnings noise
+target_compile_options(gtest PRIVATE "-w")
+
+# this includes GoogleTest as SYSTEM, but some of its macros are expanded in user code,
+# which triggers warnings anyway. disable these specific warnings that GoogleTest causes here.
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+  # GCC gives weird object linkage errors with the local lambdas used in some tests
+  # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=114267
+  add_compile_options("-Wno-subobject-linkage")
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+  add_compile_options(
+    "-Wno-switch-default"
+    "-Wno-weak-vtables"
+  )
+endif()
 
 # copy compile_commands.json to the build directory after build so clangd can find it
 # clangd won't look in the /build/{config} directory, only in the top-level /build directory
@@ -73,12 +92,6 @@ make_exe(
 )
 target_compile_definitions(tests PRIVATE TMC_NO_UNKNOWN_AWAITABLES)
 
-# GCC gives weird object linkage errors with the local lambdas used in some tests
-# https://gcc.gnu.org/bugzilla/show_bug.cgi?id=114267
-if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-  target_compile_options(tests PRIVATE -Wno-subobject-linkage)
-endif()
-
 make_exe(test_exceptions test_exceptions.cpp)
 
 make_exe(test_halo test_halo.cpp)
@@ -96,7 +109,5 @@ if(TMC_USE_HWLOC AND LIBHWLOC_FOUND)
   target_link_libraries(test_halo ${LIBHWLOC_LIBRARY})
   target_link_libraries(test_fuzz_chan ${LIBHWLOC_LIBRARY})
 endif()
-
-include(GoogleTest)
 
 gtest_discover_tests(tests)
