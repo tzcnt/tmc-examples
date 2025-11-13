@@ -4,14 +4,14 @@
 
 // This file does bad things on purpose, so disable the compiler warnings for
 // them.
-#ifdef _MSC_VER
-#pragma warning(push, 0)
-#elif defined(__clang__)
+#if defined(__clang__)
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wunused-result"
 #elif defined(__GNUC__)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-result"
+#elif defined(_MSC_VER)
+#pragma warning(push, 0)
 #endif
 
 #define CATEGORY assert_ex_cpu_DeathTest
@@ -68,10 +68,10 @@ TEST(CATEGORY, spawn_tuple_without_executor) {
 
 #endif
 
-#ifdef _MSC_VER
-#pragma warning(pop)
-#elif defined(__clang__)
+#if defined(__clang__)
 #pragma clang diagnostic pop
 #elif defined(__GNUC__)
 #pragma GCC diagnostic pop
+#elif defined(_MSC_VER)
+#pragma warning(pop)
 #endif
