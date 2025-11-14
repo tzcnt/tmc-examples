@@ -25,7 +25,7 @@ tmc::task<void> producer(token chan, size_t count, size_t base) {
   // It would be more efficient to call `chan.post_bulk()`,
   // but for this benchmark we test pushing 1 at a time.
   for (size_t i = 0; i < count; ++i) {
-    bool ok = co_await chan.push(base + i);
+    [[maybe_unused]] bool ok = co_await chan.push(base + i);
     assert(ok);
   }
 }

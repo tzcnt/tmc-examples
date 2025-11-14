@@ -55,16 +55,18 @@ int main() {
   tmc::async_main([]() -> tmc::task<int> {
     co_await await_callback(simulated_async_fn_void);
     {
-      auto [result1, result2] = co_await await_callback(simulated_async_fn, 1);
+      [[maybe_unused]] auto [result1, result2] =
+        co_await await_callback(simulated_async_fn, 1);
       assert(result1 == 2.0f);
       assert(result2 == 3.0f);
     }
     {
-      auto [result] = co_await await_callback(simulated_async_fn2, 4.0f, 6.0f);
+      [[maybe_unused]] auto [result] =
+        co_await await_callback(simulated_async_fn2, 4.0f, 6.0f);
       assert(result == 10);
     }
     {
-      auto [move_only_result] =
+      [[maybe_unused]] auto [move_only_result] =
         co_await await_callback(simulated_async_fn_move_only, 1);
       assert(move_only_result.value == 2);
     }
@@ -73,8 +75,8 @@ int main() {
         await_callback(simulated_async_fn, 1),
         await_callback(simulated_async_fn_move_only, 1)
       );
-      auto& [x, y] = results1;
-      auto& [z] = *results2;
+      [[maybe_unused]] auto& [x, y] = results1;
+      [[maybe_unused]] auto& [z] = *results2;
       assert(x == 2.0f);
       assert(y == 3.0f);
       assert(z.value == 2);
