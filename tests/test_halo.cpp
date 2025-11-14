@@ -7,10 +7,10 @@
 //
 // NOTE: HALO only works with Clang 20+ in Release builds.
 
-#include "tmc/current.hpp"
 #define TMC_IMPL
 
 #include "test_common.hpp"
+#include "tmc/current.hpp"
 #include "tmc/fork_group.hpp"
 #include "tmc/spawn.hpp"
 #include "tmc/spawn_group.hpp"
