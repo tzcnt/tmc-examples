@@ -41,7 +41,7 @@ void check_exec_prio(Exec&& ExpectedExecutor, size_t ExpectedPriority) {
 
 // Enter and exit the various executors and braids running on those executors.
 // Verify that the initial priority is properly captured and restored each time.
-tmc::task<void> jump_around(
+static tmc::task<void> jump_around(
   tmc::ex_braid* CpuBraid, tmc::ex_braid* AsioBraid, size_t ExpectedPriority
 ) {
   co_await tmc::change_priority(ExpectedPriority);

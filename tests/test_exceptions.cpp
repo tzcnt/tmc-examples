@@ -37,7 +37,7 @@ protected:
   static tmc::ex_cpu& ex() { return tmc::cpu_executor(); }
 };
 
-[[noreturn]] void throws() { throw(std::runtime_error("foo")); }
+[[noreturn]] static void throws() { throw(std::runtime_error("foo")); }
 
 struct empty {};
 template <bool Known>
@@ -230,12 +230,12 @@ TEST_F(CATEGORY, throw_catch) {
   }());
 }
 
-tmc::task<void> throwing_task_void() {
+static tmc::task<void> throwing_task_void() {
   throw(std::runtime_error("throws_task_void"));
   co_return;
 }
 
-tmc::task<int> throwing_task_int() {
+static tmc::task<int> throwing_task_int() {
   throw(std::runtime_error("throws_task_result"));
   co_return 5;
 }

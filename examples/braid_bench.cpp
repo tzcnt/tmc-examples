@@ -14,16 +14,16 @@
 
 #define NELEMS 10000000
 
-tmc::task<void> consumer([[maybe_unused]] int i) {
+static tmc::task<void> consumer([[maybe_unused]] int i) {
   // std::printf("%d", i);
   co_return;
 }
 
-tmc::task<void> producer(tmc::ex_braid& q, size_t count) {
+static tmc::task<void> producer(tmc::ex_braid& q, size_t count) {
   co_await tmc::spawn_many(tmc::iter_adapter(0, consumer), count).run_on(q);
 }
 
-std::string formatWithCommas(size_t n) {
+static std::string formatWithCommas(size_t n) {
   auto s = std::to_string(n);
   int i = static_cast<int>(s.length()) - 3;
   while (i > 0) {

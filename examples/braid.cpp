@@ -60,8 +60,7 @@ template <size_t Count> tmc::task<void> braid_lock() {
   size_t value = 0;
   auto pre = std::chrono::high_resolution_clock::now();
   auto tasks = std::ranges::views::transform(
-    data,
-    [&br, &value](size_t& elem) -> tmc::task<void> {
+    data, [&br, &value](size_t& elem) -> tmc::task<void> {
       return [](
                size_t* Elem, tmc::ex_braid* Braid, size_t* Value
              ) -> tmc::task<void> {
@@ -222,7 +221,7 @@ template <size_t Count> tmc::task<void> braid_lock_middle_resume_on() {
   );
 }
 
-tmc::task<void> increment(size_t* Value) {
+static tmc::task<void> increment(size_t* Value) {
   (*Value)++;
   co_return;
 }

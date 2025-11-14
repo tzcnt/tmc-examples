@@ -22,7 +22,7 @@ protected:
   static tmc::ex_cpu& ex() { return tmc::cpu_executor(); }
 };
 
-tmc::task<void> waiter(
+static tmc::task<void> waiter(
   tmc::barrier& B, std::vector<std::atomic<bool>>& DoneArray, size_t DoneIdx
 ) {
   DoneArray[DoneIdx].store(true, std::memory_order_relaxed);
@@ -35,7 +35,7 @@ tmc::task<void> waiter(
 }
 
 // Alternates between modification and verification phases
-tmc::task<void> flip_flop_waiter(
+static tmc::task<void> flip_flop_waiter(
   tmc::barrier& B, std::vector<std::atomic<bool>>& DoneArray, size_t DoneIdx
 ) {
   for (size_t i = 0; i < 10; ++i) {

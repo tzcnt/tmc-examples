@@ -21,7 +21,7 @@ xso::rng prng;
 size_t base;
 std::atomic<size_t> full_sum;
 
-void reset() {
+static void reset() {
   base = 0;
   full_sum = 0;
 }
@@ -33,19 +33,19 @@ struct chan_config : tmc::chan_default_config {
 };
 using token = tmc::chan_tok<size_t, chan_config>;
 
-tmc::task<void> producer(token Chan, size_t Base, size_t Count) {
+static tmc::task<void> producer(token Chan, size_t Base, size_t Count) {
   for (size_t i = 0; i < Count; ++i) {
     Chan.post(Base + i);
   }
   co_return;
 }
 
-tmc::task<void> bulk_producer(token Chan, size_t Base, size_t Count) {
+static tmc::task<void> bulk_producer(token Chan, size_t Base, size_t Count) {
   Chan.post_bulk(std::ranges::views::iota(Base, Base + Count));
   co_return;
 }
 
-tmc::task<void> consumer(token chan, size_t Count) {
+static tmc::task<void> consumer(token chan, size_t Count) {
   size_t sum = 0;
   for (size_t i = 0; i < Count; ++i) {
     auto data = co_await chan.pull();
@@ -56,9 +56,9 @@ tmc::task<void> consumer(token chan, size_t Count) {
   full_sum.fetch_add(sum);
 }
 
-int choose_action() { return prng.sample(0, 2); }
+static int choose_action() { return prng.sample(0, 2); }
 
-tmc::task<void> do_action(
+static tmc::task<void> do_action(
   token& Chan, tmc::aw_fork_group<0, void>& Producers,
   tmc::aw_fork_group<0, void>& Consumers
 ) {
@@ -85,7 +85,7 @@ tmc::task<void> do_action(
   co_return;
 }
 
-auto run_one_test(bool wait_on_producers) -> tmc::task<int> {
+static auto run_one_test(bool wait_on_producers) -> tmc::task<int> {
   auto chan = tmc::make_channel<size_t, chan_config>();
   auto producers = tmc::fork_group();
   auto consumers = tmc::fork_group();

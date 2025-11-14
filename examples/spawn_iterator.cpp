@@ -21,8 +21,8 @@
 
 constexpr int Count = 5;
 
-tmc::task<int> work(int i) { co_return 1 << i; }
-bool unpredictable_filter(int i) { return i != 3; }
+static tmc::task<int> work(int i) { co_return 1 << i; }
+static bool unpredictable_filter(int i) { return i != 3; }
 
 // This iterator produces exactly N tasks.
 template <int N> auto iter_of_static_size() {
@@ -221,7 +221,7 @@ template <int N> tmc::task<void> dynamic_bounded_iterator() {
 
 // Test detach() when the maxCount is less than the number of tasks in the
 // iterator.
-tmc::task<void> detach_maxCount_less() {
+static tmc::task<void> detach_maxCount_less() {
   std::atomic<int> counter(0);
 
   auto tasks =
@@ -244,7 +244,7 @@ tmc::task<void> detach_maxCount_less() {
 
 // Test detach() when the maxCount is greater than the number of tasks in the
 // iterator.
-tmc::task<void> detach_maxCount_greater() {
+static tmc::task<void> detach_maxCount_greater() {
   std::atomic<int> counter(0);
 
   auto tasks =
@@ -267,7 +267,7 @@ tmc::task<void> detach_maxCount_greater() {
 
 // Test detach() when the Count is less than the number of tasks in the
 // iterator.
-tmc::task<void> detach_maxCount_template_less() {
+static tmc::task<void> detach_maxCount_template_less() {
   std::atomic<int> counter(0);
 
   auto tasks =
@@ -290,7 +290,7 @@ tmc::task<void> detach_maxCount_template_less() {
 
 // Test detach() when the Count is greater than the number of tasks in the
 // iterator.
-tmc::task<void> detach_maxCount_template_greater() {
+static tmc::task<void> detach_maxCount_template_greater() {
   std::atomic<int> counter(0);
 
   auto tasks =
@@ -313,7 +313,7 @@ tmc::task<void> detach_maxCount_template_greater() {
 
 // Test detach() when the maxCount is less than the number of tasks in the
 // iterator.
-tmc::task<void> detach_maxCount_less_uncountable_iter() {
+static tmc::task<void> detach_maxCount_less_uncountable_iter() {
   std::atomic<int> counter(0);
 
   // Iterator contains 9 tasks but end() - begin() doesn't compile
@@ -338,7 +338,7 @@ tmc::task<void> detach_maxCount_less_uncountable_iter() {
 
 // Test detach() when the maxCount is greater than the number of tasks in the
 // iterator.
-tmc::task<void> detach_maxCount_greater_uncountable_iter() {
+static tmc::task<void> detach_maxCount_greater_uncountable_iter() {
   std::atomic<int> counter(0);
 
   // Iterator contains 9 tasks but end() - begin() doesn't compile
@@ -363,7 +363,7 @@ tmc::task<void> detach_maxCount_greater_uncountable_iter() {
 
 // Test detach() when the Count is less than the number of tasks in the
 // iterator.
-tmc::task<void> detach_maxCount_template_less_uncountable_iter() {
+static tmc::task<void> detach_maxCount_template_less_uncountable_iter() {
   std::atomic<int> counter(0);
 
   // Iterator contains 9 tasks but end() - begin() doesn't compile
@@ -388,7 +388,7 @@ tmc::task<void> detach_maxCount_template_less_uncountable_iter() {
 
 // Test detach() when the Count is greater than the number of tasks in the
 // iterator.
-tmc::task<void> detach_maxCount_template_greater_uncountable_iter() {
+static tmc::task<void> detach_maxCount_template_greater_uncountable_iter() {
   std::atomic<int> counter(0);
 
   // Iterator contains 9 tasks but end() - begin() doesn't compile

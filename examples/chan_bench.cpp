@@ -21,7 +21,7 @@ struct chan_config : tmc::chan_default_config {
 };
 using token = tmc::chan_tok<size_t, chan_config>;
 
-tmc::task<void> producer(token chan, size_t count, size_t base) {
+static tmc::task<void> producer(token chan, size_t count, size_t base) {
   // It would be more efficient to call `chan.post_bulk()`,
   // but for this benchmark we test pushing 1 at a time.
   for (size_t i = 0; i < count; ++i) {
@@ -35,7 +35,7 @@ struct result {
   size_t sum;
 };
 
-tmc::task<result> consumer(token chan) {
+static tmc::task<result> consumer(token chan) {
   size_t count = 0;
   size_t sum = 0;
   auto data = co_await chan.pull();
@@ -47,7 +47,7 @@ tmc::task<result> consumer(token chan) {
   co_return result{count, sum};
 }
 
-std::string formatWithCommas(size_t n) {
+static std::string formatWithCommas(size_t n) {
   auto s = std::to_string(n);
   int i = static_cast<int>(s.length()) - 3;
   while (i > 0) {

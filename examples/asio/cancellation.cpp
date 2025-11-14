@@ -49,7 +49,7 @@ using asio::error_code;
 #include <string>
 #include <utility>
 
-void log_event_timestamp(
+static void log_event_timestamp(
   std::string event, std::chrono::high_resolution_clock::time_point startTime,
   std::chrono::high_resolution_clock::time_point now =
     std::chrono::high_resolution_clock::now()
@@ -60,7 +60,7 @@ void log_event_timestamp(
   std::printf("%s at %zu us\n", event.c_str(), duration);
 }
 
-void log_error_code(
+static void log_error_code(
   error_code ec, std::chrono::high_resolution_clock::time_point startTime
 ) {
   switch (ec.value()) {

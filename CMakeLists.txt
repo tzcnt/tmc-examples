@@ -165,24 +165,24 @@ endif()
 # add_link_options("-fsanitize=undefined")
 
 # extra warnings on Clang
-# add_definitions(
-# "-Weverything"
+add_definitions(
+"-Weverything"
 
-# # Ignore these (from the library)
-# "-Wno-c++98-compat"
-# "-Wno-c++98-compat-pedantic"
-# "-Wno-c++20-compat"
-# "-Wno-padded"
-# "-Wno-unsafe-buffer-usage"
-# "-Wno-global-constructors"
-# "-Wno-exit-time-destructors"
+# Ignore these (from the library)
+"-Wno-c++98-compat"
+"-Wno-c++98-compat-pedantic"
+"-Wno-c++20-compat"
+"-Wno-padded"
+"-Wno-unsafe-buffer-usage"
+"-Wno-global-constructors"
+"-Wno-exit-time-destructors"
+"-Wno-unique-object-duplication"
 
-# # Ignore these (from some quick and dirty examples)
-# "-Wno-sign-conversion"
-# "-Wno-missing-prototypes"
-# "-Wno-missing-variable-declarations"
-# "-Wno-double-promotion"
-# )
+# Ignore these (from some quick and dirty examples)
+"-Wno-sign-conversion"
+"-Wno-missing-variable-declarations"
+"-Wno-double-promotion"
+)
 
 # extra warnings on GCC
 # add_definitions(

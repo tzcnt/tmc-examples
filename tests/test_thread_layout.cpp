@@ -22,7 +22,7 @@ TEST_F(CATEGORY, group_iteration_order) {
   tmc::detail::get_group_iteration_order(16, 5);
 }
 
-std::vector<tmc::detail::L3CacheSet> get_core_groups() {
+static std::vector<tmc::detail::L3CacheSet> get_core_groups() {
   std::vector<tmc::detail::L3CacheSet> groupedCores;
   for (size_t i = 0; i < 16; ++i) {
     groupedCores.push_back(

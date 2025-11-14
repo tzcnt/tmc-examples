@@ -11,18 +11,18 @@
 
 // Examples of callback-based async functions that might be provided by an
 // external library.
-void simulated_async_fn_void(void* user_data, void (*callback)(void*)) {
+static void simulated_async_fn_void(void* user_data, void (*callback)(void*)) {
   callback(user_data);
 }
 
-void simulated_async_fn(
+static void simulated_async_fn(
   void* user_data, void (*callback)(void*, float, float), int input
 ) {
   auto f = static_cast<float>(input);
   callback(user_data, f + 1.0f, f + 2.0f);
 }
 
-void simulated_async_fn2(
+static void simulated_async_fn2(
   void* user_data, void (*callback)(void*, int), float input1, float input2
 ) {
   auto result = static_cast<int>(input1 + input2);
@@ -44,7 +44,7 @@ struct move_only_type {
   move_only_type& operator=(const move_only_type&) = delete;
 };
 
-void simulated_async_fn_move_only(
+static void simulated_async_fn_move_only(
   void* user_data, void (*callback)(void*, move_only_type), int input
 ) {
   callback(user_data, move_only_type{input + 1});
