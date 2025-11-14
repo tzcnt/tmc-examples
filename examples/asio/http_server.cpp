@@ -10,7 +10,6 @@
 #include "tmc/asio/ex_asio.hpp"
 #include "tmc/ex_cpu.hpp"
 #include "tmc/fork_group.hpp"
-#include "tmc/spawn.hpp"
 #include "tmc/task.hpp"
 
 #ifdef TMC_USE_BOOST_ASIO

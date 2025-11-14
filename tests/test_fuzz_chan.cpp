@@ -8,11 +8,9 @@
 #include <gtest/gtest.h>
 
 #include <atomic>
-#include <chrono>
 #include <cstdio>
 #include <exception>
 #include <ranges>
-#include <thread>
 
 constexpr int ELEMS_PER_ACTION = 1000;
 constexpr size_t ACTION_COUNT = 1000;
@@ -65,19 +63,23 @@ static tmc::task<void> do_action(
   int action = choose_action();
   switch (action) {
   case 0: {
-    size_t count = prng.sample(1, ELEMS_PER_ACTION);
+    size_t count = static_cast<size_t>(prng.sample(1, ELEMS_PER_ACTION));
     Producers.fork(producer(Chan, base, count));
     base += count;
     break;
   }
   case 1: {
-    size_t count = prng.sample(0, 5); // include 0 to test posting empty range
+    size_t count = static_cast<size_t>(
+      prng.sample(0, 5)
+    ); // include 0 to test posting empty range
     Producers.fork(bulk_producer(Chan, base, count));
     base += count;
     break;
   }
   case 2:
-    Consumers.fork(consumer(Chan, prng.sample(1, ELEMS_PER_ACTION)));
+    Consumers.fork(
+      consumer(Chan, static_cast<size_t>(prng.sample(1, ELEMS_PER_ACTION)))
+    );
     break;
   default:
     std::terminate();

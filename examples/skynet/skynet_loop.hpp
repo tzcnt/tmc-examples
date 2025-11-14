@@ -32,9 +32,10 @@ template <size_t Depth = 6> tmc::task<void> loop_skynet() {
     }
     auto endTime = std::chrono::high_resolution_clock::now();
 
-    size_t execDur =
+    size_t execDur = static_cast<size_t>(
       std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime)
-        .count();
+        .count()
+    );
     std::printf(
       "%zu skynet iterations in %zu us: %zu thread-us\n", iter_count, execDur,
       tmc::cpu_executor().thread_count() * execDur

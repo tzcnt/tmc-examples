@@ -179,7 +179,6 @@ add_definitions(
 "-Wno-unique-object-duplication"
 
 # Ignore these (from some quick and dirty examples)
-"-Wno-sign-conversion"
 "-Wno-missing-variable-declarations"
 "-Wno-double-promotion"
 )

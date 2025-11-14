@@ -51,7 +51,7 @@ static std::string formatWithCommas(size_t n) {
   auto s = std::to_string(n);
   int i = static_cast<int>(s.length()) - 3;
   while (i > 0) {
-    s.insert(i, ",");
+    s.insert(static_cast<size_t>(i), ",");
     i -= 3;
   }
   return s;
@@ -117,10 +117,12 @@ int main() {
           );
         }
 
-        size_t execDur = std::chrono::duration_cast<std::chrono::microseconds>(
-                           endTime - startTime
-        )
-                           .count();
+        size_t execDur = static_cast<size_t>(
+          std::chrono::duration_cast<std::chrono::microseconds>(
+            endTime - startTime
+          )
+            .count()
+        );
 
         float durMs = static_cast<float>(execDur) / 1000.0f;
         size_t elementsPerSec =
@@ -133,10 +135,11 @@ int main() {
     }
 
     auto overallEnd = std::chrono::high_resolution_clock::now();
-    size_t overallDur = std::chrono::duration_cast<std::chrono::microseconds>(
-                          overallEnd - overallStart
-    )
-                          .count();
+    size_t overallDur =
+      static_cast<size_t>(std::chrono::duration_cast<std::chrono::microseconds>(
+                            overallEnd - overallStart
+      )
+                            .count());
     float overallSec = static_cast<float>(overallDur) / 1000000.0f;
     std::printf("overall: %.2f sec\n", overallSec);
     co_return 0;

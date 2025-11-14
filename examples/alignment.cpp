@@ -40,31 +40,32 @@ static void check_alignment(void* ptr) {
   }
 }
 static tmc::task<void>
-run_one(int i, unaligned_struct* ur, aligned_struct* ar) {
+run_one(size_t i, unaligned_struct* ur, aligned_struct* ar) {
   static_assert(alignof(aligned_struct) == ALIGNMENT);
   static_assert(sizeof(void*) == sizeof(size_t));
   unaligned_struct u;
   aligned_struct a;
-  u.value = i & 0xFF;
-  a.value = i + 1;
+  u.value = static_cast<char>(i & 0xFF);
+  a.value = static_cast<int>(i + 1);
   check_alignment(&a);
   co_await tmc::yield();
-  a.value2 = i + 2;
+  a.value2 = static_cast<int>(i + 2);
   check_alignment(&a);
   *ur = u;
   *ar = a;
 }
-template <int Count> tmc::task<void> run() {
+template <size_t Count> tmc::task<void> run() {
   std::vector<unaligned_struct> r1;
   std::vector<aligned_struct> r2;
   r1.resize(Count);
   r2.resize(Count);
-  auto tasks = std::ranges::views::iota(0, Count) |
-               std::ranges::views::transform([&](int idx) -> tmc::task<void> {
-                 return run_one(idx, &r1[idx], &r2[idx]);
-               });
+  auto tasks =
+    std::ranges::views::iota(static_cast<size_t>(0), Count) |
+    std::ranges::views::transform([&](size_t idx) -> tmc::task<void> {
+      return run_one(idx, &r1[idx], &r2[idx]);
+    });
   co_await tmc::spawn_many(tasks);
-  for (int i = 0; i < Count; ++i) {
+  for (size_t i = 0; i < Count; ++i) {
     if (r2[i].value == 0) {
       std::printf("fail");
     }

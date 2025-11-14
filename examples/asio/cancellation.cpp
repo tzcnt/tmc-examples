@@ -54,9 +54,10 @@ static void log_event_timestamp(
   std::chrono::high_resolution_clock::time_point now =
     std::chrono::high_resolution_clock::now()
 ) {
-  size_t duration =
+  size_t duration = static_cast<size_t>(
     std::chrono::duration_cast<std::chrono::microseconds>(now - startTime)
-      .count();
+      .count()
+  );
   std::printf("%s at %zu us\n", event.c_str(), duration);
 }
 
