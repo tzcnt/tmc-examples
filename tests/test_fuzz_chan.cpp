@@ -15,9 +15,9 @@
 constexpr int ELEMS_PER_ACTION = 1000;
 constexpr size_t ACTION_COUNT = 1000;
 
-xso::rng prng;
-size_t base;
-std::atomic<size_t> full_sum;
+static xso::rng prng;
+static size_t base;
+static std::atomic<size_t> full_sum;
 
 static void reset() {
   base = 0;

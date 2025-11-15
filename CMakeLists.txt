@@ -177,9 +177,6 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
             "-Wno-unsafe-buffer-usage"
             "-Wno-global-constructors"
             "-Wno-exit-time-destructors"
-
-            # Ignore these (from some quick and dirty examples)
-            "-Wno-missing-variable-declarations"
         )
     if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL "21.0")
         add_definitions(
