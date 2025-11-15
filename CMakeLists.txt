@@ -155,7 +155,7 @@ else()
     )
 endif()
 
-# Safety / warnings checks
+# Sanitizers
 
 # add_definitions("-fsanitize=address")
 # add_link_options("-fsanitize=address")
@@ -164,41 +164,50 @@ endif()
 # add_definitions("-fsanitize=undefined -fno-sanitize-recover")
 # add_link_options("-fsanitize=undefined")
 
-# extra warnings on Clang
+# Build tests and examples with most pedantic warnings possible
+# to ensure the library remains clean for users
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-        add_definitions(
-            "-Weverything"
+    add_definitions(
+        "-Weverything"
 
-            # Ignore these (from the library)
-            "-Wno-c++98-compat"
-            "-Wno-c++98-compat-pedantic"
-            "-Wno-c++20-compat"
-            "-Wno-padded"
-            "-Wno-unsafe-buffer-usage"
-            "-Wno-global-constructors"
-            "-Wno-exit-time-destructors"
-        )
+        # This library requires C++20
+        "-Wno-c++98-compat"
+        "-Wno-c++98-compat-pedantic"
+        "-Wno-c++20-compat"
+
+        # These are deliberate design choices of the library
+        "-Wno-padded"
+        "-Wno-unsafe-buffer-usage"
+        "-Wno-global-constructors"
+        "-Wno-exit-time-destructors"
+    )
+
     if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL "21.0")
         add_definitions(
-            # prevents TMC being shared between multiple DLLs on Windows only
-            "-Wno-unique-object-duplication" 
+
+            # This is a real problem, however it only occurs in a specific scenario.
+            # It prevents TMC being used in multiple DLLs within the same program, on Windows only.
+            # This problem does not occur when using static linking.
+            "-Wno-unique-object-duplication"
         )
     endif()
 endif()
 
-if (CMAKE_CXX_COMPILER_ID MATCHES "GNU")
-add_definitions(
-    "-Wall"
-    "-Wextra"
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
+    add_definitions(
+        "-Wall"
+        "-Wextra"
+        "-Wpedantic"
 
-    "-Wno-pessimizing-move"
-)
+        # TODO: fix this in a followup PR
+        "-Wno-pessimizing-move"
+    )
 endif()
 
-if (CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
-add_definitions(
-    "/wd4324" # structure was padded due to an alignment specifier - this is intentional
-)
+if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+    add_definitions(
+        "/wd4324" # structure was padded due to an alignment specifier - this is intentional
+    )
 endif()
 
 # copy compile_commands.json to the build directory after build so clangd can find it
