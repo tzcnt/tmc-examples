@@ -341,6 +341,9 @@
         "CMAKE_C_FLAGS": "-march=native",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
       },
+      "environment": {
+        "CMAKE_BUILD_PARALLEL_LEVEL": "8"
+      },
       "condition": {
         "type": "equals",
         "lhs": "${hostSystemName}",
@@ -362,6 +365,9 @@
         "CMAKE_C_FLAGS": "-march=native",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
       },
+      "environment": {
+        "CMAKE_BUILD_PARALLEL_LEVEL": "8"
+      },
       "condition": {
         "type": "equals",
         "lhs": "${hostSystemName}",
@@ -382,6 +388,9 @@
         "CMAKE_CXX_FLAGS": "-march=native -fexperimental-library",
         "CMAKE_C_FLAGS": "-march=native",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+      },
+      "environment": {
+        "CMAKE_BUILD_PARALLEL_LEVEL": "8"
       },
       "condition": {
         "type": "equals",
