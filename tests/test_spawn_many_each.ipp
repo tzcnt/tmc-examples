@@ -238,18 +238,18 @@ TEST_F(CATEGORY, spawn_many_each_resume_after) {
   test_async_main(ex(), []() -> tmc::task<void> {
     static constexpr int N = 5;
     for (int i = 0; i < N; ++i) {
-      atomic_awaitable<size_t> aa(i);
+      atomic_awaitable<int> aa(i);
       auto iter =
         std::ranges::views::iota(0, i) |
         std::ranges::views::transform([&aa](int idx) -> tmc::task<int> {
-          return [](int I, atomic_awaitable<size_t>& AA) -> tmc::task<int> {
+          return [](int I, atomic_awaitable<int>& AA) -> tmc::task<int> {
             AA.inc();
             co_return 1 << I;
           }(idx, aa);
         });
       auto ts = tmc::spawn_many(iter).result_each();
       co_await aa;
-      std::vector<int> results(i, 0);
+      std::vector<int> results(static_cast<size_t>(i), 0);
       for (auto idx = co_await ts; idx != ts.end(); idx = co_await ts) {
         results[idx] = ts[idx];
       }

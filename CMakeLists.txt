@@ -165,31 +165,39 @@ endif()
 # add_link_options("-fsanitize=undefined")
 
 # extra warnings on Clang
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+        add_definitions(
+            "-Weverything"
+
+            # Ignore these (from the library)
+            "-Wno-c++98-compat"
+            "-Wno-c++98-compat-pedantic"
+            "-Wno-c++20-compat"
+            "-Wno-padded"
+            "-Wno-unsafe-buffer-usage"
+            "-Wno-global-constructors"
+            "-Wno-exit-time-destructors"
+
+            # Ignore these (from some quick and dirty examples)
+            "-Wno-missing-variable-declarations"
+            "-Wno-double-promotion"
+        )
+    if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL "21.0")
+        add_definitions(
+            # prevents TMC being shared between multiple DLLs on Windows only
+            "-Wno-unique-object-duplication" 
+        )
+    endif()
+endif()
+
+if (CMAKE_CXX_COMPILER_ID MATCHES "GNU")
 add_definitions(
-"-Weverything"
+"-Wall"
+"-Wextra"
 
-# Ignore these (from the library)
-"-Wno-c++98-compat"
-"-Wno-c++98-compat-pedantic"
-"-Wno-c++20-compat"
-"-Wno-padded"
-"-Wno-unsafe-buffer-usage"
-"-Wno-global-constructors"
-"-Wno-exit-time-destructors"
-"-Wno-unique-object-duplication"
-
-# Ignore these (from some quick and dirty examples)
-"-Wno-missing-variable-declarations"
-"-Wno-double-promotion"
+"-Wno-pessimizing-move"
 )
-
-# extra warnings on GCC
-# add_definitions(
-# "-Wall"
-# "-Wextra"
-
-# "-Wno-pessimizing-move"
-# )
+endif()
 
 # copy compile_commands.json to the build directory after build so clangd can find it
 # clangd won't look in the /build/{config} directory, only in the top-level /build directory
