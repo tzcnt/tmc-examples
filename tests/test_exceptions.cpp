@@ -26,6 +26,12 @@
 
 #if TMC_HAS_EXCEPTIONS
 
+#if defined(_MSC_VER)
+#pragma warning(push)
+// This test contains functions with unreachable code due to guaranteed throws
+#pragma warning(disable : 4702)
+#endif
+
 #define CATEGORY exceptions
 
 class CATEGORY : public testing::Test {
@@ -465,6 +471,10 @@ TEST(exceptions_DeathTest, spawn_tuple_exceptions) {
     "foo"
   );
 }
+
+#if defined(_MSC_VER)
+#pragma warning(pop)
+#endif
 
 #endif
 
