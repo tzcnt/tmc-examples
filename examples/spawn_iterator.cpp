@@ -19,7 +19,7 @@
 #include <thread>
 #include <vector>
 
-constexpr int Count = 5;
+constexpr int IterMax = 5;
 
 static tmc::task<int> work(int i) { co_return 1 << i; }
 static bool unpredictable_filter(int i) { return i != 3; }
@@ -417,11 +417,11 @@ static tmc::task<void> detach_maxCount_template_greater_uncountable_iter() {
 
 int main() {
   return tmc::async_main([]() -> tmc::task<int> {
-    co_await static_sized_iterator<Count>();
-    co_await static_bounded_iterator<Count>();
-    co_await dynamic_known_sized_iterator<Count>();
-    co_await dynamic_unknown_sized_iterator<Count>();
-    co_await dynamic_bounded_iterator<Count>();
+    co_await static_sized_iterator<IterMax>();
+    co_await static_bounded_iterator<IterMax>();
+    co_await dynamic_known_sized_iterator<IterMax>();
+    co_await dynamic_unknown_sized_iterator<IterMax>();
+    co_await dynamic_bounded_iterator<IterMax>();
     co_await detach_maxCount_less();
     co_await detach_maxCount_greater();
     co_await detach_maxCount_template_less();

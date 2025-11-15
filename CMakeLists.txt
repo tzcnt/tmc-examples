@@ -195,6 +195,12 @@ add_definitions(
 )
 endif()
 
+if (CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+add_definitions(
+    "/wd4324" # structure was padded due to an alignment specifier - this is intentional
+)
+endif()
+
 # copy compile_commands.json to the build directory after build so clangd can find it
 # clangd won't look in the /build/{config} directory, only in the top-level /build directory
 function(make_exe target_name)
