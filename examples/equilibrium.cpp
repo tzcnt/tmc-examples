@@ -28,9 +28,7 @@ struct bench_result {
 [[maybe_unused]] static tmc::task<void> make_task(size_t& DataSlot) {
   size_t a = 0;
   size_t b = 1;
-#pragma unroll 1
   for (size_t i = 0; i < 50; ++i) {
-#pragma unroll 1
     for (size_t j = 0; j < 25; ++j) {
       a = a + b;
       b = b + a;
