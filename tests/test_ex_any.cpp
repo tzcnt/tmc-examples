@@ -46,7 +46,7 @@ template <typename Exec> void test_post_bulk_coro(Exec e) {
           return [](int* out, int val) -> tmc::task<void> {
             *out = val;
             co_return;
-          }(&results[i], i);
+          }(&results[static_cast<size_t>(i)], i);
         })
       ).begin(),
       2, 0

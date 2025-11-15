@@ -39,7 +39,7 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
   # GCC gives weird object linkage errors with the local lambdas used in some tests
   # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=114267
   add_compile_options("-Wno-subobject-linkage")
-elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
   add_compile_options(
     "-Wno-switch-default"
     "-Wno-weak-vtables"

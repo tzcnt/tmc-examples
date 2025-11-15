@@ -26,12 +26,10 @@ struct bench_result {
 };
 
 [[maybe_unused]] static tmc::task<void> make_task(size_t& DataSlot) {
-  int a = 0;
-  int b = 1;
-#pragma unroll 1
-  for (int i = 0; i < 50; ++i) {
-#pragma unroll 1
-    for (int j = 0; j < 25; ++j) {
+  size_t a = 0;
+  size_t b = 1;
+  for (size_t i = 0; i < 50; ++i) {
+    for (size_t j = 0; j < 25; ++j) {
       a = a + b;
       b = b + a;
     }
@@ -100,8 +98,8 @@ int main() {
   std::printf("%zu tasks\n", count);
   for (size_t i = 0; i < results.size(); ++i) {
     auto benchResult = results[i];
-    size_t postDur = benchResult.post_dur_ns.count();
-    size_t execDur = benchResult.dur_ns.count();
+    size_t postDur = static_cast<size_t>(benchResult.post_dur_ns.count());
+    size_t execDur = static_cast<size_t>(benchResult.dur_ns.count());
     std::printf(
       "%zu thr, %zu post ns, %zu tot ns: %zu ns/task (wall), %zu "
       "thread-ns/task\n",

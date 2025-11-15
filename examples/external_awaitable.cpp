@@ -86,7 +86,7 @@ static tmc::task<int> await_external_coro() {
   co_return result;
 }
 
-void test_await_external() {
+static void test_await_external() {
   std::future<int> result_future =
     tmc::post_waitable(tmc::cpu_executor(), await_external_coro(), 1);
   int result = result_future.get();
@@ -96,9 +96,7 @@ void test_await_external() {
   std::printf("\n");
 }
 
-void await_external_coro_and_spawn() {}
-
-void test_spawn_on_external_thread() {
+static void test_spawn_on_external_thread() {
   std::printf(
     "running on %s at priority %zu\n", get_thread_name().c_str(),
     tmc::current_priority()

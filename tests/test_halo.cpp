@@ -7,10 +7,10 @@
 //
 // NOTE: HALO only works with Clang 20+ in Release builds.
 
-#include "tmc/current.hpp"
 #define TMC_IMPL
 
 #include "test_common.hpp"
+#include "tmc/current.hpp"
 #include "tmc/fork_group.hpp"
 #include "tmc/spawn.hpp"
 #include "tmc/spawn_group.hpp"
@@ -417,7 +417,7 @@ TEST_F(CATEGORY, fork_group_fork_clang) {
       // Non-HALO: fork() without HALO attributes in a loop works fine
       auto fg = tmc::fork_group<3, int>();
       for (size_t i = 0; i < fg.capacity(); i++) {
-        fg.fork(task_int(i));
+        fg.fork(task_int(static_cast<int>(i)));
       }
       auto results = co_await std::move(fg);
 
@@ -563,7 +563,7 @@ TEST_F(CATEGORY, spawn_group_add_clang) {
       // Non-HALO: add() without HALO attributes in a loop works fine
       auto sg = tmc::spawn_group<3, tmc::task<int>>();
       for (size_t i = 0; i < sg.capacity(); i++) {
-        sg.add(task_int(i));
+        sg.add(task_int(static_cast<int>(i)));
       }
       auto results = co_await std::move(sg);
 

@@ -14,20 +14,20 @@
 
 #define NELEMS 10000000
 
-tmc::task<void> consumer([[maybe_unused]] int i) {
+static tmc::task<void> consumer([[maybe_unused]] int i) {
   // std::printf("%d", i);
   co_return;
 }
 
-tmc::task<void> producer(tmc::ex_braid& q, size_t count) {
+static tmc::task<void> producer(tmc::ex_braid& q, size_t count) {
   co_await tmc::spawn_many(tmc::iter_adapter(0, consumer), count).run_on(q);
 }
 
-std::string formatWithCommas(size_t n) {
+static std::string formatWithCommas(size_t n) {
   auto s = std::to_string(n);
   int i = static_cast<int>(s.length()) - 3;
   while (i > 0) {
-    s.insert(i, ",");
+    s.insert(static_cast<size_t>(i), ",");
     i -= 3;
   }
   return s;
@@ -57,13 +57,15 @@ int main() {
 
       auto endTime = std::chrono::high_resolution_clock::now();
 
-      size_t execDur = std::chrono::duration_cast<std::chrono::microseconds>(
-                         endTime - startTime
-      )
-                         .count();
-      float durMs = static_cast<float>(execDur) / 1000.0f;
+      size_t execDur = static_cast<size_t>(
+        std::chrono::duration_cast<std::chrono::microseconds>(
+          endTime - startTime
+        )
+          .count()
+      );
+      double durMs = static_cast<double>(execDur) / 1000.0;
       size_t elementsPerSec =
-        static_cast<size_t>(static_cast<float>(NELEMS) * 1000.0f / durMs);
+        static_cast<size_t>(static_cast<double>(NELEMS) * 1000.0 / durMs);
       std::printf(
         "%zu prod\t %.2f ms\t%s elements/sec\n", prodCount, durMs,
         formatWithCommas(elementsPerSec).c_str()
@@ -71,11 +73,12 @@ int main() {
     }
 
     auto overallEnd = std::chrono::high_resolution_clock::now();
-    size_t overallDur = std::chrono::duration_cast<std::chrono::microseconds>(
-                          overallEnd - overallStart
-    )
-                          .count();
-    float overallSec = static_cast<float>(overallDur) / 1000000.0f;
+    size_t overallDur =
+      static_cast<size_t>(std::chrono::duration_cast<std::chrono::microseconds>(
+                            overallEnd - overallStart
+      )
+                            .count());
+    double overallSec = static_cast<double>(overallDur) / 1000000.0;
     std::printf("overall: %.2f sec\n", overallSec);
 
     co_return 0;

@@ -246,8 +246,8 @@
         "CMAKE_C_COMPILER": "cl.exe",
         "CMAKE_CXX_COMPILER": "cl.exe",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
-        "CMAKE_CXX_FLAGS": "/DWIN32 /D_WINDOWS /W3 /GR /EHsc",
-        "CMAKE_C_FLAGS": "/DWIN32 /D_WINDOWS /W3"
+        "CMAKE_CXX_FLAGS": "/DWIN32 /D_WINDOWS /W4 /GR /EHsc",
+        "CMAKE_C_FLAGS": "/DWIN32 /D_WINDOWS /W4"
       },
       "architecture": {
         "value": "x64",
@@ -275,8 +275,8 @@
         "CMAKE_C_COMPILER": "cl.exe",
         "CMAKE_CXX_COMPILER": "cl.exe",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
-        "CMAKE_CXX_FLAGS": "/DTMC_TRIVIAL_TASK /DWIN32 /D_WINDOWS /W3 /GR /EHsc /arch:AVX2",
-        "CMAKE_C_FLAGS": "/DWIN32 /D_WINDOWS /W3 /arch:AVX2"
+        "CMAKE_CXX_FLAGS": "/DTMC_TRIVIAL_TASK /DWIN32 /D_WINDOWS /W4 /GR /EHsc /arch:AVX2",
+        "CMAKE_C_FLAGS": "/DWIN32 /D_WINDOWS /W4 /arch:AVX2"
       },
       "architecture": {
         "value": "x64",
@@ -304,8 +304,8 @@
         "CMAKE_C_COMPILER": "cl.exe",
         "CMAKE_CXX_COMPILER": "cl.exe",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
-        "CMAKE_CXX_FLAGS": "/DWIN32 /D_WINDOWS /W3 /GR /EHsc /arch:AVX2",
-        "CMAKE_C_FLAGS": "/DWIN32 /D_WINDOWS /W3 /arch:AVX2",
+        "CMAKE_CXX_FLAGS": "/DWIN32 /D_WINDOWS /W4 /GR /EHsc /arch:AVX2",
+        "CMAKE_C_FLAGS": "/DWIN32 /D_WINDOWS /W4 /arch:AVX2",
         "CMAKE_CXX_FLAGS_RELWITHDEBINFO": "/MD /Zi /O2 /Ob2 /DNDEBUG",
         "CMAKE_C_FLAGS_RELWITHDEBINFO": "/MD /Zi /O2 /Ob2 /DNDEBUG",
         "CMAKE_SHARED_LINKER_FLAGS_RELWITHDEBINFO": "/debug /INCREMENTAL:NO",
@@ -341,6 +341,9 @@
         "CMAKE_C_FLAGS": "-march=native",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
       },
+      "environment": {
+        "CMAKE_BUILD_PARALLEL_LEVEL": "8"
+      },
       "condition": {
         "type": "equals",
         "lhs": "${hostSystemName}",
@@ -362,6 +365,9 @@
         "CMAKE_C_FLAGS": "-march=native",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
       },
+      "environment": {
+        "CMAKE_BUILD_PARALLEL_LEVEL": "8"
+      },
       "condition": {
         "type": "equals",
         "lhs": "${hostSystemName}",
@@ -382,6 +388,9 @@
         "CMAKE_CXX_FLAGS": "-march=native -fexperimental-library",
         "CMAKE_C_FLAGS": "-march=native",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+      },
+      "environment": {
+        "CMAKE_BUILD_PARALLEL_LEVEL": "8"
       },
       "condition": {
         "type": "equals",

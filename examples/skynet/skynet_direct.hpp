@@ -48,9 +48,10 @@ template <size_t Depth = 6> void run_skynet() {
     std::printf("skynet_direct did not finish!\n");
   }
 
-  size_t execDur =
+  size_t execDur = static_cast<size_t>(
     std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - startTime)
-      .count();
+      .count()
+  );
   std::printf(
     "executed skynet in %zu ns: %zu thread-ns\n", execDur,
     executor.thread_count() * execDur

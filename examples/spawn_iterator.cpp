@@ -19,10 +19,10 @@
 #include <thread>
 #include <vector>
 
-constexpr int Count = 5;
+constexpr int IterMax = 5;
 
-tmc::task<int> work(int i) { co_return 1 << i; }
-bool unpredictable_filter(int i) { return i != 3; }
+static tmc::task<int> work(int i) { co_return 1 << i; }
+static bool unpredictable_filter(int i) { return i != 3; }
 
 // This iterator produces exactly N tasks.
 template <int N> auto iter_of_static_size() {
@@ -89,8 +89,9 @@ template <int N> tmc::task<void> static_bounded_iterator() {
 
     // This extra work yields a performance benefit, because we can still use
     // std::array with an unknown-sized iterator that spawns "up to N" tasks.
-    [[maybe_unused]] auto sum =
-      std::accumulate(results.begin(), results.begin() + taskCount, 0);
+    [[maybe_unused]] auto sum = std::accumulate(
+      results.begin(), results.begin() + static_cast<ptrdiff_t>(taskCount), 0
+    );
     assert(sum == (1 << N) - 1 - 8);
   }
   {
@@ -109,8 +110,9 @@ template <int N> tmc::task<void> static_bounded_iterator() {
     // At this point, taskCount == 5 and N == 5.
     // We stopped consuming elements from the iterator after N tasks.
     assert(taskCount == N);
-    [[maybe_unused]] auto sum =
-      std::accumulate(results.begin(), results.begin() + taskCount, 0);
+    [[maybe_unused]] auto sum = std::accumulate(
+      results.begin(), results.begin() + static_cast<ptrdiff_t>(taskCount), 0
+    );
     assert(sum == (1 << N) - 1 - 8 + (1 << N));
   }
   co_return;
@@ -187,8 +189,9 @@ template <int N> tmc::task<void> dynamic_bounded_iterator() {
     // At this point, taskCount == 4 and N == 5.
     assert(taskCount == MaxTasks - 1);
 
-    [[maybe_unused]] auto sum =
-      std::accumulate(results.begin(), results.begin() + taskCount, 0);
+    [[maybe_unused]] auto sum = std::accumulate(
+      results.begin(), results.begin() + static_cast<ptrdiff_t>(taskCount), 0
+    );
     assert(sum == (1 << N) - 1 - 8);
     // The results vector is still right-sized.
     assert(results.size() == taskCount);
@@ -210,8 +213,9 @@ template <int N> tmc::task<void> dynamic_bounded_iterator() {
     // At this point, taskCount == 5 and N == 5.
     // We stopped consuming elements from the iterator after N tasks.
     assert(taskCount == N);
-    [[maybe_unused]] auto sum =
-      std::accumulate(results.begin(), results.begin() + taskCount, 0);
+    [[maybe_unused]] auto sum = std::accumulate(
+      results.begin(), results.begin() + static_cast<ptrdiff_t>(taskCount), 0
+    );
     assert(sum == (1 << N) - 1 - 8 + (1 << N));
     assert(results.size() == taskCount);
     assert(results.size() == results.capacity());
@@ -221,7 +225,7 @@ template <int N> tmc::task<void> dynamic_bounded_iterator() {
 
 // Test detach() when the maxCount is less than the number of tasks in the
 // iterator.
-tmc::task<void> detach_maxCount_less() {
+static tmc::task<void> detach_maxCount_less() {
   std::atomic<int> counter(0);
 
   auto tasks =
@@ -244,7 +248,7 @@ tmc::task<void> detach_maxCount_less() {
 
 // Test detach() when the maxCount is greater than the number of tasks in the
 // iterator.
-tmc::task<void> detach_maxCount_greater() {
+static tmc::task<void> detach_maxCount_greater() {
   std::atomic<int> counter(0);
 
   auto tasks =
@@ -267,7 +271,7 @@ tmc::task<void> detach_maxCount_greater() {
 
 // Test detach() when the Count is less than the number of tasks in the
 // iterator.
-tmc::task<void> detach_maxCount_template_less() {
+static tmc::task<void> detach_maxCount_template_less() {
   std::atomic<int> counter(0);
 
   auto tasks =
@@ -290,7 +294,7 @@ tmc::task<void> detach_maxCount_template_less() {
 
 // Test detach() when the Count is greater than the number of tasks in the
 // iterator.
-tmc::task<void> detach_maxCount_template_greater() {
+static tmc::task<void> detach_maxCount_template_greater() {
   std::atomic<int> counter(0);
 
   auto tasks =
@@ -313,7 +317,7 @@ tmc::task<void> detach_maxCount_template_greater() {
 
 // Test detach() when the maxCount is less than the number of tasks in the
 // iterator.
-tmc::task<void> detach_maxCount_less_uncountable_iter() {
+static tmc::task<void> detach_maxCount_less_uncountable_iter() {
   std::atomic<int> counter(0);
 
   // Iterator contains 9 tasks but end() - begin() doesn't compile
@@ -338,7 +342,7 @@ tmc::task<void> detach_maxCount_less_uncountable_iter() {
 
 // Test detach() when the maxCount is greater than the number of tasks in the
 // iterator.
-tmc::task<void> detach_maxCount_greater_uncountable_iter() {
+static tmc::task<void> detach_maxCount_greater_uncountable_iter() {
   std::atomic<int> counter(0);
 
   // Iterator contains 9 tasks but end() - begin() doesn't compile
@@ -363,7 +367,7 @@ tmc::task<void> detach_maxCount_greater_uncountable_iter() {
 
 // Test detach() when the Count is less than the number of tasks in the
 // iterator.
-tmc::task<void> detach_maxCount_template_less_uncountable_iter() {
+static tmc::task<void> detach_maxCount_template_less_uncountable_iter() {
   std::atomic<int> counter(0);
 
   // Iterator contains 9 tasks but end() - begin() doesn't compile
@@ -388,7 +392,7 @@ tmc::task<void> detach_maxCount_template_less_uncountable_iter() {
 
 // Test detach() when the Count is greater than the number of tasks in the
 // iterator.
-tmc::task<void> detach_maxCount_template_greater_uncountable_iter() {
+static tmc::task<void> detach_maxCount_template_greater_uncountable_iter() {
   std::atomic<int> counter(0);
 
   // Iterator contains 9 tasks but end() - begin() doesn't compile
@@ -413,11 +417,11 @@ tmc::task<void> detach_maxCount_template_greater_uncountable_iter() {
 
 int main() {
   return tmc::async_main([]() -> tmc::task<int> {
-    co_await static_sized_iterator<Count>();
-    co_await static_bounded_iterator<Count>();
-    co_await dynamic_known_sized_iterator<Count>();
-    co_await dynamic_unknown_sized_iterator<Count>();
-    co_await dynamic_bounded_iterator<Count>();
+    co_await static_sized_iterator<IterMax>();
+    co_await static_bounded_iterator<IterMax>();
+    co_await dynamic_known_sized_iterator<IterMax>();
+    co_await dynamic_unknown_sized_iterator<IterMax>();
+    co_await dynamic_bounded_iterator<IterMax>();
     co_await detach_maxCount_less();
     co_await detach_maxCount_greater();
     co_await detach_maxCount_template_less();

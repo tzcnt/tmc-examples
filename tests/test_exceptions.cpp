@@ -26,6 +26,18 @@
 
 #if TMC_HAS_EXCEPTIONS
 
+// This test contains functions with unreachable code due to guaranteed throws
+#if defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunreachable-code"
+#elif defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunreachable-code"
+#elif defined(_MSC_VER)
+#pragma warning(push)
+#pragma warning(disable : 4702)
+#endif
+
 #define CATEGORY exceptions
 
 class CATEGORY : public testing::Test {
@@ -37,7 +49,7 @@ protected:
   static tmc::ex_cpu& ex() { return tmc::cpu_executor(); }
 };
 
-[[noreturn]] void throws() { throw(std::runtime_error("foo")); }
+[[noreturn]] static void throws() { throw(std::runtime_error("foo")); }
 
 struct empty {};
 template <bool Known>
@@ -230,12 +242,12 @@ TEST_F(CATEGORY, throw_catch) {
   }());
 }
 
-tmc::task<void> throwing_task_void() {
+static tmc::task<void> throwing_task_void() {
   throw(std::runtime_error("throws_task_void"));
   co_return;
 }
 
-tmc::task<int> throwing_task_int() {
+static tmc::task<int> throwing_task_int() {
   throw(std::runtime_error("throws_task_result"));
   co_return 5;
 }
@@ -465,6 +477,14 @@ TEST(exceptions_DeathTest, spawn_tuple_exceptions) {
     "foo"
   );
 }
+
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#elif defined(__GNUC__)
+#pragma GCC diagnostic pop
+#elif defined(_MSC_VER)
+#pragma warning(pop)
+#endif
 
 #endif
 

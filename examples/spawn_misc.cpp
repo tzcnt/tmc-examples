@@ -40,17 +40,19 @@ template <size_t Count, size_t ThreadCount> void small_func_spawn_bench_lazy() {
     }
   }
 
-  size_t spawnDur =
+  size_t spawnDur = static_cast<size_t>(
     std::chrono::duration_cast<std::chrono::nanoseconds>(postTime - preTime)
-      .count();
+      .count()
+  );
   std::printf(
     "spawned %zu tasks in %zu ns: %zu ns/task\n", Count, spawnDur,
     spawnDur / Count
   );
 
-  size_t execDur =
+  size_t execDur = static_cast<size_t>(
     std::chrono::duration_cast<std::chrono::nanoseconds>(doneTime - postTime)
-      .count();
+      .count()
+  );
   std::printf(
     "executed %zu tasks in %zu ns: %zu ns/task (wall), %zu "
     "ns/task/thread\n",
@@ -74,10 +76,10 @@ template <size_t Count, size_t nthreads> void large_task_spawn_bench_lazy() {
     // variables must be passed as parameters instead
     results[slot] =
       tmc::post_waitable(executor, [](size_t* DataSlot) -> tmc::task<void> {
-        int a = 0;
-        int b = 1;
-        for (int i = 0; i < 1000; ++i) {
-          for (int j = 0; j < 500; ++j) {
+        size_t a = 0;
+        size_t b = 1;
+        for (size_t i = 0; i < 1000; ++i) {
+          for (size_t j = 0; j < 500; ++j) {
             a = a + b;
             b = b + a;
           }
@@ -92,17 +94,19 @@ template <size_t Count, size_t nthreads> void large_task_spawn_bench_lazy() {
   }
   auto doneTime = std::chrono::high_resolution_clock::now();
 
-  size_t spawnDur =
+  size_t spawnDur = static_cast<size_t>(
     std::chrono::duration_cast<std::chrono::nanoseconds>(postTime - preTime)
-      .count();
+      .count()
+  );
   std::printf(
     "spawned %zu tasks in %zu ns: %zu ns/task\n", Count, spawnDur,
     spawnDur / Count
   );
 
-  size_t execDur =
+  size_t execDur = static_cast<size_t>(
     std::chrono::duration_cast<std::chrono::nanoseconds>(doneTime - postTime)
-      .count();
+      .count()
+  );
   std::printf(
     "executed %zu tasks in %zu ns: %zu ns/task (wall), %zu "
     "ns/task/thread\n",
@@ -121,12 +125,11 @@ void large_task_spawn_bench_lazy_bulk() {
   }
   auto preTime = std::chrono::high_resolution_clock::now();
   auto tasks = std::ranges::views::transform(
-    data,
-    [](size_t& DataSlot) -> tmc::task<void> {
-      int a = 0;
-      int b = 1;
-      for (int i = 0; i < 1000; ++i) {
-        for (int j = 0; j < 500; ++j) {
+    data, [](size_t& DataSlot) -> tmc::task<void> {
+      size_t a = 0;
+      size_t b = 1;
+      for (size_t i = 0; i < 1000; ++i) {
+        for (size_t j = 0; j < 500; ++j) {
           a = a + b;
           b = b + a;
         }
@@ -140,17 +143,19 @@ void large_task_spawn_bench_lazy_bulk() {
   future.wait();
   auto doneTime = std::chrono::high_resolution_clock::now();
 
-  size_t spawnDur =
+  size_t spawnDur = static_cast<size_t>(
     std::chrono::duration_cast<std::chrono::nanoseconds>(postTime - preTime)
-      .count();
+      .count()
+  );
   std::printf(
     "spawned %zu tasks in %zu ns: %zu ns/task\n", Count, spawnDur,
     spawnDur / Count
   );
 
-  size_t execDur =
+  size_t execDur = static_cast<size_t>(
     std::chrono::duration_cast<std::chrono::nanoseconds>(doneTime - postTime)
-      .count();
+      .count()
+  );
   std::printf(
     "executed %zu tasks in %zu ns: %zu ns/task (wall), %zu "
     "ns/task/thread\n",
@@ -178,10 +183,10 @@ void prio_reversal_test() {
         executor,
         [](size_t* DataSlot, [[maybe_unused]] size_t Priority)
           -> tmc::task<void> {
-          int a = 0;
-          int b = 1;
-          for (int i = 0; i < 1000; ++i) {
-            for (int j = 0; j < 500; ++j) {
+          size_t a = 0;
+          size_t b = 1;
+          for (size_t i = 0; i < 1000; ++i) {
+            for (size_t j = 0; j < 500; ++j) {
               a = a + b;
               b = b + a;
             }
@@ -210,17 +215,19 @@ DONE:
   }
   auto doneTime = std::chrono::high_resolution_clock::now();
 
-  size_t spawnDur =
+  size_t spawnDur = static_cast<size_t>(
     std::chrono::duration_cast<std::chrono::nanoseconds>(postTime - preTime)
-      .count();
+      .count()
+  );
   std::printf(
     "spawned %zu tasks in %zu ns: %zu ns/task\n", Count, spawnDur,
     spawnDur / Count
   );
 
-  size_t execDur =
+  size_t execDur = static_cast<size_t>(
     std::chrono::duration_cast<std::chrono::nanoseconds>(doneTime - postTime)
-      .count();
+      .count()
+  );
   std::printf(
     "executed %zu tasks in %zu ns: %zu ns/task (wall), %zu "
     "ns/task/thread\n",

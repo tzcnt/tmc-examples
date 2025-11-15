@@ -22,7 +22,7 @@ protected:
   static tmc::ex_cpu& ex() { return tmc::cpu_executor(); }
 };
 
-tmc::task<void> waiter(
+static tmc::task<void> waiter(
   tmc::latch& B, std::vector<std::atomic<bool>>& DoneArray, size_t DoneIdx
 ) {
   DoneArray[DoneIdx].store(true, std::memory_order_relaxed);

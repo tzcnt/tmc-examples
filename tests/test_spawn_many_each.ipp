@@ -58,8 +58,9 @@ template <int N> tmc::task<void> spawn_many_each_static_bounded_iterator() {
 
     // This extra work yields a performance benefit, because we can still use
     // std::array with an unknown-sized iterator that spawns "up to N" tasks.
-    [[maybe_unused]] auto sum =
-      std::accumulate(results.begin(), results.begin() + taskCount, 0);
+    [[maybe_unused]] auto sum = std::accumulate(
+      results.begin(), results.begin() + static_cast<ptrdiff_t>(taskCount), 0
+    );
     EXPECT_EQ(sum, (1 << N) - 1 - 8);
   }
   {
@@ -81,8 +82,9 @@ template <int N> tmc::task<void> spawn_many_each_static_bounded_iterator() {
     // At this point, taskCount == 5 and N == 5.
     // We stopped consuming elements from the iterator after N tasks.
     EXPECT_EQ(taskCount, N);
-    [[maybe_unused]] auto sum =
-      std::accumulate(results.begin(), results.begin() + taskCount, 0);
+    [[maybe_unused]] auto sum = std::accumulate(
+      results.begin(), results.begin() + static_cast<ptrdiff_t>(taskCount), 0
+    );
     EXPECT_EQ(sum, (1 << N) - 1 - 8 + (1 << N));
   }
   co_return;
@@ -167,8 +169,9 @@ template <int N> tmc::task<void> spawn_many_each_dynamic_bounded_iterator() {
     // At this point, taskCount == 4 and N == 5.
     EXPECT_EQ(taskCount, MaxTasks - 1);
 
-    [[maybe_unused]] auto sum =
-      std::accumulate(results.begin(), results.begin() + taskCount, 0);
+    [[maybe_unused]] auto sum = std::accumulate(
+      results.begin(), results.begin() + static_cast<ptrdiff_t>(taskCount), 0
+    );
     EXPECT_EQ(sum, (1 << N) - 1 - 8);
     // The results vector is still right-sized.
     EXPECT_EQ(results.size(), taskCount);
@@ -192,8 +195,9 @@ template <int N> tmc::task<void> spawn_many_each_dynamic_bounded_iterator() {
     // At this point, taskCount == 5 and N == 5.
     // We stopped consuming elements from the iterator after N tasks.
     EXPECT_EQ(taskCount, N);
-    [[maybe_unused]] auto sum =
-      std::accumulate(results.begin(), results.begin() + taskCount, 0);
+    [[maybe_unused]] auto sum = std::accumulate(
+      results.begin(), results.begin() + static_cast<ptrdiff_t>(taskCount), 0
+    );
     EXPECT_EQ(sum, (1 << N) - 1 - 8 + (1 << N));
     EXPECT_EQ(results.size(), taskCount);
   }
@@ -234,18 +238,18 @@ TEST_F(CATEGORY, spawn_many_each_resume_after) {
   test_async_main(ex(), []() -> tmc::task<void> {
     static constexpr int N = 5;
     for (int i = 0; i < N; ++i) {
-      atomic_awaitable<size_t> aa(i);
+      atomic_awaitable<int> aa(i);
       auto iter =
         std::ranges::views::iota(0, i) |
         std::ranges::views::transform([&aa](int idx) -> tmc::task<int> {
-          return [](int I, atomic_awaitable<size_t>& AA) -> tmc::task<int> {
+          return [](int I, atomic_awaitable<int>& AA) -> tmc::task<int> {
             AA.inc();
             co_return 1 << I;
           }(idx, aa);
         });
       auto ts = tmc::spawn_many(iter).result_each();
       co_await aa;
-      std::vector<int> results(i, 0);
+      std::vector<int> results(static_cast<size_t>(i), 0);
       for (auto idx = co_await ts; idx != ts.end(); idx = co_await ts) {
         results[idx] = ts[idx];
       }

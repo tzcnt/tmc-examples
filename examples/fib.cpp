@@ -81,9 +81,10 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
     }
 
     auto endTime = std::chrono::high_resolution_clock::now();
-    size_t totalTimeUs =
+    size_t totalTimeUs = static_cast<size_t>(
       std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime)
-        .count();
+        .count()
+    );
     std::printf("%zu us\n", totalTimeUs / NRUNS);
     co_return 0;
   }(n));

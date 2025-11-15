@@ -12,7 +12,6 @@
 #include "tmc/asio/ex_asio.hpp"
 #include "tmc/ex_cpu.hpp"
 #include "tmc/fork_group.hpp"
-#include "tmc/spawn.hpp"
 #include "tmc/spawn_many.hpp"
 #include "tmc/task.hpp"
 
@@ -67,10 +66,11 @@ tmc::task<size_t> skynet_one(size_t BaseNum, size_t Depth) {
   }
 
   std::array<size_t, 10> results = co_await tmc::spawn_many<10>(
-    (std::ranges::views::iota(0UL) |
-     std::ranges::views::transform([=](size_t idx) {
-       return skynet_one<DepthMax>(BaseNum + depthOffset * idx, Depth + 1);
-     })
+    (
+      std::ranges::views::iota(0UL) |
+      std::ranges::views::transform([=](size_t idx) {
+        return skynet_one<DepthMax>(BaseNum + depthOffset * idx, Depth + 1);
+      })
     ).begin()
   );
 
@@ -87,9 +87,10 @@ template <size_t DepthMax> tmc::task<std::string> skynet() {
   if (count != EXPECTED_RESULT) {
     output << "got wrong result: " << count << "\n";
   }
-  size_t execDur =
+  size_t execDur = static_cast<size_t>(
     std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime)
-      .count();
+      .count()
+  );
   output << "executed skynet in " << execDur << " us\n";
   co_return std::string(output.str());
 }

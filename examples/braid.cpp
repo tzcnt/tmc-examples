@@ -26,10 +26,10 @@ template <size_t Count> tmc::task<void> large_task_spawn_bench_lazy_bulk() {
   auto tasks =
     std::ranges::views::transform(data, [](size_t& elem) -> tmc::task<void> {
       return [](size_t* Elem) -> tmc::task<void> {
-        int a = 0;
-        int b = 1;
-        for (int i = 0; i < 1000; ++i) {
-          for (int j = 0; j < 500; ++j) {
+        size_t a = 0;
+        size_t b = 1;
+        for (size_t i = 0; i < 1000; ++i) {
+          for (size_t j = 0; j < 500; ++j) {
             a = a + b;
             b = b + a;
           }
@@ -41,8 +41,9 @@ template <size_t Count> tmc::task<void> large_task_spawn_bench_lazy_bulk() {
   co_await tmc::spawn_many<Count>(tasks.begin()).run_on(br);
   auto done = std::chrono::high_resolution_clock::now();
 
-  size_t execDur =
-    std::chrono::duration_cast<std::chrono::nanoseconds>(done - pre).count();
+  size_t execDur = static_cast<size_t>(
+    std::chrono::duration_cast<std::chrono::nanoseconds>(done - pre).count()
+  );
   std::printf(
     "executed %zu tasks in %zu ns: %zu ns/task (wall), %zu "
     "ns/task/thread\n",
@@ -60,15 +61,14 @@ template <size_t Count> tmc::task<void> braid_lock() {
   size_t value = 0;
   auto pre = std::chrono::high_resolution_clock::now();
   auto tasks = std::ranges::views::transform(
-    data,
-    [&br, &value](size_t& elem) -> tmc::task<void> {
+    data, [&br, &value](size_t& elem) -> tmc::task<void> {
       return [](
                size_t* Elem, tmc::ex_braid* Braid, size_t* Value
              ) -> tmc::task<void> {
-        int a = 0;
-        int b = 1;
-        for (int i = 0; i < 1000; ++i) {
-          for (int j = 0; j < 500; ++j) {
+        size_t a = 0;
+        size_t b = 1;
+        for (size_t i = 0; i < 1000; ++i) {
+          for (size_t j = 0; j < 500; ++j) {
             a = a + b;
             b = b + a;
           }
@@ -86,8 +86,9 @@ template <size_t Count> tmc::task<void> braid_lock() {
   if (value != data[0] * Count) {
     std::printf("FAIL: expected %zu but got %zu\n", data[0] * Count, value);
   }
-  size_t execDur =
-    std::chrono::duration_cast<std::chrono::nanoseconds>(done - pre).count();
+  size_t execDur = static_cast<size_t>(
+    std::chrono::duration_cast<std::chrono::nanoseconds>(done - pre).count()
+  );
   std::printf(
     "executed %zu tasks in %zu ns: %zu ns/task (wall), %zu "
     "ns/task/thread\n",
@@ -113,10 +114,10 @@ template <size_t Count> tmc::task<void> braid_lock_middle() {
                       auto* DataSlot, tmc::ex_braid* Braid, size_t* Value,
                       size_t* LockCount
                     ) -> tmc::task<void> {
-        int a = 0;
-        int b = 1;
-        for (int i = 0; i < 499; ++i) {
-          for (int j = 0; j < 500; ++j) {
+        size_t a = 0;
+        size_t b = 1;
+        for (size_t i = 0; i < 499; ++i) {
+          for (size_t j = 0; j < 500; ++j) {
             a = a + b;
             b = b + a;
           }
@@ -150,8 +151,9 @@ template <size_t Count> tmc::task<void> braid_lock_middle() {
     std::printf("FAIL: expected %zu but got %zu\n", data[0] * Count, value);
   }
 
-  size_t execDur =
-    std::chrono::duration_cast<std::chrono::nanoseconds>(done - pre).count();
+  size_t execDur = static_cast<size_t>(
+    std::chrono::duration_cast<std::chrono::nanoseconds>(done - pre).count()
+  );
   std::printf(
     "executed %zu tasks in %zu ns: %zu ns/task (wall), %zu "
     "ns/task/thread\n",
@@ -177,10 +179,10 @@ template <size_t Count> tmc::task<void> braid_lock_middle_resume_on() {
                       auto* DataSlot, tmc::ex_braid* Braid, size_t* Value,
                       size_t* LockCount
                     ) -> tmc::task<void> {
-        int a = 0;
-        int b = 1;
-        for (int i = 0; i < 499; ++i) {
-          for (int j = 0; j < 500; ++j) {
+        size_t a = 0;
+        size_t b = 1;
+        for (size_t i = 0; i < 499; ++i) {
+          for (size_t j = 0; j < 500; ++j) {
             a = a + b;
             b = b + a;
           }
@@ -212,8 +214,9 @@ template <size_t Count> tmc::task<void> braid_lock_middle_resume_on() {
   if (lockCount != Count) {
     std::printf("FAIL: expected %zu but got %zu\n", data[0] * Count, value);
   }
-  size_t execDur =
-    std::chrono::duration_cast<std::chrono::nanoseconds>(done - pre).count();
+  size_t execDur = static_cast<size_t>(
+    std::chrono::duration_cast<std::chrono::nanoseconds>(done - pre).count()
+  );
   std::printf(
     "executed %zu tasks in %zu ns: %zu ns/task (wall), %zu "
     "ns/task/thread\n",
@@ -222,7 +225,7 @@ template <size_t Count> tmc::task<void> braid_lock_middle_resume_on() {
   );
 }
 
-tmc::task<void> increment(size_t* Value) {
+static tmc::task<void> increment(size_t* Value) {
   (*Value)++;
   co_return;
 }
@@ -244,10 +247,10 @@ template <size_t Count> tmc::task<void> braid_lock_middle_child_task() {
                       auto* DataSlot, tmc::ex_braid* Braid, size_t* Value,
                       size_t* LockCount
                     ) -> tmc::task<void> {
-        int a = 0;
-        int b = 1;
-        for (int i = 0; i < 499; ++i) {
-          for (int j = 0; j < 500; ++j) {
+        size_t a = 0;
+        size_t b = 1;
+        for (size_t i = 0; i < 499; ++i) {
+          for (size_t j = 0; j < 500; ++j) {
             a = a + b;
             b = b + a;
           }
@@ -279,8 +282,9 @@ template <size_t Count> tmc::task<void> braid_lock_middle_child_task() {
     std::printf("FAIL: expected %zu but got %zu\n", data[0] * Count, value);
   }
 
-  size_t execDur =
-    std::chrono::duration_cast<std::chrono::nanoseconds>(done - pre).count();
+  size_t execDur = static_cast<size_t>(
+    std::chrono::duration_cast<std::chrono::nanoseconds>(done - pre).count()
+  );
   std::printf(
     "executed %zu tasks in %zu ns: %zu ns/task (wall), %zu "
     "ns/task/thread\n",

@@ -50,8 +50,9 @@ template <int N> tmc::task<void> spawn_many_static_bounded_iterator() {
 
     // This extra work yields a performance benefit, because we can still use
     // std::array with an unknown-sized iterator that spawns "up to N" tasks.
-    [[maybe_unused]] auto sum =
-      std::accumulate(results.begin(), results.begin() + taskCount, 0);
+    [[maybe_unused]] auto sum = std::accumulate(
+      results.begin(), results.begin() + static_cast<ptrdiff_t>(taskCount), 0
+    );
     EXPECT_EQ(sum, (1 << N) - 1 - 8);
   }
   {
@@ -70,8 +71,9 @@ template <int N> tmc::task<void> spawn_many_static_bounded_iterator() {
     // At this point, taskCount == 5 and N == 5.
     // We stopped consuming elements from the iterator after N tasks.
     EXPECT_EQ(taskCount, N);
-    [[maybe_unused]] auto sum =
-      std::accumulate(results.begin(), results.begin() + taskCount, 0);
+    [[maybe_unused]] auto sum = std::accumulate(
+      results.begin(), results.begin() + static_cast<ptrdiff_t>(taskCount), 0
+    );
     EXPECT_EQ(sum, (1 << N) - 1 - 8 + (1 << N));
   }
   co_return;
@@ -190,8 +192,9 @@ template <int N> tmc::task<void> spawn_many_dynamic_bounded_iterator() {
     // At this point, taskCount == 4 and N == 5.
     EXPECT_EQ(taskCount, MaxTasks - 1);
 
-    [[maybe_unused]] auto sum =
-      std::accumulate(results.begin(), results.begin() + taskCount, 0);
+    [[maybe_unused]] auto sum = std::accumulate(
+      results.begin(), results.begin() + static_cast<ptrdiff_t>(taskCount), 0
+    );
     EXPECT_EQ(sum, (1 << N) - 1 - 8);
     // The results vector is still right-sized.
     EXPECT_EQ(results.size(), taskCount);
@@ -213,8 +216,9 @@ template <int N> tmc::task<void> spawn_many_dynamic_bounded_iterator() {
     // At this point, taskCount == 5 and N == 5.
     // We stopped consuming elements from the iterator after N tasks.
     EXPECT_EQ(taskCount, N);
-    [[maybe_unused]] auto sum =
-      std::accumulate(results.begin(), results.begin() + taskCount, 0);
+    [[maybe_unused]] auto sum = std::accumulate(
+      results.begin(), results.begin() + static_cast<ptrdiff_t>(taskCount), 0
+    );
     EXPECT_EQ(sum, (1 << N) - 1 - 8 + (1 << N));
     EXPECT_EQ(results.size(), taskCount);
     EXPECT_EQ(results.size(), results.capacity());

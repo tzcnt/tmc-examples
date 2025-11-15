@@ -136,7 +136,7 @@ void do_chan_test(Executor& Exec, size_t HeavyLoadThreshold, bool ReuseBlocks) {
                   }(chan))
                     .fork();
       std::this_thread::sleep_for(std::chrono::milliseconds(10));
-      chan.post(5);
+      chan.post(5u);
       co_await std::move(cons);
     }
     {
@@ -166,14 +166,14 @@ void do_chan_test(Executor& Exec, size_t HeavyLoadThreshold, bool ReuseBlocks) {
                     .set_reuse_blocks(Reuse)
                     .set_heavy_load_threshold(Threshold);
       chan.close();
-      auto p = chan.post(5);
+      auto p = chan.post(5u);
       EXPECT_FALSE(p);
       std::vector<size_t> vs{0, 1, 2, 3, 4};
       auto p1 = chan.post_bulk(vs.begin(), 5);
       EXPECT_FALSE(p1);
       auto p2 = chan.post_bulk(vs.begin(), vs.end());
       EXPECT_FALSE(p2);
-      auto p3 = chan.post_bulk(std::ranges::views::iota(0, 5));
+      auto p3 = chan.post_bulk(std::ranges::views::iota(0u, 5u));
       EXPECT_FALSE(p3);
     }
     {
@@ -305,11 +305,11 @@ TEST_F(CATEGORY, post_bulk_none) {
     std::optional<size_t> v = co_await chan.pull();
     EXPECT_FALSE(v.has_value());
 
-    ok = chan.post_bulk(std::ranges::views::iota(1, 1));
+    ok = chan.post_bulk(std::ranges::views::iota(1u, 1u));
     EXPECT_EQ(false, ok);
-    ok = chan.post_bulk(std::ranges::views::iota(1, 2));
+    ok = chan.post_bulk(std::ranges::views::iota(1u, 2u));
     EXPECT_EQ(false, ok);
-    ok = chan.post(5);
+    ok = chan.post(5u);
     EXPECT_EQ(false, ok);
   }());
 }

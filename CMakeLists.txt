@@ -50,13 +50,13 @@ else()
     CPMAddPackage(
         NAME TooManyCooks
         GIT_REPOSITORY https://github.com/tzcnt/TooManyCooks.git
-        GIT_TAG 78612ffde6b310252f90adf4413ea7c32f0c306b
+        GIT_TAG 64d336b07d05e4d87564c991ed5c89262f025027
         DOWNLOAD_ONLY)
 
     CPMAddPackage(
         NAME tmc_asio
         GIT_REPOSITORY https://github.com/tzcnt/tmc-asio.git
-        GIT_TAG 14a2f71b9ce7d1e24a901c1b6d57b09da734e274
+        GIT_TAG e92ffeeceea6de484032ef7d5eac4a4bbb9007a1
         DOWNLOAD_ONLY)
 
     set(TMC_INCLUDE_PATH ${TooManyCooks_SOURCE_DIR}/include CACHE STRING "" FORCE)
@@ -76,13 +76,14 @@ if(TMC_USE_HWLOC)
     find_package(libhwloc)
 
     if(NOT LIBHWLOC_FOUND)
-        message(STATUS "TMC_USE_HWLOC: WARN package libhwloc not found")
+        message(STATUS "WARNING: Package libhwloc not found. hwloc integration will be disabled.")
     else()
         message(STATUS "TMC_USE_HWLOC: found library ${LIBHWLOC_LIBRARY}")
         message(STATUS "TMC_USE_HWLOC: found include ${LIBHWLOC_INCLUDE_DIR}/hwloc.h")
         add_compile_definitions(TMC_USE_HWLOC)
         link_libraries(${LIBHWLOC_LIBRARY})
-        include_directories(${LIBHWLOC_INCLUDE_DIR})
+        # mark hwloc headers as SYSTEM to ignore warnings
+        include_directories(SYSTEM ${LIBHWLOC_INCLUDE_DIR})
     endif()
 endif()
 
@@ -109,7 +110,7 @@ else()
             set(MALLOC_LIB "${LIBJEMALLOC_LIBRARY}")
             message(STATUS "Using malloc: ${MALLOC_LIB}")
         else()
-            message(STATUS "Using malloc: default")
+            message(STATUS "WARNING: No high performance allocator was found. Using default system allocator. This may cause slowness.")
         endif()
     endif()
 endif()
@@ -155,7 +156,7 @@ else()
     )
 endif()
 
-# Safety / warnings checks
+# Sanitizers
 
 # add_definitions("-fsanitize=address")
 # add_link_options("-fsanitize=address")
@@ -164,33 +165,51 @@ endif()
 # add_definitions("-fsanitize=undefined -fno-sanitize-recover")
 # add_link_options("-fsanitize=undefined")
 
-# extra warnings on Clang
-# add_definitions(
-# "-Weverything"
+# Build tests and examples with most pedantic warnings possible
+# to ensure the library remains clean for users
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    add_definitions(
+        "-Weverything"
 
-# # Ignore these (from the library)
-# "-Wno-c++98-compat"
-# "-Wno-c++98-compat-pedantic"
-# "-Wno-c++20-compat"
-# "-Wno-padded"
-# "-Wno-unsafe-buffer-usage"
-# "-Wno-global-constructors"
-# "-Wno-exit-time-destructors"
+        # This library requires C++20
+        "-Wno-c++98-compat"
+        "-Wno-c++98-compat-pedantic"
+        "-Wno-c++20-compat"
 
-# # Ignore these (from some quick and dirty examples)
-# "-Wno-sign-conversion"
-# "-Wno-missing-prototypes"
-# "-Wno-missing-variable-declarations"
-# "-Wno-double-promotion"
-# )
+        # These are deliberate design choices of the library
+        "-Wno-padded"
+        "-Wno-unsafe-buffer-usage"
+        "-Wno-global-constructors"
+        "-Wno-exit-time-destructors"
+    )
 
-# extra warnings on GCC
-# add_definitions(
-# "-Wall"
-# "-Wextra"
+    if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL "21.0")
+        add_definitions(
 
-# "-Wno-pessimizing-move"
-# )
+            # This is a real problem, however it only occurs in a specific scenario.
+            # It prevents TMC being used in multiple DLLs within the same program, on Windows only.
+            # This problem does not occur when using static linking.
+            "-Wno-unique-object-duplication"
+        )
+    endif()
+endif()
+
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
+    add_definitions(
+        "-Wall"
+        "-Wextra"
+        "-Wpedantic"
+
+        # TODO: fix this in a followup PR
+        "-Wno-pessimizing-move"
+    )
+endif()
+
+if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+    add_definitions(
+        "/wd4324" # structure was padded due to an alignment specifier - this is intentional
+    )
+endif()
 
 # copy compile_commands.json to the build directory after build so clangd can find it
 # clangd won't look in the /build/{config} directory, only in the top-level /build directory
@@ -207,8 +226,10 @@ make_exe(alignment
     examples/alignment.cpp
 )
 
-if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 16)
+if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
+if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 16)
     target_compile_options(alignment PRIVATE -fcoro-aligned-allocation)
+endif()
 endif()
 
 make_exe(spawn_misc
