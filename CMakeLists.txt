@@ -180,7 +180,6 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 
             # Ignore these (from some quick and dirty examples)
             "-Wno-missing-variable-declarations"
-            "-Wno-double-promotion"
         )
     if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL "21.0")
         add_definitions(
@@ -192,10 +191,10 @@ endif()
 
 if (CMAKE_CXX_COMPILER_ID MATCHES "GNU")
 add_definitions(
-"-Wall"
-"-Wextra"
+    "-Wall"
+    "-Wextra"
 
-"-Wno-pessimizing-move"
+    "-Wno-pessimizing-move"
 )
 endif()
 

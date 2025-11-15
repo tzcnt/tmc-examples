@@ -124,9 +124,9 @@ int main() {
             .count()
         );
 
-        float durMs = static_cast<float>(execDur) / 1000.0f;
+        double durMs = static_cast<double>(execDur) / 1000.0;
         size_t elementsPerSec =
-          static_cast<size_t>(static_cast<float>(NELEMS) * 1000.0f / durMs);
+          static_cast<size_t>(static_cast<double>(NELEMS) * 1000.0 / durMs);
         std::printf(
           "%zu prod\t%zu cons\t %.2f ms\t%s elements/sec\n", prodCount,
           consCount, durMs, formatWithCommas(elementsPerSec).c_str()
@@ -140,7 +140,7 @@ int main() {
                             overallEnd - overallStart
       )
                             .count());
-    float overallSec = static_cast<float>(overallDur) / 1000000.0f;
+    double overallSec = static_cast<double>(overallDur) / 1000000.0;
     std::printf("overall: %.2f sec\n", overallSec);
     co_return 0;
   }());
