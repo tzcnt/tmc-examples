@@ -76,13 +76,14 @@ if(TMC_USE_HWLOC)
     find_package(libhwloc)
 
     if(NOT LIBHWLOC_FOUND)
-        message(STATUS "TMC_USE_HWLOC: WARN package libhwloc not found")
+        message(STATUS "TMC_USE_HWLOC: WARN package libhwloc not found - hwloc integration will be disabled")
     else()
         message(STATUS "TMC_USE_HWLOC: found library ${LIBHWLOC_LIBRARY}")
         message(STATUS "TMC_USE_HWLOC: found include ${LIBHWLOC_INCLUDE_DIR}/hwloc.h")
         add_compile_definitions(TMC_USE_HWLOC)
         link_libraries(${LIBHWLOC_LIBRARY})
-        include_directories(${LIBHWLOC_INCLUDE_DIR})
+        # mark hwloc headers as SYSTEM to ignore warnings
+        include_directories(SYSTEM ${LIBHWLOC_INCLUDE_DIR})
     endif()
 endif()
 
@@ -109,7 +110,7 @@ else()
             set(MALLOC_LIB "${LIBJEMALLOC_LIBRARY}")
             message(STATUS "Using malloc: ${MALLOC_LIB}")
         else()
-            message(STATUS "Using malloc: default")
+            message(STATUS "Using malloc: system default")
         endif()
     endif()
 endif()
@@ -225,8 +226,10 @@ make_exe(alignment
     examples/alignment.cpp
 )
 
-if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 16)
+if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
+if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 16)
     target_compile_options(alignment PRIVATE -fcoro-aligned-allocation)
+endif()
 endif()
 
 make_exe(spawn_misc
