@@ -26,9 +26,15 @@
 
 #if TMC_HAS_EXCEPTIONS
 
-#if defined(_MSC_VER)
-#pragma warning(push)
 // This test contains functions with unreachable code due to guaranteed throws
+#if defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunreachable-code"
+#elif defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunreachable-code"
+#elif defined(_MSC_VER)
+#pragma warning(push)
 #pragma warning(disable : 4702)
 #endif
 
@@ -472,7 +478,11 @@ TEST(exceptions_DeathTest, spawn_tuple_exceptions) {
   );
 }
 
-#if defined(_MSC_VER)
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#elif defined(__GNUC__)
+#pragma GCC diagnostic pop
+#elif defined(_MSC_VER)
 #pragma warning(pop)
 #endif
 
