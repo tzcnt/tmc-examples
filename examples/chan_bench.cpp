@@ -21,7 +21,7 @@ struct chan_config : tmc::chan_default_config {
 };
 using token = tmc::chan_tok<size_t, chan_config>;
 
-tmc::task<void> producer(token chan, size_t count, size_t base) {
+static tmc::task<void> producer(token chan, size_t count, size_t base) {
   // It would be more efficient to call `chan.post_bulk()`,
   // but for this benchmark we test pushing 1 at a time.
   for (size_t i = 0; i < count; ++i) {
@@ -35,7 +35,7 @@ struct result {
   size_t sum;
 };
 
-tmc::task<result> consumer(token chan) {
+static tmc::task<result> consumer(token chan) {
   size_t count = 0;
   size_t sum = 0;
 
@@ -70,11 +70,11 @@ tmc::task<result> consumer(token chan) {
   // }
 }
 
-std::string formatWithCommas(size_t n) {
+static std::string formatWithCommas(size_t n) {
   auto s = std::to_string(n);
   int i = static_cast<int>(s.length()) - 3;
   while (i > 0) {
-    s.insert(i, ",");
+    s.insert(static_cast<size_t>(i), ",");
     i -= 3;
   }
   return s;
@@ -89,7 +89,7 @@ int main() {
   );
   return tmc::post_waitable(
            exec,
-           [](tmc::ex_cpu_st& exec) -> tmc::task<int> {
+           []() -> tmc::task<int> {
              auto overallStart = std::chrono::high_resolution_clock::now();
 
              for (size_t consCount = 1; consCount <= 10; ++consCount) {
@@ -151,9 +151,9 @@ int main() {
                      .count()
                  );
 
-                 double durMs = static_cast<double>(execDur) / 1000.0f;
+                 double durMs = static_cast<double>(execDur) / 1000.0;
                  size_t elementsPerSec = static_cast<size_t>(
-                   static_cast<double>(NELEMS) * 1000.0f / durMs
+                   static_cast<double>(NELEMS) * 1000.0 / durMs
                  );
                  std::printf(
                    "%zu prod\t%zu cons\t %.2f ms\t%s elements/sec\n", prodCount,
@@ -169,10 +169,10 @@ int main() {
                )
                  .count()
              );
-             double overallSec = static_cast<double>(overallDur) / 1000000.0f;
+             double overallSec = static_cast<double>(overallDur) / 1000000.0;
              std::printf("overall: %.2f sec\n", overallSec);
              co_return 0;
-           }(exec)
+           }()
   )
     .get();
 }
