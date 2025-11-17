@@ -3,8 +3,8 @@
 #include <gtest/gtest.h>
 
 #ifndef NDEBUG
-#define CATEGORY assert_coro_DeathTest
 #ifndef TMC_TRIVIAL_TASK
+#define CATEGORY assert_coro_DeathTest
 TEST(CATEGORY, none) {
   EXPECT_DEATH(
     {

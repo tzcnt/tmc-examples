@@ -5,4 +5,5 @@
 // 32-bit platforms can't hold the full sum, but unsigned integer overflow is
 // defined so it will wrap to this number.
 static constexpr inline size_t EXPECTED_RESULT =
-  sizeof(size_t) == 8 ? 499999500000 : 1783293664;
+  sizeof(size_t) == 8 ? static_cast<size_t>(499999500000)
+                      : static_cast<size_t>(1783293664);
