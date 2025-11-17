@@ -38,6 +38,8 @@ struct result {
 static tmc::task<result> consumer(token chan) {
   size_t count = 0;
   size_t sum = 0;
+
+  // pull() implementation
   auto data = co_await chan.pull();
   while (data.has_value()) {
     ++count;
@@ -45,6 +47,27 @@ static tmc::task<result> consumer(token chan) {
     data = co_await chan.pull();
   }
   co_return result{count, sum};
+
+  // // try_pull() implementation
+  // while (true) {
+  //   auto data = chan.try_pull();
+  //   switch (data.index()) {
+  //   case tmc::chan_err::OK:
+  //     ++count;
+  //     sum += std::get<tmc::chan_err::OK>(data);
+  //     break;
+  //   case tmc::chan_err::EMPTY:
+  //     // Spinning on try_pull() without yielding from an executor thread can
+  //     // cause deadlock if producers are waiting to run. Calling reschedule()
+  //     // ensures that those producers are able to run.
+  //     co_await tmc::reschedule();
+  //     break;
+  //   case tmc::chan_err::CLOSED:
+  //     co_return result{count, sum};
+  //   default:
+  //     break;
+  //   }
+  // }
 }
 
 static std::string formatWithCommas(size_t n) {

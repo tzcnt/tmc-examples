@@ -54,7 +54,28 @@ static tmc::task<void> consumer(token chan, size_t Count) {
   full_sum.fetch_add(sum);
 }
 
-static int choose_action() { return prng.sample(0, 2); }
+static tmc::task<void> try_pull_consumer(token chan, size_t Count) {
+  size_t sum = 0;
+  for (size_t i = 0; i < Count; ++i) {
+    auto data = chan.try_pull();
+    switch (data.index()) {
+    case tmc::chan_err::OK:
+      sum += std::get<0>(data);
+      break;
+    case tmc::chan_err::EMPTY:
+      co_await tmc::reschedule();
+      break;
+    case tmc::chan_err::CLOSED:
+      break;
+    default:
+      break;
+    }
+  }
+
+  full_sum.fetch_add(sum);
+}
+
+static int choose_action() { return prng.sample(0, 3); }
 
 static tmc::task<void> do_action(
   token& Chan, tmc::aw_fork_group<0, void>& Producers,
@@ -80,6 +101,11 @@ static tmc::task<void> do_action(
     Consumers.fork(
       consumer(Chan, static_cast<size_t>(prng.sample(1, ELEMS_PER_ACTION)))
     );
+    break;
+  case 3:
+    Consumers.fork(try_pull_consumer(
+      Chan, static_cast<size_t>(prng.sample(1, ELEMS_PER_ACTION))
+    ));
     break;
   default:
     std::terminate();
