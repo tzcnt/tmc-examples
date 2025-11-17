@@ -82,6 +82,7 @@ if(TMC_USE_HWLOC)
         message(STATUS "TMC_USE_HWLOC: found include ${LIBHWLOC_INCLUDE_DIR}/hwloc.h")
         add_compile_definitions(TMC_USE_HWLOC)
         link_libraries(${LIBHWLOC_LIBRARY})
+
         # mark hwloc headers as SYSTEM to ignore warnings
         include_directories(SYSTEM ${LIBHWLOC_INCLUDE_DIR})
     endif()
@@ -192,6 +193,14 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
             "-Wno-unique-object-duplication"
         )
     endif()
+
+    if(CMAKE_CXX_COMPILER_ID MATCHES "AppleClang")
+        add_definitions(
+
+            # Obnoxious spurious warning, wtf Apple
+            "-Wno-poison-system-directories"
+        )
+    endif()
 endif()
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
@@ -228,10 +237,10 @@ make_exe(alignment
     examples/alignment.cpp
 )
 
-if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
-if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 16)
-    target_compile_options(alignment PRIVATE -fcoro-aligned-allocation)
-endif()
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND NOT CMAKE_CXX_SIMULATE_ID STREQUAL "MSVC")
+    if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 16)
+        target_compile_options(alignment PRIVATE -fcoro-aligned-allocation)
+    endif()
 endif()
 
 make_exe(spawn_misc
