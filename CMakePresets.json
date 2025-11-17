@@ -138,8 +138,8 @@
         "CMAKE_BUILD_TYPE": "Debug",
         "CMAKE_C_COMPILER": "clang-cl.exe",
         "CMAKE_CXX_COMPILER": "clang-cl.exe",
-        "CMAKE_CXX_FLAGS": "/DWIN32 /D_WINDOWS /W3 /GR /EHsc -march=native",
-        "CMAKE_C_FLAGS": "/DWIN32 /D_WINDOWS /W3",
+        "CMAKE_CXX_FLAGS": "/DWIN32 /D_WINDOWS /W4 /GR /EHsc -march=native",
+        "CMAKE_C_FLAGS": "/DWIN32 /D_WINDOWS /W4",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
       },
       "architecture": {
@@ -172,8 +172,8 @@
         "CMAKE_BUILD_TYPE": "Release",
         "CMAKE_C_COMPILER": "clang-cl.exe",
         "CMAKE_CXX_COMPILER": "clang-cl.exe",
-        "CMAKE_CXX_FLAGS": "/DTMC_TRIVIAL_TASK /DWIN32 /D_WINDOWS /W3 /GR /EHsc -march=native",
-        "CMAKE_C_FLAGS": "/DWIN32 /D_WINDOWS /W3 -march=native",
+        "CMAKE_CXX_FLAGS": "/DTMC_TRIVIAL_TASK /DWIN32 /D_WINDOWS /W4 /GR /EHsc -march=native",
+        "CMAKE_C_FLAGS": "/DWIN32 /D_WINDOWS /W4 -march=native",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
       },
       "architecture": {
@@ -207,8 +207,8 @@
         "CMAKE_C_COMPILER": "clang-cl.exe",
         "CMAKE_CXX_COMPILER": "clang-cl.exe",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
-        "CMAKE_CXX_FLAGS": "/DWIN32 /D_WINDOWS /W3 /GR /EHsc -march=native",
-        "CMAKE_C_FLAGS": "/DWIN32 /D_WINDOWS /W3 -march=native",
+        "CMAKE_CXX_FLAGS": "/DWIN32 /D_WINDOWS /W4 /GR /EHsc -march=native",
+        "CMAKE_C_FLAGS": "/DWIN32 /D_WINDOWS /W4 -march=native",
         "CMAKE_CXX_FLAGS_RELWITHDEBINFO": "/MD /Zi /O2 /Ob2 /DNDEBUG",
         "CMAKE_C_FLAGS_RELWITHDEBINFO": "/MD /Zi /O2 /Ob2 /DNDEBUG",
         "CMAKE_SHARED_LINKER_FLAGS_RELWITHDEBINFO": "/debug /INCREMENTAL:NO",
