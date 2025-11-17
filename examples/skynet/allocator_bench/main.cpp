@@ -13,7 +13,8 @@
 // 32-bit platform can't hold the full sum, but signed integer overflow is
 // defined so it will wrap to this number.
 static constexpr inline size_t EXPECTED_RESULT =
-  TMC_PLATFORM_BITS == 64 ? 499999500000 : 1783293664;
+  TMC_PLATFORM_BITS == 64 ? static_cast<size_t>(499999500000)
+                          : static_cast<size_t>(1783293664);
 
 namespace skynet {
 namespace coro {
@@ -31,10 +32,11 @@ tmc::task<size_t> skynet_one(size_t BaseNum, size_t Depth) {
   }
 
   std::array<size_t, 10> results = co_await tmc::spawn_many<10>(
-    (std::ranges::views::iota(0UL) |
-     std::ranges::views::transform([=](size_t idx) {
-       return skynet_one<DepthMax>(BaseNum + depthOffset * idx, Depth + 1);
-     })
+    (
+      std::ranges::views::iota(0UL) |
+      std::ranges::views::transform([=](size_t idx) {
+        return skynet_one<DepthMax>(BaseNum + depthOffset * idx, Depth + 1);
+      })
     ).begin()
   );
 
