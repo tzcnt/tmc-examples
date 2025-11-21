@@ -208,11 +208,6 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
         "-Wall"
         "-Wextra"
         "-Wpedantic"
-
-        # Fixing this is not easy as we need to handle both eager and lazy input ranges.
-        # Doing so "properly" without any "pessimizing moves" would require a lot of extra template code.
-        # Realistically this is not an issue as the moved objects are very small (coroutine handles).
-        "-Wno-pessimizing-move"
     )
 endif()
 
