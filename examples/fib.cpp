@@ -70,26 +70,22 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
 
   size_t n = static_cast<size_t>(atoi(argv[1]));
 #endif
-  tmc::ex_cpu_st ex;
-  ex.init();
-  return tmc::post_waitable(
-           ex,
-           [](size_t N) -> tmc::task<int> {
-             auto startTime = std::chrono::high_resolution_clock::now();
-             for (size_t i = 0; i < NRUNS; ++i) {
-               co_await top_fib(N);
-             }
+#ifdef TMC_USE_HWLOC
+  // Opt-in to hyperthreading
+  tmc::cpu_executor().set_thread_occupancy(2.0f);
+#endif
+  tmc::async_main([](size_t N) -> tmc::task<int> {
+    auto startTime = std::chrono::high_resolution_clock::now();
+    for (size_t i = 0; i < NRUNS; ++i) {
+      co_await top_fib(N);
+    }
 
-             auto endTime = std::chrono::high_resolution_clock::now();
-             size_t totalTimeUs = static_cast<size_t>(
-               std::chrono::duration_cast<std::chrono::microseconds>(
-                 endTime - startTime
-               )
-                 .count()
-             );
-             std::printf("%zu us\n", totalTimeUs / NRUNS);
-             co_return 0;
-           }(n)
-  )
-    .get();
+    auto endTime = std::chrono::high_resolution_clock::now();
+    size_t totalTimeUs = static_cast<size_t>(
+      std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime)
+        .count()
+    );
+    std::printf("%zu us\n", totalTimeUs / NRUNS);
+    co_return 0;
+  }(n));
 }

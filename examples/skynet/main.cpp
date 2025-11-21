@@ -19,22 +19,21 @@
 #include "skynet_loop.hpp"
 
 #include "tmc/ex_cpu.hpp"
-#include "tmc/ex_cpu_st.hpp"
 
 #include <cstdio>
 
 #define DEPTH 6
 
 int main() {
-  // tmc::cpu_executor().set_thread_count(1).init();
-  // return tmc::async_main([]() -> tmc::task<int> {
-  //   co_await loop_skynet<DEPTH>();
-  //   co_return 0;
-  // }());
-
-  tmc::ex_cpu_st ex;
-  ex.init();
-  tmc::post_waitable(ex, loop_skynet<DEPTH>()).wait();
+#ifdef TMC_USE_HWLOC
+  // Opt-in to hyperthreading
+  tmc::cpu_executor().set_thread_occupancy(2.0f);
+#endif
+  tmc::cpu_executor().init();
+  return tmc::async_main([]() -> tmc::task<int> {
+    co_await loop_skynet<DEPTH>();
+    co_return 0;
+  }());
 
   // These each create their own standalone executors
   // tmc::cpu_executor().teardown();

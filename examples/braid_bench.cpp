@@ -12,19 +12,15 @@
 #include <string>
 #include <vector>
 
-#define NELEMS 1000000
+#define NELEMS 10000000
 
 static tmc::task<void> consumer([[maybe_unused]] int i) {
   // std::printf("%d", i);
   co_return;
 }
 
-static tmc::task<void> producer(tmc::ex_cpu_st& q, size_t count) {
-  auto fg = tmc::fork_group();
-  for (size_t i = 0; i < count; ++i) {
-    fg.fork(consumer(static_cast<int>(i)), q);
-  }
-  co_await std::move(fg);
+static tmc::task<void> producer(tmc::ex_braid& q, size_t count) {
+  co_await tmc::spawn_many(tmc::iter_adapter(0, consumer), count).run_on(q);
 }
 
 static std::string formatWithCommas(size_t n) {
@@ -47,8 +43,7 @@ int main() {
     auto overallStart = std::chrono::high_resolution_clock::now();
 
     for (size_t prodCount = 1; prodCount <= 10; ++prodCount) {
-      tmc::ex_cpu_st q;
-      q.init();
+      tmc::ex_braid q;
       size_t per_task = NELEMS / prodCount;
       size_t rem = NELEMS % prodCount;
       std::vector<tmc::task<void>> prod(prodCount);
