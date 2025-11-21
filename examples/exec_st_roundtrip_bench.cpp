@@ -1,6 +1,7 @@
-// A benchmark for the throughput of tmc::ex_braid.
-// Similar to the chan_bench example, but effectively always has 1 consumer.
-// Sweeps from 1 to 10 producers.
+// A benchmark for the latency and/or bandwidth of single-threaded executors.
+// Tasks are dispatched from tmc::cpu_executor() into the single threaded
+// executor, and then awaited. Sweeps from 1 to N producers, where N is the
+// number of cores on the machine.
 
 #define TMC_IMPL
 
