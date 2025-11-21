@@ -50,7 +50,7 @@ else()
     CPMAddPackage(
         NAME TooManyCooks
         GIT_REPOSITORY https://github.com/tzcnt/TooManyCooks.git
-        GIT_TAG 64d336b07d05e4d87564c991ed5c89262f025027
+        GIT_TAG b69e4d91e8fbfa57a119f7d7aabd83e9a7a39c92
         DOWNLOAD_ONLY)
 
     CPMAddPackage(
@@ -253,6 +253,10 @@ make_exe(equilibrium
 
 make_exe(callback_awaitable
     examples/callback_awaitable.cpp
+)
+
+make_exe(exec_st_roundtrip_bench
+    examples/exec_st_roundtrip_bench.cpp
 )
 
 make_exe(external_coro

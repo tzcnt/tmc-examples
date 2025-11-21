@@ -5,6 +5,8 @@
 #include "tmc/detail/concepts_awaitable.hpp"
 #include "tmc/detail/thread_locals.hpp"
 #include "tmc/ex_braid.hpp"
+#include "tmc/ex_cpu.hpp"
+#include "tmc/ex_cpu_st.hpp"
 #include "tmc/spawn.hpp"
 #include "tmc/spawn_func.hpp"
 #include "tmc/spawn_many.hpp"
@@ -40,6 +42,18 @@ TEST_F(CATEGORY, nested_ex_cpu) {
   test_async_main(ex(), []() -> tmc::task<void> {
     tmc::ex_cpu localEx;
     localEx.set_thread_count(1).init();
+
+    auto result = co_await bounce(localEx);
+    EXPECT_EQ(result, 20);
+    result = co_await tmc::spawn(bounce(ex())).run_on(localEx);
+    EXPECT_EQ(result, 20);
+  }());
+}
+
+TEST_F(CATEGORY, nested_ex_cpu_st) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    tmc::ex_cpu_st localEx;
+    localEx.init();
 
     auto result = co_await bounce(localEx);
     EXPECT_EQ(result, 20);

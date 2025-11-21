@@ -247,12 +247,10 @@ TEST_F(CATEGORY, config_sweep) {
   do_chan_test<1>(ex(), 0, true, false);
   do_chan_test<1>(ex(), 1, false, false);
   do_chan_test<1>(ex(), 1, true, false);
-  if constexpr (TMC_PLATFORM_BITS == 64) {
-    do_chan_test<2>(ex(), 0, false, false);
-    do_chan_test<2>(ex(), 0, true, false);
-    do_chan_test<2>(ex(), 1, false, false);
-    do_chan_test<2>(ex(), 1, true, false);
-  }
+  do_chan_test<2>(ex(), 0, false, false);
+  do_chan_test<2>(ex(), 0, true, false);
+  do_chan_test<2>(ex(), 1, false, false);
+  do_chan_test<2>(ex(), 1, true, false);
 }
 
 TEST_F(CATEGORY, config_sweep_try_pull) {
@@ -264,12 +262,10 @@ TEST_F(CATEGORY, config_sweep_try_pull) {
   do_chan_test<1>(ex(), 0, true, true);
   do_chan_test<1>(ex(), 1, false, true);
   do_chan_test<1>(ex(), 1, true, true);
-  if constexpr (TMC_PLATFORM_BITS == 64) {
-    do_chan_test<2>(ex(), 0, false, true);
-    do_chan_test<2>(ex(), 0, true, true);
-    do_chan_test<2>(ex(), 1, false, true);
-    do_chan_test<2>(ex(), 1, true, true);
-  }
+  do_chan_test<2>(ex(), 0, false, true);
+  do_chan_test<2>(ex(), 0, true, true);
+  do_chan_test<2>(ex(), 1, false, true);
+  do_chan_test<2>(ex(), 1, true, true);
 }
 
 // Running 1 consumer and 1 producer at the same time on a single thread

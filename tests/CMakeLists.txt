@@ -76,8 +76,11 @@ make_exe(
   test_semaphore.cpp
   test_ex_any.cpp
   test_ex_cpu.cpp
+  test_ex_cpu_st.cpp
   test_ex_asio.cpp
   test_ex_braid.cpp
+  test_bitmap_object_pool.cpp
+  test_bit_manip.cpp
   test_prio.cpp
   test_atomic_condvar.cpp
   test_channel.cpp
@@ -85,6 +88,7 @@ make_exe(
   test_misc.cpp
   test_coro_functor.cpp
   test_qu_lockfree.cpp
+  test_qu_mpsc.cpp
   test_thread_layout.cpp
   test_fork_group.cpp
   test_spawn_group.cpp
