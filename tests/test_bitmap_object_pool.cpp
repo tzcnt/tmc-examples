@@ -1,11 +1,21 @@
 #include "test_common.hpp"
 #include "tmc/all_headers.hpp"
+#include "tmc/asio/aw_asio.hpp"
+#include "tmc/asio/ex_asio.hpp"
 #include "tmc/detail/bitmap_object_pool.hpp"
 
 #include <atomic>
 #include <gtest/gtest.h>
 #include <ranges>
 #include <vector>
+
+#ifdef TMC_USE_BOOST_ASIO
+#include <boost/asio/steady_timer.hpp>
+
+namespace asio = boost::asio;
+#else
+#include <asio/steady_timer.hpp>
+#endif
 
 using namespace tmc::detail;
 
@@ -15,9 +25,13 @@ class CATEGORY : public testing::Test {
 protected:
   static void SetUpTestSuite() {
     tmc::cpu_executor().set_thread_count(16).init();
+    tmc::asio_executor().init();
   }
 
-  static void TearDownTestSuite() { tmc::cpu_executor().teardown(); }
+  static void TearDownTestSuite() {
+    tmc::asio_executor().teardown();
+    tmc::cpu_executor().teardown();
+  }
 
   static tmc::ex_cpu& ex() { return tmc::cpu_executor(); }
 };
@@ -130,7 +144,7 @@ TEST_F(CATEGORY, destructor_count_wfpg_9999) {
 
 template <size_t Count> void vector_test(tmc::ex_cpu& ex) {
   test_async_main(ex, []() -> tmc::task<void> {
-    BitmapObjectPool<std::vector<size_t>> pool;
+    auto pool = BitmapObjectPool<std::vector<size_t>>{};
 
     auto tasks =
       std::ranges::views::iota(static_cast<size_t>(0), Count) |
@@ -178,7 +192,7 @@ TEST_F(CATEGORY, vector_9999) { vector_test<9999>(ex()); }
 
 TEST_F(CATEGORY, vector_count) {
   test_async_main(ex(), []() -> tmc::task<void> {
-    BitmapObjectPool<std::vector<size_t>> pool;
+    auto pool = BitmapObjectPool<std::vector<size_t>>{};
 
     size_t Count = 9999;
     tmc::barrier bar(Count + 1);
@@ -295,7 +309,7 @@ TEST_F(CATEGORY, vector_count) {
 }
 
 TEST_F(CATEGORY, initialize_with_params) {
-  BitmapObjectPool<std::vector<size_t>> pool;
+  auto pool = BitmapObjectPool<std::vector<size_t>>{};
   {
     auto obj = pool.acquire_scoped(5u);
     EXPECT_EQ(obj.value.size(), 5);
@@ -324,7 +338,7 @@ struct move_only_type {
 
 // Verify that the pool can hold an object that has no default constructor
 TEST_F(CATEGORY, no_default_constructor) {
-  BitmapObjectPool<move_only_type> pool;
+  auto pool = BitmapObjectPool<move_only_type>{};
   {
     auto obj = pool.acquire_scoped(5);
     EXPECT_EQ(obj.value.value, 5);
@@ -340,7 +354,7 @@ TEST_F(CATEGORY, no_default_constructor) {
 
 // Verify that perfect forwarding into the held object constructor works
 TEST_F(CATEGORY, move_construct) {
-  BitmapObjectPool<move_only_type> pool;
+  auto pool = BitmapObjectPool<move_only_type>{};
   {
     auto obj = pool.acquire_scoped(move_only_type{5});
     EXPECT_EQ(obj.value.value, 5);
@@ -352,5 +366,48 @@ TEST_F(CATEGORY, move_construct) {
     EXPECT_EQ(obj.value.value, 5);
     obj.release();
   }
+}
+
+// Destructor should wait for any in-use objects to be released before
+// completing. This handles a real possible race condition that can be caused by
+// user code when:
+// 1. call spawn().run_on() to an executor from thread A. post() completes, but
+// the thread is pre-empted before notify_n() is called.
+// 2. executor thread resumes and completes.
+// 3. thread B is resumed with the continuation of the spawned task.
+// 4. thread B's task completes and destroys the executor (goes out of scope).
+// 5. thread A resumes and is now accessing a destroyed object.
+//
+// By waiting for all in-use objects to be released, this infrequent race
+// condition can be mitigated.
+//
+// This test uses a timer to cause the race condition to occur. Thus it could be
+// flaky on some very underprovisioned systems (CI builds).
+
+TEST_F(CATEGORY, destructor_race) {
+  test_async_main(tmc::cpu_executor(), []() -> tmc::task<void> {
+    auto fg = tmc::fork_group();
+
+    {
+      auto pool = BitmapObjectPool<int>{};
+      auto bar = tmc::barrier(2);
+      fg.fork(
+        [](BitmapObjectPool<int>& Pool, tmc::barrier& Bar) -> tmc::task<void> {
+          auto race_handle = Pool.acquire_scoped();
+          // Barrier guarantees that we get to acquire the handle before the
+          // destructor runs.
+          co_await Bar;
+          co_await asio::steady_timer{
+            tmc::asio_executor(), std::chrono::milliseconds(15)
+          }
+            .async_wait(tmc::aw_asio);
+          race_handle.release();
+        }(pool, bar)
+      );
+      co_await bar;
+      // pool destructor is now racing against the timer
+    }
+    co_await std::move(fg);
+  }());
 }
 #undef CATEGORY
