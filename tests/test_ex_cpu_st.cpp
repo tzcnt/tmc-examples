@@ -55,6 +55,12 @@ TEST_F(CATEGORY, set_thread_teardown_hook) {
   EXPECT_EQ(thr.load(), 0);
 }
 
+TEST_F(CATEGORY, thread_count) {
+  tmc::ex_cpu_st ex;
+  ex.init();
+  EXPECT_EQ(ex.thread_count(), 1);
+}
+
 TEST_F(CATEGORY, no_init) { tmc::ex_cpu_st ex; }
 
 TEST_F(CATEGORY, init_twice) {
