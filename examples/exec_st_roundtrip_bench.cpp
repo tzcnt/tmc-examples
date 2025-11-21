@@ -6,7 +6,6 @@
 
 #include "tmc/all_headers.hpp"
 #include "tmc/asio/ex_asio.hpp"
-#include "tmc/utils.hpp"
 
 #include <array>
 #include <chrono>
@@ -23,12 +22,17 @@ static tmc::task<void> consumer([[maybe_unused]] int i) {
 
 template <typename Exec>
 static tmc::task<void> producer(Exec& ex, size_t count) {
-  // co_await tmc::spawn(consumer(static_cast<int>(i))).run_on(ex);
-  auto fg = tmc::fork_group();
+  // Single task round trip latency
   for (size_t i = 0; i < count; ++i) {
-    fg.fork(consumer(static_cast<int>(i)), ex);
+    co_await tmc::spawn(consumer(static_cast<int>(i))).run_on(ex);
   }
-  co_await std::move(fg);
+
+  // // Single task dispatch, bulk await
+  // auto fg = tmc::fork_group();
+  // for (size_t i = 0; i < count; ++i) {
+  //   fg.fork(consumer(static_cast<int>(i)), ex);
+  // }
+  // co_await std::move(fg);
 }
 
 static std::string formatWithCommas(size_t n) {
@@ -109,7 +113,7 @@ int main() {
       double overallSec = static_cast<double>(totals[i]) / 1000.0;
       std::printf(" %.2f sec  ", overallSec);
     }
-
+    std::printf("\n");
     co_return 0;
   }());
 }
