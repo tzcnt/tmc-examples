@@ -255,6 +255,10 @@ make_exe(callback_awaitable
     examples/callback_awaitable.cpp
 )
 
+make_exe(exec_st_roundtrip_bench
+    examples/exec_st_roundtrip_bench.cpp
+)
+
 make_exe(external_coro
     examples/external_coro.cpp
 )
