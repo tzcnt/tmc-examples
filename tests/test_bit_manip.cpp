@@ -102,6 +102,8 @@ TEST_F(CATEGORY, blsr) {
 // These delegate to stdlib so no need to test extensively
 TEST_F(CATEGORY, tzcnt) { EXPECT_EQ(tmc::detail::tzcnt(1), 0); }
 
-TEST_F(CATEGORY, lzcnt) { EXPECT_EQ(tmc::detail::lzcnt(1), 63); }
+TEST_F(CATEGORY, lzcnt) {
+  EXPECT_EQ(tmc::detail::lzcnt(1), TMC_PLATFORM_BITS - 1);
+}
 
 TEST_F(CATEGORY, popcnt) { EXPECT_EQ(tmc::detail::popcnt(32), 1); }
