@@ -66,12 +66,18 @@ TEST_F(CATEGORY, blsi) {
   EXPECT_EQ(tmc::detail::blsi(1), 1);
   EXPECT_EQ(tmc::detail::blsi(2), 2);
   EXPECT_EQ(tmc::detail::blsi(3), 1);
-  EXPECT_EQ(tmc::detail::blsi(TMC_ONE_BIT << 63), TMC_ONE_BIT << 63);
   EXPECT_EQ(
-    tmc::detail::blsi((TMC_ONE_BIT << 63) | (TMC_ONE_BIT << 62)),
-    TMC_ONE_BIT << 62
+    tmc::detail::blsi(TMC_ONE_BIT << (TMC_PLATFORM_BITS - 1)),
+    TMC_ONE_BIT << (TMC_PLATFORM_BITS - 1)
   );
-  EXPECT_EQ(tmc::detail::blsi((TMC_ONE_BIT << 63) | 1), 1);
+  EXPECT_EQ(
+    tmc::detail::blsi(
+      (TMC_ONE_BIT << (TMC_PLATFORM_BITS - 1)) |
+      (TMC_ONE_BIT << (TMC_PLATFORM_BITS - 2))
+    ),
+    TMC_ONE_BIT << (TMC_PLATFORM_BITS - 2)
+  );
+  EXPECT_EQ(tmc::detail::blsi((TMC_ONE_BIT << (TMC_PLATFORM_BITS - 1)) | 1), 1);
 }
 
 TEST_F(CATEGORY, blsr) {
@@ -79,12 +85,18 @@ TEST_F(CATEGORY, blsr) {
   EXPECT_EQ(tmc::detail::blsr(1), 0);
   EXPECT_EQ(tmc::detail::blsr(2), 0);
   EXPECT_EQ(tmc::detail::blsr(3), 2);
-  EXPECT_EQ(tmc::detail::blsr(TMC_ONE_BIT << 63), 0);
+  EXPECT_EQ(tmc::detail::blsr(TMC_ONE_BIT << (TMC_PLATFORM_BITS - 1)), 0);
   EXPECT_EQ(
-    tmc::detail::blsr((TMC_ONE_BIT << 63) | (TMC_ONE_BIT << 62)),
-    TMC_ONE_BIT << 63
+    tmc::detail::blsr(
+      (TMC_ONE_BIT << (TMC_PLATFORM_BITS - 1)) |
+      (TMC_ONE_BIT << (TMC_PLATFORM_BITS - 2))
+    ),
+    TMC_ONE_BIT << (TMC_PLATFORM_BITS - 1)
   );
-  EXPECT_EQ(tmc::detail::blsr((TMC_ONE_BIT << 63) | 1), TMC_ONE_BIT << 63);
+  EXPECT_EQ(
+    tmc::detail::blsr((TMC_ONE_BIT << (TMC_PLATFORM_BITS - 1)) | 1),
+    TMC_ONE_BIT << (TMC_PLATFORM_BITS - 1)
+  );
 }
 
 // These delegate to stdlib so no need to test extensively
