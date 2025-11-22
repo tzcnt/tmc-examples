@@ -25,8 +25,8 @@ template <typename Result> class aw_external_coro_final_suspend {
 
 public:
   bool await_ready() const noexcept { return false; }
-  std::coroutine_handle<>
-  await_suspend([[maybe_unused]] std::coroutine_handle<> ending
+  std::coroutine_handle<> await_suspend(
+    [[maybe_unused]] std::coroutine_handle<> ending
   ) const noexcept {
     return handle;
   }
@@ -73,8 +73,8 @@ template <typename Result> class aw_external_coro {
 
 public:
   inline bool await_ready() const noexcept { return handle.done(); }
-  inline std::coroutine_handle<> await_suspend(std::coroutine_handle<> Outer
-  ) noexcept {
+  inline std::coroutine_handle<>
+  await_suspend(std::coroutine_handle<> Outer) noexcept {
     auto& p = handle.promise();
     p.continuation = Outer;
     p.result_ptr = &result;
@@ -91,8 +91,8 @@ template <> class aw_external_coro<void> {
 
 public:
   bool await_ready() const noexcept { return handle.done(); }
-  std::coroutine_handle<> await_suspend(std::coroutine_handle<> Outer
-  ) const noexcept {
+  std::coroutine_handle<>
+  await_suspend(std::coroutine_handle<> Outer) const noexcept {
     auto& p = handle.promise();
     p.continuation = Outer;
     return handle;

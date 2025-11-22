@@ -126,7 +126,8 @@ TEST_F(CATEGORY, co_notify_one) {
     {
       tmc::atomic_condvar<int> cv(1);
       atomic_awaitable<int> aa(1);
-      auto t = tmc::spawn(make_waiter(cv, aa)
+      auto t = tmc::spawn(
+                 make_waiter(cv, aa)
 
       )
                  .with_priority(1)
