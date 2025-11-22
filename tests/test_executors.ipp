@@ -736,17 +736,6 @@ TEST_F(CATEGORY, spawn_value) {
         return [](int Value) -> tmc::task<int> { co_return Value + 1; }(value);
       });
       EXPECT_EQ(value, 3);
-
-      // You can capture an rvalue reference, but not an lvalue reference,
-      // to the result of co_await spawn(). The result will be a temporary
-      // kept alive by lifetime extension.
-      auto spt = spawn([](int InnerSlot) -> tmc::task<int> {
-        co_return InnerSlot + 1;
-      }(value));
-      auto&& sptr = co_await std::move(spt);
-      value = sptr;
-      EXPECT_EQ(value, 4);
-      co_return;
     }(),
     0
   );

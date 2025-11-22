@@ -13,6 +13,7 @@
 #define TMC_IMPL
 
 #include "tmc/aw_yield.hpp"
+#include "tmc/detail/compat.hpp"
 #include "tmc/ex_cpu.hpp"
 #include "tmc/spawn_many.hpp"
 #include "tmc/task.hpp"
@@ -28,7 +29,9 @@ struct unaligned_struct {
 struct alignas(ALIGNMENT) aligned_struct {
   int value;
   int value2;
+  TMC_DISABLE_WARNING_PADDED_BEGIN
 };
+TMC_DISABLE_WARNING_PADDED_END
 
 static void check_alignment(void* ptr) {
   auto low_bits = reinterpret_cast<size_t>(ptr) % ALIGNMENT;

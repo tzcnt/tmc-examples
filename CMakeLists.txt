@@ -7,7 +7,6 @@ set(CMAKE_MODULE_PATH
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS "1")
 
-# set(CMAKE_CXX20_STANDARD_COMPILE_OPTION "-std=c++20")
 set(CMAKE_CXX_STANDARD 20)
 
 add_definitions(
@@ -157,15 +156,6 @@ else()
     )
 endif()
 
-# Sanitizers
-
-# add_definitions("-fsanitize=address")
-# add_link_options("-fsanitize=address")
-# add_definitions("-fsanitize=thread")
-# add_link_options("-fsanitize=thread")
-# add_definitions("-fsanitize=undefined -fno-sanitize-recover")
-# add_link_options("-fsanitize=undefined")
-
 # Build tests and examples with most pedantic warnings possible
 # to ensure the library remains clean for users
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
@@ -208,19 +198,17 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
         "-Wall"
         "-Wextra"
         "-Wpedantic"
-
-        # Fixing this is not easy as we need to handle both eager and lazy input ranges.
-        # Doing so "properly" without any "pessimizing moves" would require a lot of extra template code.
-        # Realistically this is not an issue as the moved objects are very small (coroutine handles).
-        "-Wno-pessimizing-move"
     )
 endif()
 
-if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
-    add_definitions(
-        "/wd4324" # structure was padded due to an alignment specifier - this is intentional
-    )
-endif()
+# Sanitizers
+
+# add_definitions("-fsanitize=address")
+# add_link_options("-fsanitize=address")
+# add_definitions("-fsanitize=thread")
+# add_link_options("-fsanitize=thread")
+# add_definitions("-fsanitize=undefined -fno-sanitize-recover")
+# add_link_options("-fsanitize=undefined")
 
 # copy compile_commands.json to the build directory after build so clangd can find it
 # clangd won't look in the /build/{config} directory, only in the top-level /build directory
