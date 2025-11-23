@@ -49,13 +49,13 @@ else()
     CPMAddPackage(
         NAME TooManyCooks
         GIT_REPOSITORY https://github.com/tzcnt/TooManyCooks.git
-        GIT_TAG b69e4d91e8fbfa57a119f7d7aabd83e9a7a39c92
+        GIT_TAG v1.2.0
         DOWNLOAD_ONLY)
 
     CPMAddPackage(
         NAME tmc_asio
         GIT_REPOSITORY https://github.com/tzcnt/tmc-asio.git
-        GIT_TAG e92ffeeceea6de484032ef7d5eac4a4bbb9007a1
+        GIT_TAG v1.2.0
         DOWNLOAD_ONLY)
 
     set(TMC_INCLUDE_PATH ${TooManyCooks_SOURCE_DIR}/include CACHE STRING "" FORCE)
@@ -110,7 +110,7 @@ else()
             set(MALLOC_LIB "${LIBJEMALLOC_LIBRARY}")
             message(STATUS "Using malloc: ${MALLOC_LIB}")
         else()
-            message(STATUS "WARNING: No high performance allocator was found. Using default system allocator. This may cause slowness.")
+            message(STATUS "WARNING: No high performance allocator was found. Using default system allocator.")
         endif()
     endif()
 endif()
