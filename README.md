@@ -9,11 +9,20 @@ https://github.com/tzcnt/TooManyCooks/
 Some of the examples also use other libraries in the TMC ecosystem:
 https://github.com/tzcnt/tmc-asio/
 
-This repository uses CMake to download and configure the TMC libraries, either as CPM packages (by default), or as git submodules (optionally). It provides a CMakePresets.json with configurations for common Linux and Windows environments.
+This repository uses CMake to download and configure the TMC libraries, either as CPM packages (by default), or as git submodules (optionally). It provides a `CMakePresets.json` with configurations for Linux/Windows/MacOS and Clang/GCC/MSVC.
+
+### Building
+Choose a value for `PRESET` from `CMakePresets.json` that is appropriate for your system.
+```bash
+PRESET=clang-linux-release
+cmake --preset $PRESET .
+cmake --build ./build/$PRESET --target all
+cd ./build/$PRESET
+./tests/tests
+```
 
 For a minimal project template to setup TMC for your own uses, see https://github.com/tzcnt/tmc-hello-world.
 
-Although the TMC libraries are licensed under the Boost Software License 1.0, the example code in this repository is public domain ("The Unlicense"), and may be copied or modified without attribution.
 
 ### Supported Compilers
 Linux:
@@ -30,3 +39,6 @@ MacOS:
 ### Supported Hardware
 - x86 (32- or 64-bit)
 - AArch64
+
+### License
+Although the TMC libraries are licensed under the Boost Software License 1.0, the example code in this repository is public domain ("The Unlicense"), and may be copied or modified without attribution.
