@@ -77,6 +77,7 @@ make_exe(
   test_ex_any.cpp
   test_ex_cpu.cpp
   test_ex_cpu_st.cpp
+  test_ex_manual_st.cpp
   test_ex_asio.cpp
   test_ex_braid.cpp
   test_bitmap_object_pool.cpp
