@@ -60,8 +60,8 @@ public:
 
   /// Returns a pointer to the type erased `ex_any` version of this executor.
   /// This object shares a lifetime with this executor, and can be used for
-  /// pointer-based equality comparison against the thread-local
-  /// `tmc::current_executor()`.
+  /// pointer-based equality comparison against
+  /// the thread-local `tmc::current_executor()`.
   tmc::ex_any* type_erased() { return &type_erased_this; }
 };
 
