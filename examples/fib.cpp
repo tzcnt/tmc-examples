@@ -5,10 +5,12 @@
 #define TMC_IMPL
 
 #include "tmc/all_headers.hpp"
+#include "tmc/detail/tiny_vec.hpp"
 
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
+#include <future>
 #include <utility>
 
 static tmc::task<size_t> fib(size_t n) {
@@ -74,18 +76,57 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
   // Opt-in to hyperthreading
   tmc::cpu_executor().set_thread_occupancy(2.0f);
 #endif
-  tmc::async_main([](size_t N) -> tmc::task<int> {
-    auto startTime = std::chrono::high_resolution_clock::now();
-    for (size_t i = 0; i < NRUNS; ++i) {
-      co_await top_fib(N);
-    }
+  auto topology = tmc::query_system_topology();
+  std::printf("\nSystem has %zu L3 groups\n", topology.l3_groups.size());
 
+  if (topology.l3_groups.size() < 2) {
+    std::printf("\n=== Test 4: Create executor for each L3 partition ===\n");
+
+    tmc::detail::tiny_vec<tmc::ex_cpu> execs;
+    execs.resize(topology.l3_groups.size());
+    // Create and teardown each executor sequentially
+    for (size_t i = 0; i < execs.size(); ++i) {
+      execs.emplace_at(i);
+      execs[i].set_partition_l3({static_cast<unsigned>(i)});
+      execs[i].init();
+    }
+    auto startTime = std::chrono::high_resolution_clock::now();
+    std::vector<std::future<void>> futs;
+    futs.resize(execs.size());
+    for (size_t i = 0; i < execs.size(); ++i) {
+      futs[i] = tmc::post_waitable(execs[i], top_fib(n));
+    }
+    for (size_t i = 0; i < execs.size(); ++i) {
+      futs[i].wait();
+    }
     auto endTime = std::chrono::high_resolution_clock::now();
     size_t totalTimeUs = static_cast<size_t>(
       std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime)
         .count()
     );
-    std::printf("%zu us\n", totalTimeUs / NRUNS);
-    co_return 0;
-  }(n));
+    std::printf("%zu us (effective)\n", totalTimeUs / (NRUNS * execs.size()));
+    execs.clear();
+  } else {
+    tmc::cpu_executor()
+      .set_partition_numa({0})
+      .set_thread_occupancy(2.0f)
+      .init();
+    std::printf("exec has %zu cores\n", tmc::cpu_executor().thread_count());
+    tmc::async_main([](size_t N) -> tmc::task<int> {
+      auto startTime = std::chrono::high_resolution_clock::now();
+      for (size_t i = 0; i < NRUNS; ++i) {
+        co_await top_fib(N);
+      }
+
+      auto endTime = std::chrono::high_resolution_clock::now();
+      size_t totalTimeUs = static_cast<size_t>(
+        std::chrono::duration_cast<std::chrono::microseconds>(
+          endTime - startTime
+        )
+          .count()
+      );
+      std::printf("%zu us\n", totalTimeUs / NRUNS);
+      co_return 0;
+    }(n));
+  }
 }

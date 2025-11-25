@@ -288,6 +288,10 @@ make_exe(spawn_iterator
     examples/spawn_iterator.cpp
 )
 
+make_exe(partition_test
+    examples/partition_test.cpp
+)
+
 make_exe(asio_prio
     examples/asio/prio.cpp
 )
