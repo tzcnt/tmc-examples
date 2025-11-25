@@ -82,6 +82,29 @@ TEST_F(CATEGORY, empty) {
   ex.teardown();
 }
 
+TEST_F(CATEGORY, empty_internal) {
+  tmc::ex_manual_st ex;
+  ex.init();
+  EXPECT_TRUE(ex.empty());
+
+  auto fut = tmc::post_waitable(ex, []() -> tmc::task<void> {
+    // Use change_priority to force the task into a different internal execution
+    // queue
+    co_await tmc::change_priority(1);
+    co_return;
+  }());
+  EXPECT_FALSE(ex.empty());
+
+  // Pump the executor twice (first time requeues the task)
+  ex.run_one();
+  EXPECT_FALSE(ex.empty());
+  ex.run_one();
+  EXPECT_TRUE(ex.empty());
+
+  fut.wait();
+  ex.teardown();
+}
+
 TEST_F(CATEGORY, set_prio) {
   tmc::ex_manual_st ex;
   ex.set_priority_count(1).init();
