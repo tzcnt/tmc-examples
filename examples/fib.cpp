@@ -5,6 +5,7 @@
 #define TMC_IMPL
 
 #include "tmc/all_headers.hpp"
+#include "tmc/detail/thread_layout.hpp"
 #include "tmc/detail/tiny_vec.hpp"
 
 #include <chrono>
@@ -72,22 +73,20 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
 
   size_t n = static_cast<size_t>(atoi(argv[1]));
 #endif
-#ifdef TMC_USE_HWLOC
-  // Opt-in to hyperthreading
-  tmc::cpu_executor().set_thread_occupancy(2.0f);
-#endif
-  auto topology = tmc::query_system_topology();
-  std::printf("\nSystem has %zu L3 groups\n", topology.l3_groups.size());
+  auto topology = tmc::topology::query();
+  std::printf("\nSystem has %zu L3 groups\n", topology.llc_count());
 
-  if (topology.l3_groups.size() < 2) {
+  if (topology.llc_count() < 2) {
     std::printf("\n=== Test 4: Create executor for each L3 partition ===\n");
 
     tmc::detail::tiny_vec<tmc::ex_cpu> execs;
-    execs.resize(topology.l3_groups.size());
+    execs.resize(topology.llc_count());
     // Create and teardown each executor sequentially
     for (size_t i = 0; i < execs.size(); ++i) {
       execs.emplace_at(i);
-      execs[i].set_partition_l3({static_cast<unsigned>(i)});
+      tmc::topology::TopologyFilter f;
+      f.set_llc_indexes({i});
+      execs[i].set_topology_filter(f);
       execs[i].init();
     }
     auto startTime = std::chrono::high_resolution_clock::now();
@@ -107,11 +106,16 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
     std::printf("%zu us (effective)\n", totalTimeUs / (NRUNS * execs.size()));
     execs.clear();
   } else {
+    tmc::topology::TopologyFilter f;
+    f.set_p_e_cores(false);
+    f.set_core_indexes({0, 17, 35, 63});
+    f.set_llc_indexes({0, 8, 15});
+    f.set_numa_indexes({0});
     tmc::cpu_executor()
-      .set_partition_numa({0})
-      .set_thread_occupancy(2.0f)
+      .set_topology_filter(f)
+      .set_thread_occupancy(1.5f)
       .init();
-    std::printf("exec has %zu cores\n", tmc::cpu_executor().thread_count());
+    std::printf("exec has %zu threads\n", tmc::cpu_executor().thread_count());
     tmc::async_main([](size_t N) -> tmc::task<int> {
       auto startTime = std::chrono::high_resolution_clock::now();
       for (size_t i = 0; i < NRUNS; ++i) {
