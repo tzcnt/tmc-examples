@@ -172,6 +172,11 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
         "-Wno-unsafe-buffer-usage"
         "-Wno-global-constructors"
         "-Wno-exit-time-destructors"
+
+        # Conflicts with "-Wswitch" and "-Wcovered-switch-default".
+        # I prefer to cover all cases when possible.
+        # TODO make this a warning disable macro
+        "-Wno-switch-default"
     )
 
     if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL "21.0")
