@@ -32,6 +32,7 @@ static tmc::task<size_t> fib(size_t n) {
   // co_return results[0] + results[1];
 
   /* Iterator adapter function to generate tasks, bulk spawn */
+  /* required #include "tmc/utils.hpp"*/
   // auto results = co_await spawn_many<2>(iter_adapter(n - 2, fib));
   // co_return results[0] + results[1];
 
