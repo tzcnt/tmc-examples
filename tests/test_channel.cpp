@@ -301,11 +301,9 @@ TEST_F(CATEGORY, push_single_threaded) {
       [](auto Chan) -> tmc::task<result> {
         size_t count = 0;
         size_t sum = 0;
-        std::optional<size_t> v = co_await Chan.pull();
-        while (v.has_value()) {
+        while (std::optional<size_t> v = co_await Chan.pull()) {
           sum += v.value();
           ++count;
-          v = co_await Chan.pull();
         }
         co_return result{count, sum};
       }(chan)
