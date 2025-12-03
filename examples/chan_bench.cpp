@@ -40,11 +40,9 @@ static tmc::task<result> consumer(token chan) {
   size_t sum = 0;
 
   // pull() implementation
-  auto data = co_await chan.pull();
-  while (data.has_value()) {
+  while (auto data = co_await chan.pull()) {
     ++count;
     sum += data.value();
-    data = co_await chan.pull();
   }
   co_return result{count, sum};
 

@@ -127,10 +127,8 @@ static auto run_one_test(bool wait_on_producers) -> tmc::task<int> {
   // Drain remaining data
   {
     size_t sum = 0;
-    auto data = co_await chan.pull();
-    while (data.has_value()) {
+    while (auto data = co_await chan.pull()) {
       sum += data.value();
-      data = co_await chan.pull();
     }
     full_sum.fetch_add(sum);
   }
