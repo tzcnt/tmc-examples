@@ -96,7 +96,16 @@ struct pipeline_stage_func {
     size_t workerCount
   )
       : outChan_(tmc::make_channel<Output>()),
-        outSem_(tmc::semaphore(tmc::semaphore::half_word(2 * workerCount))) {
+        // Initialize our output semaphore to 0. The next stage will set this
+        // semaphore capacity (for their input channel) based on their worker
+        // count.
+        outSem_(tmc::semaphore(0)) {
+
+    // Set our input channel capacity to 2x our worker count.
+    if (inSem != nullptr) {
+      inSem->release(2 * workerCount);
+    }
+
     tmc::semaphore* outSem = &outSem_;
     if constexpr (End) {
       outSem = nullptr;
@@ -163,7 +172,16 @@ struct pipeline_stage_coro {
     size_t workerCount
   )
       : outChan_(tmc::make_channel<Output>()),
-        outSem_(tmc::semaphore(tmc::semaphore::half_word(2 * workerCount))) {
+        // Initialize our output semaphore to 0. The next stage will set this
+        // semaphore capacity (for their input channel) based on their worker
+        // count.
+        outSem_(tmc::semaphore(0)) {
+
+    // Set ouf input channel capacity to 2x our worker count.
+    if (inSem != nullptr) {
+      inSem->release(2 * workerCount);
+    }
+
     tmc::semaphore* outSem = &outSem_;
     if constexpr (End) {
       outSem = nullptr;
