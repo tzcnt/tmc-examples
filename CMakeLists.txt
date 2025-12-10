@@ -316,4 +316,8 @@ make_exe(asio_http_skynet
     examples/asio/http_skynet.cpp
 )
 
+make_exe(hwloc_hybrid_executor
+    examples/hwloc/hybrid_executor.cpp
+)
+
 add_subdirectory(tests)
