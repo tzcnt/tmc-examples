@@ -1,7 +1,7 @@
 #include "atomic_awaitable.hpp"
 #include "test_common.hpp"
 #include "test_spawn_many_common.hpp"
-#include "tmc/utils.hpp"
+#include "tmc/util/iter_adapter.hpp"
 
 #include <gtest/gtest.h>
 
@@ -16,17 +16,17 @@ static inline tmc::task<void> spawn_tuple_compose() {
   // spawn_tuple (as if they were being co_awaited).
   auto sf = tmc::spawn(work(2)).fork();
   auto tf = tmc::spawn_tuple(work(4)).fork();
-  auto smaf = tmc::spawn_many<1>(tmc::iter_adapter(6, work)).fork();
-  auto smvf = tmc::spawn_many(tmc::iter_adapter(8, work), 1).fork();
+  auto smaf = tmc::spawn_many<1>(tmc::util::iter_adapter(6, work)).fork();
+  auto smvf = tmc::spawn_many(tmc::util::iter_adapter(8, work), 1).fork();
   auto sff = tmc::spawn_func([]() -> int { return 1 << 10; }).fork();
   auto sfmaf = tmc::spawn_func_many<1>(
-                 tmc::iter_adapter(12, [](int i) -> auto {
+                 tmc::util::iter_adapter(12, [](int i) -> auto {
                    return [i]() -> int { return 1 << i; };
                  })
   ).fork();
   auto sfmvf =
     tmc::spawn_func_many(
-      tmc::iter_adapter(
+      tmc::util::iter_adapter(
         14, [](int i) -> auto { return [i]() -> int { return 1 << i; }; }
       ),
       1
@@ -39,16 +39,16 @@ static inline tmc::task<void> spawn_tuple_compose() {
     std::array<int, 1>, std::array<int, 1>, std::vector<int>, std::vector<int>>
     results = co_await tmc::spawn_tuple(
       work(0), tmc::spawn(work(1)), std::move(sf), tmc::spawn_tuple(work(3)),
-      std::move(tf), tmc::spawn_many<1>(tmc::iter_adapter(5, work)),
-      std::move(smaf), tmc::spawn_many(tmc::iter_adapter(7, work), 1),
+      std::move(tf), tmc::spawn_many<1>(tmc::util::iter_adapter(5, work)),
+      std::move(smaf), tmc::spawn_many(tmc::util::iter_adapter(7, work), 1),
       std::move(smvf), tmc::spawn_func([]() -> int { return 1 << 9; }),
       std::move(sff),
-      tmc::spawn_func_many<1>(tmc::iter_adapter(
+      tmc::spawn_func_many<1>(tmc::util::iter_adapter(
         11, [](int i) -> auto { return [i]() -> int { return 1 << i; }; }
       )),
       std::move(sfmaf),
       tmc::spawn_func_many(
-        tmc::iter_adapter(
+        tmc::util::iter_adapter(
           13, [](int i) -> auto { return [i]() -> int { return 1 << i; }; }
         ),
         1
@@ -173,7 +173,7 @@ static inline tmc::task<void> spawn_many_compose_spawn_many() {
     // Using iter_adapter instead of inner range works.
     auto iter =
       std::ranges::views::iota(0) | std::ranges::views::transform([](int i) {
-        return tmc::spawn_many<2>(tmc::iter_adapter(i * 2, work));
+        return tmc::spawn_many<2>(tmc::util::iter_adapter(i * 2, work));
       });
     std::array<std::array<int, 2>, 2> results =
       co_await tmc::spawn_many<2>(iter.begin());
@@ -246,7 +246,7 @@ static inline tmc::task<void> spawn_many_compose_spawn_func_many() {
     // Using iter_adapter instead of inner range also works.
     // auto iter =
     //   std::ranges::views::iota(0) | std::ranges::views::transform([](int i) {
-    //     return tmc::spawn_func_many<2>(tmc::iter_adapter(
+    //     return tmc::spawn_func_many<2>(tmc::util::iter_adapter(
     //       i * 2, [](int i) -> auto { return [i]() -> int { return 1 << i; };
     //       }
     //     ));
