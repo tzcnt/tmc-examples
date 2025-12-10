@@ -32,7 +32,8 @@ template <typename Exec> void test_post(Exec e) {
 
 template <typename Exec> void test_post_bulk_coro(Exec e) {
   tmc::post_bulk_waitable(
-    e, tmc::iter_adapter(0, [](int) -> tmc::task<void> { co_return; }), 10, 0
+    e, tmc::util::iter_adapter(0, [](int) -> tmc::task<void> { co_return; }),
+    10, 0
   )
     .get();
 

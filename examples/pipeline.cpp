@@ -12,6 +12,7 @@
 #define TMC_IMPL
 
 #include "tmc/all_headers.hpp"
+#include "tmc/util/awaitable_traits.hpp"
 
 #include <chrono>
 #include <cstdio>
@@ -55,34 +56,18 @@ tmc::task<void> worker_func(
     if (inSem != nullptr) {
       inSem->release();
     }
-    co_await outChan.push(func(input.value()));
+    if constexpr (tmc::detail::is_awaitable_v<
+                    std::invoke_result_t<Func, Input>>) {
+      co_await outChan.push(co_await func(input.value()));
+    } else {
+      co_await outChan.push(func(input.value()));
+    }
   }
 }
 
-template <typename Input, typename Output, typename Func>
-tmc::task<void> worker_coro(
-  tmc::chan_tok<Input> inChan, tmc::semaphore* inSem,
-  tmc::chan_tok<Output> outChan, tmc::semaphore* outSem, Func func
-) {
-  while (true) {
-    // TMC semaphores are unfair / LIFO.
-    // In order to implement "roughly FIFO" processing, ensure we have the
-    // output semaphore before we get any data from the input channel.
-    // To account for this extra time with the semaphore held, the size of the
-    // semaphore is doubled to 2*nextWorkerCount.
-    if (outSem != nullptr) {
-      co_await *outSem;
-    }
-    auto input = co_await inChan.pull();
-    if (!input.has_value()) {
-      break;
-    }
-    if (inSem != nullptr) {
-      inSem->release();
-    }
-    co_await outChan.push(co_await func(input.value()));
-  }
-}
+using g = std::invoke_result<
+  tmc::task<double> (*)(float),
+  std::conditional<false, tmc::detail::unk, float>>;
 
 template <typename Input, typename Output, typename Func, bool End>
 struct pipeline_stage_func {
@@ -113,7 +98,7 @@ struct pipeline_stage_func {
 
     auto sg = tmc::spawn_group();
     for (size_t i = 0; i < workerCount; ++i) {
-      sg.add(worker_func(inChan, inSem, outChan_, outSem, func));
+      sg.add(worker_func<Input, Output>(inChan, inSem, outChan_, outSem, func));
     }
 
     // Create a task that automatically closes the output channel after all of
@@ -132,7 +117,10 @@ template <typename Input, typename Func>
 auto start_pipeline_func(
   tmc::chan_tok<Input> from, Func transformFunc, size_t workerCount = 1
 ) {
-  using Output = std::invoke_result_t<Func, Input>;
+  using Intermediate = std::invoke_result_t<Func, Input>;
+  using Output = std::conditional<
+    tmc::util::is_awaitable_v<Intermediate>,
+    tmc::util::awaitable_result_t<Intermediate>, Intermediate>;
   return pipeline_stage_func<Input, Output, Func, false>{
     from, nullptr, transformFunc, workerCount
   };
@@ -143,7 +131,10 @@ auto pipeline_transform_func(
   PriorStage& from, Func transformFunc, size_t workerCount = 1
 ) {
   using Input = PriorStage::output_t;
-  using Output = std::invoke_result_t<Func, Input>;
+  using Intermediate = std::invoke_result_t<Func, Input>;
+  using Output = std::conditional<
+    tmc::util::is_awaitable_v<Intermediate>,
+    tmc::util::awaitable_result_t<Intermediate>, Intermediate>;
   return pipeline_stage_func<Input, Output, Func, false>{
     from.outChan_, &from.outSem_, transformFunc, workerCount
   };
@@ -154,87 +145,11 @@ auto end_pipeline_func(
   PriorStage& from, Func transformFunc, size_t workerCount = 1
 ) {
   using Input = PriorStage::output_t;
-  using Output = std::invoke_result_t<Func, Input>;
+  using Intermediate = std::invoke_result_t<Func, Input>;
+  using Output = std::conditional<
+    tmc::util::is_awaitable_v<Intermediate>,
+    tmc::util::awaitable_result_t<Intermediate>, Intermediate>;
   return pipeline_stage_func<Input, Output, Func, true>{
-    from.outChan_, &from.outSem_, transformFunc, workerCount
-  };
-}
-
-template <typename Input, typename Output, typename Func, bool End>
-struct pipeline_stage_coro {
-  using output_t = Output;
-
-  tmc::chan_tok<Output> outChan_;
-  tmc::semaphore outSem_;
-
-  pipeline_stage_coro(
-    tmc::chan_tok<Input> inChan, tmc::semaphore* inSem, Func func,
-    size_t workerCount
-  )
-      : outChan_(tmc::make_channel<Output>()),
-        // Initialize our output semaphore to 0. The next stage will set this
-        // semaphore capacity (for their input channel) based on their worker
-        // count.
-        outSem_(tmc::semaphore(0)) {
-
-    // Set ouf input channel capacity to 2x our worker count.
-    if (inSem != nullptr) {
-      inSem->release(2 * workerCount);
-    }
-
-    tmc::semaphore* outSem = &outSem_;
-    if constexpr (End) {
-      outSem = nullptr;
-    }
-
-    auto sg = tmc::spawn_group();
-    for (size_t i = 0; i < workerCount; ++i) {
-      sg.add(worker_coro(inChan, inSem, outChan_, outSem, func));
-    }
-
-    // Create a task that automatically closes the output channel after all of
-    // the workers finish.
-    tmc::spawn([](auto SG, auto Chan) -> tmc::task<void> {
-      co_await std::move(SG);
-      co_await Chan.drain();
-    }(std::move(sg), outChan_))
-      .detach();
-  }
-
-  tmc::chan_tok<Output> get_channel() { return outChan_; }
-};
-
-template <typename Input, typename Func>
-auto start_pipeline_coro(
-  tmc::chan_tok<Input> from, Func transformFunc, size_t workerCount = 1
-) {
-  using Output =
-    tmc::detail::awaitable_result_t<std::invoke_result_t<Func, Input>>;
-  return pipeline_stage_coro<Input, Output, Func, false>{
-    from, nullptr, transformFunc, workerCount
-  };
-}
-
-template <typename PriorStage, typename Func>
-auto pipeline_transform_coro(
-  PriorStage& from, Func transformFunc, size_t workerCount = 1
-) {
-  using Input = PriorStage::output_t;
-  using Output =
-    tmc::detail::awaitable_result_t<std::invoke_result_t<Func, Input>>;
-  return pipeline_stage_coro<Input, Output, Func, false>{
-    from.outChan_, &from.outSem_, transformFunc, workerCount
-  };
-}
-
-template <typename PriorStage, typename Func>
-auto end_pipeline_coro(
-  PriorStage& from, Func transformFunc, size_t workerCount = 1
-) {
-  using Input = PriorStage::output_t;
-  using Output =
-    tmc::detail::awaitable_result_t<std::invoke_result_t<Func, Input>>;
-  return pipeline_stage_coro<Input, Output, Func, true>{
     from.outChan_, &from.outSem_, transformFunc, workerCount
   };
 }
@@ -253,7 +168,7 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
 
     auto in = tmc::make_channel<int>();
     auto first = start_pipeline_func(in, plus_half, 10);
-    auto second = pipeline_transform_coro(first, times_two, 10);
+    auto second = pipeline_transform_func(first, times_two, 10);
     auto third = pipeline_transform_func(second, minus_one, 10);
     auto out = end_pipeline_func(third, as_bool, 10);
 
