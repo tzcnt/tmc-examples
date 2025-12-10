@@ -12,6 +12,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <future>
+#include <ranges>
 #include <utility>
 
 static tmc::task<size_t> fib(size_t n) {
@@ -85,7 +86,7 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
     for (size_t i = 0; i < execs.size(); ++i) {
       execs.emplace_at(i);
       tmc::topology::TopologyFilter f;
-      f.set_llc_indexes({i});
+      f.set_cache_indexes({i});
       execs[i].set_topology_filter(f);
       execs[i].init();
     }
@@ -106,14 +107,15 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
     std::printf("%zu us (effective)\n", totalTimeUs / (NRUNS * execs.size()));
     execs.clear();
   } else {
-    tmc::topology::TopologyFilter f;
-    f.set_p_e_cores(false);
-    f.set_core_indexes({0, 17, 35, 63});
-    f.set_llc_indexes({0, 8, 15});
-    f.set_numa_indexes({0});
+    // tmc::topology::TopologyFilter f;
+    // f.set_cpu_kinds(tmc::topology::CpuKind::ALL);
+    // f.set_core_indexes({0, 1, 2, 3, 4, 5, 6, 7});
+    //   f.set_cache_indexes({0, 8, 15});
+    //   f.set_numa_indexes({0});
     tmc::cpu_executor()
-      .set_topology_filter(f)
-      .set_thread_occupancy(1.5f)
+      // .set_topology_filter(f)
+      // //.set_thread_occupancy(2.0f)
+      // .set_thread_count(8)
       .init();
     std::printf("exec has %zu threads\n", tmc::cpu_executor().thread_count());
     tmc::async_main([](size_t N) -> tmc::task<int> {

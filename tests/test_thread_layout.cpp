@@ -19,7 +19,7 @@ protected:
 };
 
 TEST_F(CATEGORY, group_iteration_order) {
-  tmc::detail::get_group_iteration_order(16, 5);
+  tmc::detail::get_flat_group_iteration_order(16, 5);
 }
 
 static std::vector<tmc::detail::L3CacheSet> get_core_groups() {

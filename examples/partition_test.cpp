@@ -1,13 +1,14 @@
 // Example demonstrating ex_cpu partitioning functionality
 
 #define TMC_IMPL
+#include "tmc/detail/thread_layout.hpp"
 #include "tmc/ex_cpu.hpp"
 
 #include <cstdio>
 #include <memory>
 #include <vector>
 
-tmc::task<int> example() {
+static tmc::task<int> example() {
 #ifdef TMC_USE_HWLOC
   std::printf("=== Testing partition functionality ===\n");
 
@@ -19,66 +20,71 @@ tmc::task<int> example() {
   exec1.teardown();
 
   // Test 2: Query topology and create an executor for each L3 partition
-  auto topology = tmc::query_system_topology();
-  std::printf("\nSystem has %zu L3 groups\n", topology.l3_groups.size());
-  
+  auto topology = tmc::topology::query();
+  std::printf("\nSystem has %zu cache groups\n", topology.caches.size());
+
   // Display heterogeneous core information
-  if (topology.has_hybrid_cores) {
+  if (topology.is_hybrid()) {
     std::printf("Hybrid CPU detected:\n");
-    std::printf("  Performance cores: %zu\n", topology.performance_core_count);
-    std::printf("  Efficiency cores: %zu\n", topology.efficiency_core_count);
+    std::printf("  Performance cores: %zu\n", topology.cpu_kind_counts[0]);
+    std::printf("  Efficiency cores: %zu\n", topology.cpu_kind_counts[1]);
   } else {
-    std::printf("Homogeneous CPU: %zu cores\n", 
-                topology.performance_core_count);
+    std::printf("Homogeneous CPU: %zu cores\n", topology.cpu_kind_counts[0]);
   }
 
   // Test 3: CPU kind partitioning (if hybrid cores exist)
-  if (topology.has_hybrid_cores) {
+  if (topology.is_hybrid()) {
     std::printf("\n=== Test 3: Partition by CPU kind ===\n");
-    
+
     {
-      std::printf("Performance cores: ");
+      std::printf("Performance cores: \n");
       std::fflush(stdout);
+      tmc::topology::TopologyFilter f;
+      f.set_cpu_kinds(tmc::topology::CpuKind::PERFORMANCE);
       auto exec = std::make_unique<tmc::ex_cpu>();
-      exec->set_partition_cpukind(tmc::ex_cpu::CpuKind::Performance);
-      exec->init();
+      exec->set_topology_filter(f).init();
       std::printf("Created executor with %zu threads\n", exec->thread_count());
       exec->teardown();
     }
-    
+
     {
-      std::printf("Efficiency cores: ");
+      std::printf("Efficiency cores: \n");
       std::fflush(stdout);
+      tmc::topology::TopologyFilter f;
+      f.set_cpu_kinds(tmc::topology::CpuKind::EFFICIENCY1);
       auto exec = std::make_unique<tmc::ex_cpu>();
-      exec->set_partition_cpukind(tmc::ex_cpu::CpuKind::Efficiency);
-      exec->init();
+      exec->set_topology_filter(f).init();
       std::printf("Created executor with %zu threads\n", exec->thread_count());
       exec->teardown();
     }
   }
 
-  if (topology.l3_groups.size() > 0) {
-    std::printf("\n=== Test 4: Create executor for each L3 partition ===\n");
-    
+  if (topology.caches.size() > 0) {
+    std::printf("\n=== Test 4: Create executor for each cache ===\n");
+
     // Create and teardown each executor sequentially
-    for (size_t i = 0; i < topology.l3_groups.size(); ++i) {
-      std::printf("L3 group %zu: ", i);
+    for (size_t i = 0; i < topology.caches.size(); ++i) {
+      std::printf("cache group %zu: \n", i);
       std::fflush(stdout);
+      tmc::topology::TopologyFilter f;
+      f.set_cache_indexes({0});
       auto exec = std::make_unique<tmc::ex_cpu>();
-      exec->set_partition_l3({static_cast<unsigned>(i)});
-      exec->init();
+      exec->set_topology_filter(f).init();
       std::printf("Created executor with %zu threads\n", exec->thread_count());
       exec->teardown();
     }
-    std::printf("Successfully created and tore down %zu partitioned executors\n",
-                topology.l3_groups.size());
+    std::printf(
+      "Successfully created and tore down %zu partitioned executors\n",
+      topology.caches.size()
+    );
   }
 
   std::printf("\n=== All tests completed successfully ===\n");
 #else
   std::printf(
     "This example requires TMC_USE_HWLOC to be enabled.\n"
-    "Please rebuild with -DTMC_USE_HWLOC=ON\n");
+    "Please rebuild with -DTMC_USE_HWLOC=ON\n"
+  );
 #endif
 
   co_return 0;
