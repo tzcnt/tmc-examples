@@ -9,6 +9,14 @@ fi
 
 CORES=$($PROGRAM --query)
 
+cleanup() {
+  echo "Terminating child processes..."
+  kill 0
+  wait
+  exit 0
+}
+trap cleanup SIGINT
+
 echo "Detected $CORES cores. Forking a worker process per core..."
 for (( i=0; i<$CORES; i++ )); do
   eval "$PROGRAM $i" &

@@ -9,6 +9,14 @@ fi
 
 CACHES=$($PROGRAM --query)
 
+cleanup() {
+  echo "Terminating child processes..."
+  kill 0
+  wait
+  exit 0
+}
+trap cleanup SIGINT
+
 echo "Detected $CACHES caches. Forking a worker process per cache..."
 for (( i=0; i<$CACHES; i++ )); do
   eval "$PROGRAM $i" &
