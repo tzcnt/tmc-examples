@@ -1,6 +1,11 @@
 #include "tmc/all_headers.hpp"
 #include "tmc/topology.hpp"
 #include <coroutine>
+#include <sys/qos.h>
+
+#ifdef __APPLE__
+#include <pthread/qos.h>
+#endif
 
 // An executor that delegates to efficiency cores, if available.
 // On a hybrid CPU system:
@@ -26,6 +31,13 @@ struct ex_hybrid {
         tmc::topology::TopologyFilter f;
         f.set_cpu_kinds(tmc::topology::CpuKind::PERFORMANCE);
         performance_executor.set_topology_filter(f);
+#ifdef __APPLE__
+        // Apple does not allow explicit CPU binding; instead we must set the
+        // QoS. You can tune these values according to your application.
+        performance_executor.set_thread_init_hook([](size_t) {
+          pthread_set_qos_class_self_np(QOS_CLASS_USER_INTERACTIVE, 0);
+        });
+#endif
         performance_executor.init();
       }
       {
@@ -33,6 +45,13 @@ struct ex_hybrid {
         tmc::topology::TopologyFilter f;
         f.set_cpu_kinds(tmc::topology::CpuKind::EFFICIENCY1);
         efficiency_executor.set_topology_filter(f);
+#ifdef __APPLE__
+        // Apple does not allow explicit CPU binding; instead we must set the
+        // QoS. You can tune these values according to your application.
+        efficiency_executor.set_thread_init_hook([](size_t) {
+          pthread_set_qos_class_self_np(QOS_CLASS_USER_INITIATED, 0);
+        });
+#endif
         efficiency_executor.init();
       }
     } else {
