@@ -22,11 +22,13 @@ TEST_F(CATEGORY, group_iteration_order) {
   tmc::detail::get_flat_group_iteration_order(16, 5);
 }
 
-static std::vector<tmc::topology::ThreadCoreGroup> get_core_groups() {
-  std::vector<tmc::topology::ThreadCoreGroup> groupedCores;
+static std::vector<tmc::topology::detail::CacheGroup> get_core_groups() {
+  std::vector<tmc::topology::detail::CacheGroup> groupedCores;
   for (size_t i = 0; i < 16; ++i) {
     groupedCores.push_back(
-      tmc::topology::ThreadCoreGroup{nullptr, static_cast<int>(i), 0, {}, {}, 4}
+      tmc::topology::detail::CacheGroup{
+        nullptr, static_cast<int>(i), 0, {}, {}, 4
+      }
     );
   }
   return groupedCores;
@@ -57,14 +59,13 @@ TEST_F(CATEGORY, get_matrixes) {
 #ifdef TMC_USE_HWLOC
 TEST_F(CATEGORY, core_group_resize_no_change) {
   auto groupedCores = get_core_groups();
-  auto sz = groupedCores.size();
-
-  std::vector<tmc::topology::ThreadCoreGroup*> flatGroups;
+  std::vector<tmc::topology::detail::CacheGroup*> flatGroups;
   tmc::detail::for_all_groups(
-    groupedCores, [&flatGroups](tmc::topology::ThreadCoreGroup& group) {
+    groupedCores, [&flatGroups](tmc::topology::detail::CacheGroup& group) {
       flatGroups.push_back(&group);
     }
   );
+  auto sz = flatGroups.size();
 
   bool lasso = false;
   tmc::detail::adjust_thread_groups(
@@ -72,7 +73,7 @@ TEST_F(CATEGORY, core_group_resize_no_change) {
     tmc::topology::TopologyFilter{}, lasso
   );
   EXPECT_EQ(lasso, true);
-  EXPECT_EQ(groupedCores.size(), sz);
+  EXPECT_EQ(flatGroups.size(), sz);
 }
 #endif
 

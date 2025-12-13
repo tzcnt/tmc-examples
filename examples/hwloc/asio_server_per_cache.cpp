@@ -8,12 +8,12 @@
 
 #include "tmc/asio/aw_asio.hpp"
 #include "tmc/asio/ex_asio.hpp"
-#include "tmc/detail/thread_layout.hpp"
 #include "tmc/detail/tiny_vec.hpp"
 #include "tmc/ex_cpu.hpp"
 #include "tmc/fork_group.hpp"
 #include "tmc/sync.hpp"
 #include "tmc/task.hpp"
+#include "tmc/topology.hpp"
 
 #ifdef TMC_USE_BOOST_ASIO
 #include <boost/asio/buffer.hpp>
@@ -103,7 +103,7 @@ int main(int argc, char* argv[]) {
 
     // TODO this returns 2 instead of 3 on my machine
     if (0 == strcmp(argv[1], "--query")) {
-      std::printf("%zu\n", topo.caches.size());
+      std::printf("%zu\n", topo.groups.size());
       return 0;
     }
 
@@ -114,20 +114,24 @@ int main(int argc, char* argv[]) {
     size_t cacheIdx = static_cast<size_t>(atoi(argv[1]));
     tmc::ex_asio exAsio;
     tmc::topology::TopologyFilter f{};
-    f.set_cache_indexes({cacheIdx});
+    f.set_group_indexes({cacheIdx});
     exAsio.set_topology_filter(f);
     exAsio.init();
 
     tmc::ex_cpu exCpu;
     exCpu.set_topology_filter(f);
-    exCpu.set_thread_occupancy(1.5f, tmc::topology::CpuKind::PERFORMANCE);
+    if (topo.groups[cacheIdx].smt_level > 1) {
+      // Use hyperthreading if available. Set occupancy just below 2, since we
+      // need to leave room for the I/O thread.
+      exCpu.set_thread_occupancy(1.75f, tmc::topology::CpuKind::PERFORMANCE);
+    }
     exCpu.init();
     // Initiate the accept loop on the CPU executor to automate CPU offloading
     tmc::post_waitable(exCpu, accept(exAsio, 55550)).wait();
   } else {
     // Create 1 single-threaded asio executor, and a CPU thread pool, per cache.
     // All executors live in this process.
-    size_t count = topo.caches.size();
+    size_t count = topo.groups.size();
     tmc::detail::tiny_vec<tmc::ex_asio> exAsios;
     tmc::detail::tiny_vec<tmc::ex_cpu> exCpus;
     exAsios.resize(count);
@@ -137,7 +141,7 @@ int main(int argc, char* argv[]) {
       exCpus.emplace_at(i);
 
       tmc::topology::TopologyFilter f{};
-      f.set_cache_indexes({i});
+      f.set_group_indexes({i});
 
       exAsios[i].set_topology_filter(f);
       exAsios[i].init();

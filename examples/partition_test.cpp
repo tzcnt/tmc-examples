@@ -1,8 +1,8 @@
 // Example demonstrating ex_cpu partitioning functionality
 
 #define TMC_IMPL
-#include "tmc/detail/thread_layout.hpp"
 #include "tmc/ex_cpu.hpp"
+#include "tmc/topology.hpp"
 
 #include <cstdio>
 #include <memory>
@@ -21,7 +21,7 @@ static tmc::task<int> example() {
 
   // Test 2: Query topology and create an executor for each L3 partition
   auto topology = tmc::topology::query();
-  std::printf("\nSystem has %zu cache groups\n", topology.caches.size());
+  std::printf("\nSystem has %zu cache groups\n", topology.groups.size());
 
   // Display heterogeneous core information
   if (topology.is_hybrid()) {
@@ -59,15 +59,15 @@ static tmc::task<int> example() {
     }
   }
 
-  if (topology.caches.size() > 0) {
+  if (topology.groups.size() > 0) {
     std::printf("\n=== Test 4: Create executor for each cache ===\n");
 
     // Create and teardown each executor sequentially
-    for (size_t i = 0; i < topology.caches.size(); ++i) {
+    for (size_t i = 0; i < topology.groups.size(); ++i) {
       std::printf("cache group %zu: \n", i);
       std::fflush(stdout);
       tmc::topology::TopologyFilter f;
-      f.set_cache_indexes({0});
+      f.set_group_indexes({0});
       auto exec = std::make_unique<tmc::ex_cpu>();
       exec->set_topology_filter(f).init();
       std::printf("Created executor with %zu threads\n", exec->thread_count());
@@ -75,7 +75,7 @@ static tmc::task<int> example() {
     }
     std::printf(
       "Successfully created and tore down %zu partitioned executors\n",
-      topology.caches.size()
+      topology.groups.size()
     );
   }
 

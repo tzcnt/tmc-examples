@@ -1,5 +1,5 @@
 #include "tmc/all_headers.hpp"
-#include "tmc/detail/thread_layout.hpp"
+#include "tmc/topology.hpp"
 #include <coroutine>
 
 // An executor that delegates to efficiency cores, if available.

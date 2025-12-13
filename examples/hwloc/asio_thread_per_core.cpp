@@ -8,11 +8,11 @@
 
 #include "tmc/asio/aw_asio.hpp"
 #include "tmc/asio/ex_asio.hpp"
-#include "tmc/detail/thread_layout.hpp"
 #include "tmc/detail/tiny_vec.hpp"
 #include "tmc/fork_group.hpp"
 #include "tmc/sync.hpp"
 #include "tmc/task.hpp"
+#include "tmc/topology.hpp"
 
 #ifdef TMC_USE_BOOST_ASIO
 #include <boost/asio/buffer.hpp>
@@ -99,7 +99,7 @@ int main(int argc, char* argv[]) {
   if (argc > 1) {
     // Allow the shell to query how many cores there are for prefork
     if (0 == strcmp(argv[1], "--query")) {
-      std::printf("%zu\n", topo.cores.size());
+      std::printf("%zu\n", topo.core_count());
       return 0;
     }
 
@@ -116,7 +116,7 @@ int main(int argc, char* argv[]) {
     // Create 1 single-threaded asio executor per core, and bind it to that core
     // All executors live in this process
     tmc::detail::tiny_vec<tmc::ex_asio> exs;
-    exs.resize(topo.cores.size());
+    exs.resize(topo.core_count());
     for (size_t i = 0; i < exs.size(); ++i) {
       exs.emplace_at(i);
       tmc::topology::TopologyFilter f{};

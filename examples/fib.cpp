@@ -5,8 +5,8 @@
 #define TMC_IMPL
 
 #include "tmc/all_headers.hpp"
-#include "tmc/detail/thread_layout.hpp"
 #include "tmc/detail/tiny_vec.hpp"
+#include "tmc/topology.hpp"
 
 #include <chrono>
 #include <cstdio>
@@ -75,18 +75,18 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
   size_t n = static_cast<size_t>(atoi(argv[1]));
 #endif
   auto topology = tmc::topology::query();
-  std::printf("\nSystem has %zu L3 groups\n", topology.llc_count());
+  std::printf("\nSystem has %zu L3 groups\n", topology.group_count());
 
-  if (topology.llc_count() < 2) {
+  if (topology.group_count() < 2) {
     std::printf("\n=== Test 4: Create executor for each L3 partition ===\n");
 
     tmc::detail::tiny_vec<tmc::ex_cpu> execs;
-    execs.resize(topology.llc_count());
+    execs.resize(topology.group_count());
     // Create and teardown each executor sequentially
     for (size_t i = 0; i < execs.size(); ++i) {
       execs.emplace_at(i);
       tmc::topology::TopologyFilter f;
-      f.set_cache_indexes({i});
+      f.set_group_indexes({i});
       execs[i].set_topology_filter(f);
       execs[i].init();
     }
