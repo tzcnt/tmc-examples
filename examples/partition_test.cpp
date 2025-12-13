@@ -67,7 +67,7 @@ static tmc::task<int> example() {
       std::printf("cache group %zu: \n", i);
       std::fflush(stdout);
       tmc::topology::TopologyFilter f;
-      f.set_group_indexes({0});
+      f.set_group_indexes({i});
       auto exec = std::make_unique<tmc::ex_cpu>();
       exec->set_topology_filter(f).init();
       std::printf("Created executor with %zu threads\n", exec->thread_count());
