@@ -3,6 +3,8 @@
 #include "tmc/all_headers.hpp" // IWYU pragma: export
 #include "tmc/utils.hpp"       // IWYU pragma: export
 
+#include <climits>
+
 #if defined(__has_feature)
 #if __has_feature(thread_sanitizer)
 #define TSAN_ENABLED
@@ -78,12 +80,12 @@ template <typename Executor>
 static inline int
 test_async_main_int(Executor& Exec, tmc::task<int>&& ClientMainTask) {
   // test setup should call init() beforehand
-  std::atomic<int> exitCode(std::numeric_limits<int>::min());
+  std::atomic<int> exitCode(INT_MIN);
   post(
     Exec, test_async_main_int_task_(Exec, std::move(ClientMainTask), &exitCode),
     0
   );
-  exitCode.wait(std::numeric_limits<int>::min());
+  exitCode.wait(INT_MIN);
   return exitCode.load();
 }
 
@@ -101,11 +103,11 @@ template <typename Executor>
 static inline void
 test_async_main(Executor& Exec, tmc::task<void>&& ClientMainTask) {
   // test setup should call init() beforehand
-  std::atomic<int> exitCode(std::numeric_limits<int>::min());
+  std::atomic<int> exitCode(INT_MIN);
   post(
     Exec, test_async_main_task_(Exec, std::move(ClientMainTask), &exitCode), 0
   );
-  exitCode.wait(std::numeric_limits<int>::min());
+  exitCode.wait(INT_MIN);
 }
 
 template <typename Tuple> decltype(auto) sum_tuple(Tuple const& tuple) {

@@ -4,18 +4,23 @@
 
 #include "tmc/all_headers.hpp"
 
-#include "xoshiro.hpp"
 #include <gtest/gtest.h>
 
 #include <atomic>
 #include <cstdio>
 #include <exception>
+#include <random>
 #include <ranges>
 
 constexpr int ELEMS_PER_ACTION = 1000;
 constexpr size_t ACTION_COUNT = 1000;
 
-static xso::rng prng;
+static std::mt19937 prng;
+static int randint(int Low, int High) {
+  std::uniform_int_distribution<int> distrib(Low, High);
+  return distrib(prng);
+}
+
 static size_t base;
 static std::atomic<size_t> full_sum;
 
@@ -75,7 +80,7 @@ static tmc::task<void> try_pull_consumer(token chan, size_t Count) {
   full_sum.fetch_add(sum);
 }
 
-static int choose_action() { return prng.sample(0, 3); }
+static int choose_action() { return randint(0, 3); }
 
 static tmc::task<void> do_action(
   token& Chan, tmc::aw_fork_group<0, void>& Producers,
@@ -84,14 +89,14 @@ static tmc::task<void> do_action(
   int action = choose_action();
   switch (action) {
   case 0: {
-    size_t count = static_cast<size_t>(prng.sample(1, ELEMS_PER_ACTION));
+    size_t count = static_cast<size_t>(randint(1, ELEMS_PER_ACTION));
     Producers.fork(producer(Chan, base, count));
     base += count;
     break;
   }
   case 1: {
     size_t count = static_cast<size_t>(
-      prng.sample(0, 5)
+      randint(0, 5)
     ); // include 0 to test posting empty range
     Producers.fork(bulk_producer(Chan, base, count));
     base += count;
@@ -99,13 +104,13 @@ static tmc::task<void> do_action(
   }
   case 2:
     Consumers.fork(
-      consumer(Chan, static_cast<size_t>(prng.sample(1, ELEMS_PER_ACTION)))
+      consumer(Chan, static_cast<size_t>(randint(1, ELEMS_PER_ACTION)))
     );
     break;
   case 3:
-    Consumers.fork(try_pull_consumer(
-      Chan, static_cast<size_t>(prng.sample(1, ELEMS_PER_ACTION))
-    ));
+    Consumers.fork(
+      try_pull_consumer(Chan, static_cast<size_t>(randint(1, ELEMS_PER_ACTION)))
+    );
     break;
   default:
     std::terminate();
@@ -161,7 +166,8 @@ TEST(test_fuzz_chan, test_fuzz_chan_nowait) {
 }
 
 int main(int argc, char** argv) {
-  prng.seed();
+  std::random_device rd;
+  prng.seed(rd());
   tmc::cpu_executor().init();
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
