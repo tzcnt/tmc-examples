@@ -56,6 +56,14 @@ function(make_exe target_name)
     ${CMAKE_BINARY_DIR}/compile_commands.json
     ${CMAKE_SOURCE_DIR}/build
   )
+  
+  if(WIN32 AND TMC_USE_HWLOC)
+    add_custom_command(TARGET ${target_name} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        ${hwloc_SOURCE_DIR}/bin/libhwloc-15.dll
+        ${CMAKE_CURRENT_BINARY_DIR}
+    )
+  endif()
 endfunction()
 
 make_exe(
