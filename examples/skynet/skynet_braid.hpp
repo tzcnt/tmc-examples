@@ -2,6 +2,7 @@
 #include "skynet_shared.hpp"
 #include "tmc/ex_braid.hpp"
 #include "tmc/ex_cpu.hpp"
+#include "tmc/fork_group.hpp"
 #include "tmc/spawn.hpp"
 #include "tmc/spawn_many.hpp"
 #include "tmc/sync.hpp"
@@ -92,13 +93,7 @@ tmc::task<size_t> skynet_one(size_t BaseNum, size_t Depth) {
 }
 template <size_t DepthMax> tmc::task<void> skynet() {
   tmc::ex_braid br;
-  // TODO implement spawn with executor parameter so we don't have to do this
-  // also need eager execution / delayed await since each task goes on a diff
-  // exec
-  size_t count = co_await [](tmc::ex_braid* braid_ptr) -> tmc::task<size_t> {
-    co_await tmc::enter(braid_ptr);
-    co_return co_await skynet_one<DepthMax>(0, 0);
-  }(&br);
+  auto count = co_await tmc::spawn(skynet_one<DepthMax>(0, 0)).run_on(br);
   if (count != EXPECTED_RESULT) {
     std::printf("%zu\n", count);
   }
@@ -156,18 +151,11 @@ tmc::task<size_t> skynet_one(size_t BaseNum, size_t Depth) {
 template <size_t DepthMax> tmc::task<void> skynet() {
   std::array<tmc::task<size_t>, 10> children;
   std::array<tmc::ex_braid, 10> braids;
+  auto fg = tmc::fork_group<10, size_t>();
   for (size_t i = 0; i < 10; ++i) {
-    // TODO implement spawn with executor parameter so we don't have to do
-    // this also need eager execution / delayed await since each task goes on a
-    // diff exec
-    children[i] =
-      [](size_t i_in, tmc::ex_braid* braid_ptr) -> tmc::task<size_t> {
-      co_await tmc::enter(braid_ptr);
-      co_return co_await skynet_one<DepthMax>(100000 * i_in, 1);
-    }(i, &braids[i]);
+    fg.fork(skynet_one<DepthMax>(100000 * i, 1), braids[i]);
   }
-  std::array<size_t, 10> results =
-    co_await tmc::spawn_many<10>(children.data());
+  std::array<size_t, 10> results = co_await std::move(fg);
   size_t count = 0;
   for (size_t idx = 0; idx < 10; ++idx) {
     count += results[idx];
