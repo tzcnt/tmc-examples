@@ -80,6 +80,64 @@ TEST_F(CATEGORY, teardown_and_destroy) {
   ex.teardown();
 }
 
+TEST_F(CATEGORY, set_spins) {
+  tmc::ex_cpu_st ex;
+  ex.set_spins(8).init();
+  std::atomic<bool> ran = false;
+  tmc::post_waitable(ex, [&]() { ran = true; }, 0).wait();
+  EXPECT_EQ(ran.load(), true);
+}
+
+TEST_F(CATEGORY, set_spins_zero) {
+  tmc::ex_cpu_st ex;
+  ex.set_spins(0).init();
+  std::atomic<bool> ran = false;
+  tmc::post_waitable(ex, [&]() { ran = true; }, 0).wait();
+  EXPECT_EQ(ran.load(), true);
+}
+
+#ifdef TMC_USE_HWLOC
+TEST_F(CATEGORY, add_partition_all) {
+  tmc::topology::topology_filter filter;
+  filter.set_cpu_kinds(tmc::topology::cpu_kind::ALL);
+
+  tmc::ex_cpu_st ex;
+  ex.add_partition(filter).init();
+}
+
+TEST_F(CATEGORY, add_partition_cpu_kind) {
+  tmc::topology::topology_filter filter;
+  filter.set_cpu_kinds(tmc::topology::cpu_kind::PERFORMANCE);
+
+  tmc::ex_cpu_st ex;
+  ex.add_partition(filter).init();
+}
+
+TEST_F(CATEGORY, add_partition_core) {
+  tmc::topology::topology_filter filter;
+  filter.set_core_indexes({0});
+
+  tmc::ex_cpu_st ex;
+  ex.add_partition(filter).init();
+}
+
+TEST_F(CATEGORY, add_partition_group) {
+  tmc::topology::topology_filter filter;
+  filter.set_group_indexes({0});
+
+  tmc::ex_cpu_st ex;
+  ex.add_partition(filter).init();
+}
+
+TEST_F(CATEGORY, add_partition_numa) {
+  tmc::topology::topology_filter filter;
+  filter.set_numa_indexes({0});
+
+  tmc::ex_cpu_st ex;
+  ex.add_partition(filter).init();
+}
+#endif
+
 #include "test_executors.ipp"
 #include "test_nested_executors.ipp"
 #include "test_spawn_composition.ipp"

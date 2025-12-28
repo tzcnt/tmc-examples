@@ -70,6 +70,7 @@ make_exe(
   tests
   main.cpp
   standalone_compilation.cpp
+  fixtures/topo_13600k.cpp
   assert_ex_cpu.cpp
   assert_coro.cpp
   assert_spawn.cpp
@@ -99,6 +100,8 @@ make_exe(
   test_qu_lockfree.cpp
   test_qu_mpsc.cpp
   test_thread_layout.cpp
+  test_hwloc.cpp
+  test_hwloc_synthetic.cpp
   test_fork_group.cpp
   test_spawn_group.cpp
   test_fork_clang.cpp
