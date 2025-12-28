@@ -2,6 +2,9 @@
 
 #include "fixtures.hpp"
 
+// MSVC individual string literal size max is 16384, but they can be freely
+// concatenated without max, so there is a split in the middle of this
+
 const std::string topo_13600k =
   R"(<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE topology SYSTEM "hwloc2.dtd">
@@ -140,8 +143,9 @@ const std::string topo_13600k =
                 <object type="PU" os_index="13" cpuset="0x00002000" complete_cpuset="0x00002000" nodeset="0x00000001" complete_nodeset="0x00000001" gp_index="54"/>
               </object>
             </object>
-          </object>
-          <object type="L1Cache" os_index="26" cpuset="0x00004000" complete_cpuset="0x00004000" nodeset="0x00000001" complete_nodeset="0x00000001" gp_index="59" cache_size="32768" depth="1" cache_linesize="64" cache_associativity="8" cache_type="1">
+          </object>)"
+  // concatenate 2 string literals to make MSVC happy
+  R"(          <object type="L1Cache" os_index="26" cpuset="0x00004000" complete_cpuset="0x00004000" nodeset="0x00000001" complete_nodeset="0x00000001" gp_index="59" cache_size="32768" depth="1" cache_linesize="64" cache_associativity="8" cache_type="1">
             <info name="Inclusive" value="0"/>
             <object type="L1iCache" os_index="26" cpuset="0x00004000" complete_cpuset="0x00004000" nodeset="0x00000001" complete_nodeset="0x00000001" gp_index="60" cache_size="65536" depth="1" cache_linesize="64" cache_associativity="8" cache_type="2">
               <info name="Inclusive" value="0"/>
