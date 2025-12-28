@@ -11,16 +11,19 @@ set(CMAKE_CXX_STANDARD 20)
 
 add_definitions(
 
-    # Performance tuning options
+    # #### Performance tuning options #####
     # "-DTMC_WORK_ITEM=CORO" # one of: CORO, FUNC, FUNCORO
-
     # "-DTMC_TRIVIAL_TASK" # enabled in this repo for Release builds via CMakePresets.json
     # "-DTMC_PRIORITY_COUNT=1" # unsigned integer between 1 and 63
 
-    # Debug / diagnostics options
-    # tracks the number of tmc::task allocations which lets you determine
-    # how effectively Heap Allocation Elision (HALO) is being applied by the compiler
+    # #### Debug / diagnostics options #####
+    # ## Tracks the number of tmc::task allocations, which lets you determine
+    # ## how effectively Heap Allocation Elision (HALO) is being applied by the compiler.
     # "-DTMC_DEBUG_TASK_ALLOC_COUNT"
+
+    # ## Prints information about work stealing matrixes.
+    # ## If TMC_USE_HWLOC is enabled, also prints info about thread grouping and thread affinity.
+    # "-DTMC_DEBUG_THREAD_CREATION"
 )
 
 # Optional flags can be passed at the command line. Used by GitHub Actions workflow.
@@ -49,13 +52,13 @@ else()
     CPMAddPackage(
         NAME TooManyCooks
         GIT_REPOSITORY https://github.com/tzcnt/TooManyCooks.git
-        GIT_TAG 8d43966d7942cd78ed82a53ea13fde3bd0250f35
+        GIT_TAG e58c211906446f8e5f196a49daf6ce8b12acdc8d
         DOWNLOAD_ONLY)
 
     CPMAddPackage(
         NAME tmc_asio
         GIT_REPOSITORY https://github.com/tzcnt/tmc-asio.git
-        GIT_TAG b9ee2f74dbe8625b526c4d738462fb7227186ae9
+        GIT_TAG b309d8e94373e905f21358578cc40c0c38d377dd
         DOWNLOAD_ONLY)
 
     set(TMC_INCLUDE_PATH ${TooManyCooks_SOURCE_DIR}/include CACHE STRING "" FORCE)
@@ -67,23 +70,40 @@ include_directories(
     ${TMC_ASIO_INCLUDE_PATH}
 )
 
+if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+    set(PLATFORM_BITS 64)
+else()
+    set(PLATFORM_BITS 32)
+endif()
+
 # TMC HWLOC support
 option(TMC_USE_HWLOC "libhwloc" ON)
 
 if(TMC_USE_HWLOC)
-    message(STATUS "TMC_USE_HWLOC: running find_package(libhwloc)...")
-    find_package(libhwloc)
-
-    if(NOT LIBHWLOC_FOUND)
-        message(STATUS "WARNING: Package libhwloc not found. hwloc integration will be disabled.")
-    else()
-        message(STATUS "TMC_USE_HWLOC: found library ${LIBHWLOC_LIBRARY}")
-        message(STATUS "TMC_USE_HWLOC: found include ${LIBHWLOC_INCLUDE_DIR}/hwloc.h")
+    if(WIN32)
+        # Finding user-provided libraries on Windows is a hassle. For this example, just get the built .lib and .dll directly.
+        CPMAddPackage(
+            NAME hwloc
+            URL "https://download.open-mpi.org/release/hwloc/v2.12/hwloc-win${PLATFORM_BITS}-build-2.12.2.zip"
+            VERSION 2.12.2
+            DOWNLOAD_ONLY
+        )
+        include_directories(SYSTEM ${hwloc_SOURCE_DIR}/include)
+        link_libraries(${hwloc_SOURCE_DIR}/lib/libhwloc.lib)
         add_compile_definitions(TMC_USE_HWLOC)
-        link_libraries(${LIBHWLOC_LIBRARY})
+    else()
+        message(STATUS "TMC_USE_HWLOC: running find_package(libhwloc)...")
+        find_package(libhwloc)
 
-        # mark hwloc headers as SYSTEM to ignore warnings
-        include_directories(SYSTEM ${LIBHWLOC_INCLUDE_DIR})
+        if(NOT LIBHWLOC_FOUND)
+            message(STATUS "WARNING: Package libhwloc not found. hwloc integration will be disabled.")
+        else()
+            message(STATUS "TMC_USE_HWLOC: found library ${LIBHWLOC_LIBRARY}")
+            message(STATUS "TMC_USE_HWLOC: found include ${LIBHWLOC_INCLUDE_DIR}/hwloc.h")
+            link_libraries(${LIBHWLOC_LIBRARY})
+            include_directories(SYSTEM ${LIBHWLOC_INCLUDE_DIR})
+            add_compile_definitions(TMC_USE_HWLOC)
+        endif()
     endif()
 endif()
 
@@ -156,6 +176,11 @@ else()
     )
 endif()
 
+if(WIN32)
+    # Prevent Windows from automatically including "winsock.h" which conflicts with Asio
+    add_compile_definitions("WIN32_LEAN_AND_MEAN")
+endif()
+
 # Build tests and examples with most pedantic warnings possible
 # to ensure the library remains clean for users
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
@@ -219,6 +244,14 @@ function(make_exe target_name)
         ${CMAKE_BINARY_DIR}/compile_commands.json
         ${CMAKE_CURRENT_LIST_DIR}/build
     )
+
+    if(WIN32 AND TMC_USE_HWLOC)
+        add_custom_command(TARGET ${target_name} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            ${hwloc_SOURCE_DIR}/bin/libhwloc-15.dll
+            ${CMAKE_CURRENT_BINARY_DIR}
+        )
+    endif()
 endfunction()
 
 make_exe(alignment
@@ -310,6 +343,21 @@ make_exe(asio_http_server
 
 make_exe(asio_http_skynet
     examples/asio/http_skynet.cpp
+)
+
+make_exe(hwloc_asio_thread_per_core
+    examples/hwloc/asio_thread_per_core.cpp
+)
+
+make_exe(hwloc_asio_server_per_cache
+    examples/hwloc/asio_server_per_cache.cpp
+)
+make_exe(hwloc_hybrid_executor
+    examples/hwloc/hybrid_executor.cpp
+)
+
+make_exe(hwloc_topo
+    examples/hwloc/topo.cpp
 )
 
 add_subdirectory(tests)
