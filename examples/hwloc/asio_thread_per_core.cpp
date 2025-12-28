@@ -1,5 +1,12 @@
-// A simple "Hello, World!" HTTP response server
-// Listens on http://localhost:55550/
+// (no args): Create 1 I/O thread per core, bound to that core. These threads
+// all listen to the same socket using SO_REUSEPORT.
+
+// If called with '--query', returns the number of cores.
+// Then it can be called N times, passing the core index as the command line
+// argument each time, in parallel, to create a prefork process instead of
+// prefork threads. This is what the asio_thread_per_core_prefork.sh script
+// does.
+
 #ifdef _WIN32
 #include <sdkddkver.h>
 #endif

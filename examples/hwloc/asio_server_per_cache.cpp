@@ -1,5 +1,13 @@
-// A simple "Hello, World!" HTTP response server
-// Listens on http://localhost:55550/
+// (no args): For each L3 cache group (e.g. on Zen Chiplet architecture where
+// there is a shared L3 cache per chiplet), create 1 I/O thread and a CPU thread
+// pool bound to the same cache.
+
+// If called with '--query', returns the number of cache groups.
+// Then it can be called N times, passing the cache group index as the command
+// line argument each time, in parallel, to create a prefork process instead of
+// prefork threads. This is what the asio_server_per_cache_prefork.sh script
+// does.
+
 #ifdef _WIN32
 #include <sdkddkver.h>
 #endif

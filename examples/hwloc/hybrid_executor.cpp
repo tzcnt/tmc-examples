@@ -1,4 +1,6 @@
-// Example demonstrating ex_cpu partitioning functionality
+// Demonstrates how to create an executor that will steer work between P- and
+// E-cores on a hybrid machine based on priority, and on a homogeneous machine,
+// sends all work to the same executor.
 
 #define TMC_IMPL
 #include "tmc/all_headers.hpp"
