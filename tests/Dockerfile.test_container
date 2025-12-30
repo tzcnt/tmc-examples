@@ -1,0 +1,38 @@
+# This dockerfile builds the test_container.cpp tests.
+# It depends on files from the parent directory, so it is intended to be used by
+# executing the `docker_tests.sh` script, which will both build and run it.
+
+FROM silkeh/clang:latest AS build
+
+ARG PRESET=clang-linux-debug
+ARG WORK_ITEM=
+ARG HWLOC=ON
+ARG COVERAGE_FLAGS=
+
+RUN apt-get update && apt-get install -y cmake ninja-build git libhwloc-dev hwloc
+
+COPY ./cmake ./cmake
+COPY ./examples ./examples
+COPY ./tests ./tests
+COPY ./submodules ./submodules
+COPY ./CMakeLists.txt .
+COPY ./CMakePresets.json .
+
+RUN cmake -DTMC_AS_SUBMODULE=ON -DTMC_USE_HWLOC=${HWLOC} \
+    ${WORK_ITEM:+-DCMD_COMPILE_FLAGS="-DTMC_WORK_ITEM=${WORK_ITEM}${COVERAGE_FLAGS}"} \
+    ${COVERAGE_FLAGS:+-DCMD_LINK_FLAGS="${COVERAGE_FLAGS}"} \
+    --preset ${PRESET} .
+RUN cmake --build ./build/${PRESET} --parallel 16 --target test_container
+
+# Stage 2: Runtime Stage
+FROM debian:bookworm
+
+ARG PRESET=clang-linux-debug
+
+RUN apt-get update && apt-get install -y libhwloc-dev hwloc
+
+WORKDIR /app
+COPY --from=build /build/${PRESET}/tests/test_container .
+
+# Default: run all tests (individual tests will skip based on TMC_CONTAINER_TEST)
+CMD ["./test_container"]

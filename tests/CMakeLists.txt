@@ -56,12 +56,12 @@ function(make_exe target_name)
     ${CMAKE_BINARY_DIR}/compile_commands.json
     ${CMAKE_SOURCE_DIR}/build
   )
-  
+
   if(WIN32 AND TMC_USE_HWLOC)
     add_custom_command(TARGET ${target_name} POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        ${hwloc_SOURCE_DIR}/bin/libhwloc-15.dll
-        ${CMAKE_CURRENT_BINARY_DIR}
+      COMMAND ${CMAKE_COMMAND} -E copy_if_different
+      ${hwloc_SOURCE_DIR}/bin/libhwloc-15.dll
+      ${CMAKE_CURRENT_BINARY_DIR}
     )
   endif()
 endfunction()
@@ -105,6 +105,7 @@ make_exe(
   test_fork_group.cpp
   test_spawn_group.cpp
   test_fork_clang.cpp
+  test_container.cpp
 )
 target_compile_definitions(tests PRIVATE TMC_NO_UNKNOWN_AWAITABLES)
 
@@ -119,11 +120,17 @@ make_exe(
 )
 target_compile_definitions(test_fuzz_chan PRIVATE TMC_NO_UNKNOWN_AWAITABLES)
 
+make_exe(test_container
+  standalone_compilation.cpp
+  test_container.cpp)
+target_compile_definitions(test_container PRIVATE TMC_NO_UNKNOWN_AWAITABLES)
+
 if(TMC_USE_HWLOC AND LIBHWLOC_FOUND)
   target_link_libraries(tests ${LIBHWLOC_LIBRARY})
   target_link_libraries(test_exceptions ${LIBHWLOC_LIBRARY})
   target_link_libraries(test_halo ${LIBHWLOC_LIBRARY})
   target_link_libraries(test_fuzz_chan ${LIBHWLOC_LIBRARY})
+  target_link_libraries(test_container ${LIBHWLOC_LIBRARY})
 endif()
 
 gtest_discover_tests(tests)
