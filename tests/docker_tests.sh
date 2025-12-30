@@ -22,7 +22,7 @@ docker run --rm \
     -e TMC_CONTAINER_TEST=cpu_quota \
     -e TMC_EXPECTED_CPUS=1.5 \
     "$IMAGE_NAME" \
-    ./test_container --gtest_filter='*cpu_quota*:*executor_respects_container_limits*'
+    ./test_container --gtest_filter='*cpu_quota*'
 
 echo ""
 echo "=== Test 3: CPU set via --cpuset-cpus (hwloc detection) ==="
@@ -31,7 +31,7 @@ docker run --rm \
     -e TMC_CONTAINER_TEST=cpuset \
     -e TMC_EXPECTED_CPUS=2 \
     "$IMAGE_NAME" \
-    ./test_container --gtest_filter='*cpuset*:*executor_respects_container_limits*'
+    ./test_container --gtest_filter='*cpuset*'
 
 echo ""
 echo "=== All container tests passed ==="

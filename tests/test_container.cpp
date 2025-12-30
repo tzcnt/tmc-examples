@@ -68,9 +68,31 @@ TEST_F(CATEGORY, cpu_quota) {
   // With --cpus=1.5, we expect approximately 1.5 CPUs
   // Allow some tolerance for rounding
   std::string expected_cpus_env = safe_getenv("TMC_EXPECTED_CPUS");
+  size_t expected = 0;
   if (!expected_cpus_env.empty()) {
-    double expected = std::stod(expected_cpus_env);
-    EXPECT_NEAR(quota.cpu_count, expected, 0.1);
+    double rawExpected = std::stod(expected_cpus_env);
+    EXPECT_NEAR(quota.cpu_count, rawExpected, 0.1);
+    expected = static_cast<size_t>(rawExpected);
+  }
+
+  // When set_thread_count() is NOT called before init(),
+  // the executor should respect container quota
+  {
+    tmc::ex_cpu executor;
+    executor.init();
+    EXPECT_EQ(executor.thread_count(), expected);
+    executor.teardown();
+  }
+
+  EXPECT_NE(expected, 8);
+
+  // When set_thread_count() IS called before init(),
+  // the executor should use that value and ignore container quota
+  {
+    tmc::ex_cpu executor;
+    executor.set_thread_count(8).init();
+    EXPECT_EQ(executor.thread_count(), 8);
+    executor.teardown();
   }
 }
 
@@ -86,8 +108,9 @@ TEST_F(CATEGORY, cpuset) {
   auto topo = tmc::topology::query();
 
   std::string expected_cpus_env = safe_getenv("TMC_EXPECTED_CPUS");
+  size_t expected = 0;
   if (!expected_cpus_env.empty()) {
-    size_t expected = std::stoul(expected_cpus_env);
+    expected = std::stoul(expected_cpus_env);
     EXPECT_EQ(topo.pu_count(), expected);
   }
 
@@ -100,28 +123,26 @@ TEST_F(CATEGORY, cpuset) {
   EXPECT_FALSE(quota.is_container_limited());
   EXPECT_GT(topo.core_count(), 0u);
   EXPECT_GT(topo.pu_count(), 0u);
+  EXPECT_EQ(topo.container_cpu_quota, static_cast<float>(quota.cpu_count));
+
+  // When set_thread_count() is NOT called before init(),
+  // the executor should respect container quota
+  {
+    tmc::ex_cpu executor;
+    executor.init();
+    EXPECT_EQ(executor.thread_count(), expected);
+    executor.teardown();
+  }
+
+  EXPECT_NE(expected, 8);
+
+  // When set_thread_count() IS called before init(),
+  // the executor should use that value and ignore container quota
+  {
+    tmc::ex_cpu executor;
+    executor.set_thread_count(8).init();
+    EXPECT_EQ(executor.thread_count(), 8);
+    executor.teardown();
+  }
 #endif
-}
-
-TEST_F(CATEGORY, executor_respects_container_limits) {
-  std::string mode = get_test_mode();
-  if (mode != "cpu_quota" && mode != "cpuset") {
-    GTEST_SKIP();
-  }
-
-  // Initialize executor and verify it respects container limits
-  tmc::ex_cpu executor;
-  executor.init();
-
-  size_t thread_count = executor.thread_count();
-  EXPECT_GT(thread_count, 0u);
-
-  std::string expected_cpus_env = safe_getenv("TMC_EXPECTED_CPUS");
-  if (!expected_cpus_env.empty()) {
-    size_t expected =
-      static_cast<size_t>(std::ceil(std::stod(expected_cpus_env)));
-    EXPECT_LE(thread_count, expected);
-  }
-
-  executor.teardown();
 }
