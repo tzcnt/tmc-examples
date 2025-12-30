@@ -130,7 +130,10 @@ TEST_F(CATEGORY, cpuset) {
   {
     tmc::ex_cpu executor;
     executor.init();
-    EXPECT_EQ(executor.thread_count(), expected);
+    // This is called with --cpuset-cpus=0,1. Depending on the layout of the
+    // host machine, these may be logical processors on the same core, or
+    // sibling cores. So the number of threads may be 1 or 2.
+    EXPECT_LE(executor.thread_count(), expected);
     executor.teardown();
   }
 
