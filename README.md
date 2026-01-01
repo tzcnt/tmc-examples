@@ -21,10 +21,11 @@ cd ./build/$PRESET
 ./tests/tests
 ```
 
-For a minimal project template to setup TMC for your own uses, see https://github.com/tzcnt/tmc-hello-world.
-
+For a minimal project template to setup TMC for your own uses, see :octocat: [tmc-hello-world](https://github.com/tzcnt/tmc-hello-world).
 
 ### Supported Compilers
+All 3 major compilers are fully supported, but Clang is the recommended compiler, as it has the best coroutine codegen and the most functional HALO implementation.
+
 Linux:
 - Clang 17 or newer
 - GCC 14 or newer
