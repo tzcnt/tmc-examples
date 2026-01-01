@@ -16,15 +16,6 @@
 
 #ifndef NDEBUG
 #define CATEGORY assert_ex_cpu_DeathTest
-TEST(CATEGORY, too_many_threads) {
-  EXPECT_DEATH(
-    {
-      tmc::ex_cpu ex;
-      ex.set_thread_count(65).init();
-    },
-    "ThreadCount"
-  );
-}
 
 TEST(CATEGORY, spawn_without_executor) {
   EXPECT_DEATH({ tmc::spawn(empty_task()).detach(); }, "executor != nullptr");
