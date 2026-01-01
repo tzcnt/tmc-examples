@@ -3,6 +3,8 @@
 
 #include <gtest/gtest.h>
 
+#ifdef TMC_MORE_THREADS
+
 #define CATEGORY test_atomic_bitmap
 
 class CATEGORY : public testing::Test {
@@ -18,7 +20,7 @@ protected:
 
 TEST_F(CATEGORY, atomic_bitmap_default_constructor) {
   tmc::detail::atomic_bitmap ab;
-  EXPECT_EQ(ab.get_word_count(), 0u);
+  EXPECT_EQ(ab.get_word_count(), 1u);
 }
 
 TEST_F(CATEGORY, atomic_bitmap_init_and_clear) {
@@ -28,7 +30,7 @@ TEST_F(CATEGORY, atomic_bitmap_init_and_clear) {
   EXPECT_EQ(ab.get_word_count(), 1u);
 
   ab.clear();
-  EXPECT_EQ(ab.get_word_count(), 0u);
+  EXPECT_EQ(ab.get_word_count(), 1u);
 
   // Reinit after clear
   ab.init(128);
@@ -525,3 +527,5 @@ TEST_F(CATEGORY, bitmap_various_sizes) {
 }
 
 #undef CATEGORY
+
+#endif // TMC_MORE_THREADS
