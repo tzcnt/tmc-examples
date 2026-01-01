@@ -227,27 +227,39 @@ TEST_F(CATEGORY, spawn_tuple) {
       EXPECT_EQ(alloc_count, 0);
     }
     {
-      // Non-HALO: spawn_tuple() stored in variable
-      auto spawned = tmc::spawn_tuple(task_int(3), task_int(4));
-      auto results = co_await std::move(spawned);
+      // Partial HALO: input to spawn_tuple() stored in variable
+      // Only the xvalue task (4) can be HALO'd
+      auto t = task_int(3);
+      auto results = co_await tmc::spawn_tuple(std::move(t), task_int(4));
 
       EXPECT_EQ(std::get<0>(results), 3);
       EXPECT_EQ(std::get<1>(results), 4);
 
       size_t alloc_count = tmc::debug::get_task_alloc_count();
-      EXPECT_EQ(alloc_count, 2);
+      EXPECT_EQ(alloc_count, 1);
+    }
+    {
+      // Non-HALO: spawn_tuple() stored in variable
+      auto spawned = tmc::spawn_tuple(task_int(5), task_int(6));
+      auto results = co_await std::move(spawned);
+
+      EXPECT_EQ(std::get<0>(results), 5);
+      EXPECT_EQ(std::get<1>(results), 6);
+
+      size_t alloc_count = tmc::debug::get_task_alloc_count();
+      EXPECT_EQ(alloc_count, 3);
     }
     {
       // Non-HALO: spawn_tuple() with run_on() customization - due to member
       // function call, this cannot be elided
-      auto results = co_await tmc::spawn_tuple(task_int(3), task_int(4))
+      auto results = co_await tmc::spawn_tuple(task_int(7), task_int(8))
                        .run_on(tmc::current_executor());
 
-      EXPECT_EQ(std::get<0>(results), 3);
-      EXPECT_EQ(std::get<1>(results), 4);
+      EXPECT_EQ(std::get<0>(results), 7);
+      EXPECT_EQ(std::get<1>(results), 8);
 
       size_t alloc_count = tmc::debug::get_task_alloc_count();
-      EXPECT_EQ(alloc_count, 4);
+      EXPECT_EQ(alloc_count, 5);
     }
   }());
 }
