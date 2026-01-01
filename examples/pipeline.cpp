@@ -65,10 +65,6 @@ tmc::task<void> worker_func(
   }
 }
 
-using g = std::invoke_result<
-  tmc::task<double> (*)(float),
-  std::conditional<false, tmc::detail::unk, float>>;
-
 template <typename Input, typename Output, typename Func, bool End>
 struct pipeline_stage_func {
   using output_t = Output;
@@ -118,7 +114,7 @@ auto start_pipeline_func(
   tmc::chan_tok<Input> from, Func transformFunc, size_t workerCount = 1
 ) {
   using Intermediate = std::invoke_result_t<Func, Input>;
-  using Output = std::conditional<
+  using Output = std::conditional_t<
     tmc::util::is_awaitable_v<Intermediate>,
     tmc::util::awaitable_result_t<Intermediate>, Intermediate>;
   return pipeline_stage_func<Input, Output, Func, false>{
@@ -132,7 +128,7 @@ auto pipeline_transform_func(
 ) {
   using Input = PriorStage::output_t;
   using Intermediate = std::invoke_result_t<Func, Input>;
-  using Output = std::conditional<
+  using Output = std::conditional_t<
     tmc::util::is_awaitable_v<Intermediate>,
     tmc::util::awaitable_result_t<Intermediate>, Intermediate>;
   return pipeline_stage_func<Input, Output, Func, false>{
@@ -146,7 +142,7 @@ auto end_pipeline_func(
 ) {
   using Input = PriorStage::output_t;
   using Intermediate = std::invoke_result_t<Func, Input>;
-  using Output = std::conditional<
+  using Output = std::conditional_t<
     tmc::util::is_awaitable_v<Intermediate>,
     tmc::util::awaitable_result_t<Intermediate>, Intermediate>;
   return pipeline_stage_func<Input, Output, Func, true>{
