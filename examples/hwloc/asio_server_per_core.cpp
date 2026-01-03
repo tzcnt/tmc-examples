@@ -16,7 +16,7 @@
 
 #include "tmc/asio/aw_asio.hpp"
 #include "tmc/asio/ex_asio.hpp"
-#include "tmc/ex_cpu.hpp"
+#include "tmc/ex_cpu_st.hpp"
 #include "tmc/fork_group.hpp"
 #include "tmc/sync.hpp"
 #include "tmc/task.hpp"
@@ -116,55 +116,55 @@ static tmc::task<void> accept(tmc::ex_asio& ex, uint16_t Port) {
 
 int main(int argc, char* argv[]) {
   auto topo = tmc::topology::query();
+  if (topo.groups[0].smt_level == 1) {
+    std::printf(
+      "This machine doesn't have SMT. This example expects to pin a CPU and "
+      "I/O executor to the same core to make use of SMT, so it will not "
+      "perform well on this machine.\n"
+    );
+  }
   if (argc > 1) {
     // Allow the shell to query how many caches there are for prefork
 
     if (0 == strcmp(argv[1], "--query")) {
-      std::printf("%zu\n", topo.groups.size());
+      std::printf("%zu\n", topo.core_count());
       return 0;
     }
 
-    // Create a single-threaded asio executor, bound to the cache specified by
-    // the shell. Also create a CPU thread pool, bound to the same cache.
+    // Create a single-threaded asio executor, bound to the core specified by
+    // the shell. Also create a single-threaded CPU executor, bound to the
+    // same core.
     //
-    // The shell will create additional processes for each cache.
-    size_t cacheIdx = static_cast<size_t>(atoi(argv[1]));
+    // The shell will create additional processes for each core.
+    size_t coreIdx = static_cast<size_t>(atoi(argv[1]));
     tmc::ex_asio exAsio;
     tmc::topology::topology_filter f{};
-    f.set_group_indexes({cacheIdx});
+    f.set_core_indexes({coreIdx});
     exAsio.add_partition(f);
     exAsio.init();
 
-    tmc::ex_cpu exCpu;
+    tmc::ex_cpu_st exCpu;
     exCpu.add_partition(f);
-    if (topo.groups[cacheIdx].smt_level > 1) {
-      // Use hyperthreading if available. Set occupancy just below 2, since we
-      // need to leave room for the I/O thread.
-      exCpu.set_thread_occupancy(1.75f, tmc::topology::cpu_kind::PERFORMANCE);
-    }
     exCpu.init();
     // Initiate the accept loop on the CPU executor to automate CPU offloading
     tmc::post_waitable(exCpu, accept(exAsio, 55550)).wait();
   } else {
-    // Create 1 single-threaded asio executor, and a CPU thread pool, per cache.
-    // All executors live in this process.
-    size_t count = topo.groups.size();
+    // Create 1 single-threaded asio executor, and a single-threaded CPU
+    // executor, per core. All executors live in this process.
+    size_t count = topo.core_count();
 
     // Executors are not movable, but they can be default-constructed, so
     // initialize the vectors with the right size up front.
     std::vector<tmc::ex_asio> exAsios(count);
-    std::vector<tmc::ex_cpu> exCpus(count);
+    std::vector<tmc::ex_cpu_st> exCpus(count);
     for (size_t i = 0; i < count; ++i) {
       tmc::topology::topology_filter f{};
-      f.set_group_indexes({i});
+      f.set_core_indexes({i});
 
       exAsios[i].add_partition(f);
       exAsios[i].init();
 
       exCpus[i].add_partition(f);
-      exCpus[i].set_thread_occupancy(
-        1.5f, tmc::topology::cpu_kind::PERFORMANCE
-      );
       exCpus[i].init();
     }
 
@@ -173,8 +173,8 @@ int main(int argc, char* argv[]) {
     workers.reserve(count);
     for (size_t i = 0; i < count; ++i) {
       // Initiate the accept loop on the CPU executor to automate CPU
-      // offloading. This CPU executor will communicate exclusively with the I/O
-      // executor running on the same cache.
+      // offloading. Each CPU executor will communicate exclusively with the I/O
+      // executor running on the same core.
       workers.emplace_back(
         tmc::post_waitable(exCpus[i], accept(exAsios[i], 55550))
       );

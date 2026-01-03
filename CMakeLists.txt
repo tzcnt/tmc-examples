@@ -350,9 +350,14 @@ make_exe(hwloc_asio_thread_per_core
     examples/hwloc/asio_thread_per_core.cpp
 )
 
+make_exe(hwloc_asio_server_per_core
+    examples/hwloc/asio_server_per_core.cpp
+)
+
 make_exe(hwloc_asio_server_per_cache
     examples/hwloc/asio_server_per_cache.cpp
 )
+
 make_exe(hwloc_hybrid_executor
     examples/hwloc/hybrid_executor.cpp
 )
