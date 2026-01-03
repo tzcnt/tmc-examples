@@ -26,7 +26,11 @@
 
 int main() {
   std::printf("Running skynet benchmark x1000...\n");
-  tmc::cpu_executor().init();
+  tmc::cpu_executor()
+    // This specific benchmark performs better with LATTICE_MATRIX due to its
+    // high degree of nested parallelism.
+    .set_work_stealing_strategy(tmc::work_stealing_strategy::LATTICE_MATRIX)
+    .init();
   return tmc::async_main([]() -> tmc::task<int> {
     co_await loop_skynet<DEPTH>();
     co_return 0;
