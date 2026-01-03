@@ -25,7 +25,7 @@
 #define DEPTH 6
 
 int main() {
-  std::printf("Running skynet benchmark x1000...");
+  std::printf("Running skynet benchmark x1000...\n");
   tmc::cpu_executor().init();
   return tmc::async_main([]() -> tmc::task<int> {
     co_await loop_skynet<DEPTH>();
