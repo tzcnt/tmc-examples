@@ -128,21 +128,21 @@ TEST_F(CATEGORY, atomic_bitmap_load_word) {
   EXPECT_EQ(ab.load_word(1, std::memory_order_relaxed), 1u);
 }
 
-TEST_F(CATEGORY, atomic_bitmap_popcount_single_word) {
+TEST_F(CATEGORY, atomic_bitmap_popcnt_single_word) {
   tmc::detail::atomic_bitmap ab;
   ab.init(64);
 
-  EXPECT_EQ(ab.popcount(std::memory_order_relaxed), 0u);
+  EXPECT_EQ(ab.popcnt(), 0u);
 
   ab.fetch_or_bit(0, std::memory_order_relaxed);
-  EXPECT_EQ(ab.popcount(std::memory_order_relaxed), 1u);
+  EXPECT_EQ(ab.popcnt(), 1u);
 
   ab.fetch_or_bit(63, std::memory_order_relaxed);
-  EXPECT_EQ(ab.popcount(std::memory_order_relaxed), 2u);
+  EXPECT_EQ(ab.popcnt(), 2u);
 }
 
-TEST_F(CATEGORY, atomic_bitmap_popcount_partial_word) {
-  // Test popcount with non-word-aligned bit count (tests valid_mask_for_word)
+TEST_F(CATEGORY, atomic_bitmap_popcnt_partial_word) {
+  // Test popcnt with non-word-aligned bit count (tests valid_mask_for_word)
   tmc::detail::atomic_bitmap ab;
   ab.init(10); // Only 10 bits, partial word
 
@@ -150,10 +150,10 @@ TEST_F(CATEGORY, atomic_bitmap_popcount_partial_word) {
     ab.fetch_or_bit(i, std::memory_order_relaxed);
   }
 
-  EXPECT_EQ(ab.popcount(std::memory_order_relaxed), 10u);
+  EXPECT_EQ(ab.popcnt(), 10u);
 }
 
-TEST_F(CATEGORY, atomic_bitmap_popcount_multi_word) {
+TEST_F(CATEGORY, atomic_bitmap_popcnt_multi_word) {
   tmc::detail::atomic_bitmap ab;
   ab.init(128);
 
@@ -162,10 +162,10 @@ TEST_F(CATEGORY, atomic_bitmap_popcount_multi_word) {
   ab.fetch_or_bit(64, std::memory_order_relaxed);
   ab.fetch_or_bit(127, std::memory_order_relaxed);
 
-  EXPECT_EQ(ab.popcount(std::memory_order_relaxed), 4u);
+  EXPECT_EQ(ab.popcnt(), 4u);
 }
 
-TEST_F(CATEGORY, atomic_bitmap_popcount_or) {
+TEST_F(CATEGORY, atomic_bitmap_popcnt_or) {
   tmc::detail::atomic_bitmap ab1, ab2;
   ab1.init(64);
   ab2.init(64);
@@ -176,10 +176,10 @@ TEST_F(CATEGORY, atomic_bitmap_popcount_or) {
   ab2.fetch_or_bit(2, std::memory_order_relaxed);
 
   // Union: bits 0, 1, 2 (bit 2 is in both)
-  EXPECT_EQ(ab1.popcount_or(ab2, std::memory_order_relaxed), 3u);
+  EXPECT_EQ(ab1.popcnt_or(ab2, std::memory_order_relaxed), 3u);
 }
 
-TEST_F(CATEGORY, atomic_bitmap_popcount_or_multi_word) {
+TEST_F(CATEGORY, atomic_bitmap_popcnt_or_multi_word) {
   tmc::detail::atomic_bitmap ab1, ab2;
   ab1.init(128);
   ab2.init(128);
@@ -189,10 +189,10 @@ TEST_F(CATEGORY, atomic_bitmap_popcount_or_multi_word) {
   ab2.fetch_or_bit(63, std::memory_order_relaxed);
   ab2.fetch_or_bit(127, std::memory_order_relaxed);
 
-  EXPECT_EQ(ab1.popcount_or(ab2, std::memory_order_relaxed), 4u);
+  EXPECT_EQ(ab1.popcnt_or(ab2, std::memory_order_relaxed), 4u);
 }
 
-TEST_F(CATEGORY, atomic_bitmap_popcount_or_partial_word) {
+TEST_F(CATEGORY, atomic_bitmap_popcnt_or_partial_word) {
   tmc::detail::atomic_bitmap ab1, ab2;
   ab1.init(70); // Partial second word
   ab2.init(70);
@@ -202,7 +202,7 @@ TEST_F(CATEGORY, atomic_bitmap_popcount_or_partial_word) {
   ab2.fetch_or_bit(1, std::memory_order_relaxed);
   ab2.fetch_or_bit(68, std::memory_order_relaxed);
 
-  EXPECT_EQ(ab1.popcount_or(ab2, std::memory_order_relaxed), 4u);
+  EXPECT_EQ(ab1.popcnt_or(ab2, std::memory_order_relaxed), 4u);
 }
 
 TEST_F(CATEGORY, atomic_bitmap_load_or) {
@@ -291,7 +291,7 @@ TEST_F(CATEGORY, atomic_bitmap_find_first_set_bit_at_zero) {
   EXPECT_EQ(bit_out, 0u);
 }
 
-TEST_F(CATEGORY, popcount_and) {
+TEST_F(CATEGORY, popcnt_and) {
   tmc::detail::atomic_bitmap ab;
   tmc::detail::bitmap mask;
 
@@ -311,14 +311,14 @@ TEST_F(CATEGORY, popcount_and) {
   mask.set_bit(3);
 
   // Without mask: 4 bits set (0, 2, 4, 6)
-  EXPECT_EQ(ab.popcount(std::memory_order_relaxed), 4u);
+  EXPECT_EQ(ab.popcnt(), 4u);
 
   // With mask: only bits 0 and 2 are both set and allowed
-  EXPECT_EQ(ab.popcount_and(mask, std::memory_order_relaxed), 2u);
+  EXPECT_EQ(ab.popcnt_and(mask, std::memory_order_relaxed), 2u);
 }
 
-TEST_F(CATEGORY, popcount_and_multi_word) {
-  // Test popcount_and with more than 64 bits (multi-word bitmap)
+TEST_F(CATEGORY, popcnt_and_multi_word) {
+  // Test popcnt_and with more than 64 bits (multi-word bitmap)
   tmc::detail::atomic_bitmap ab;
   tmc::detail::bitmap mask;
 
@@ -336,11 +336,11 @@ TEST_F(CATEGORY, popcount_and_multi_word) {
     mask.set_bit(i);
   }
 
-  EXPECT_EQ(ab.popcount(std::memory_order_relaxed), 4u);
-  EXPECT_EQ(ab.popcount_and(mask, std::memory_order_relaxed), 2u);
+  EXPECT_EQ(ab.popcnt(), 4u);
+  EXPECT_EQ(ab.popcnt_and(mask, std::memory_order_relaxed), 2u);
 }
 
-TEST_F(CATEGORY, popcount_and_empty_mask) {
+TEST_F(CATEGORY, popcnt_and_empty_mask) {
   tmc::detail::atomic_bitmap ab;
   tmc::detail::bitmap mask;
 
@@ -352,11 +352,11 @@ TEST_F(CATEGORY, popcount_and_empty_mask) {
   ab.fetch_or_bit(63, std::memory_order_relaxed);
 
   // Empty mask - no bits allowed
-  EXPECT_EQ(ab.popcount(std::memory_order_relaxed), 3u);
-  EXPECT_EQ(ab.popcount_and(mask, std::memory_order_relaxed), 0u);
+  EXPECT_EQ(ab.popcnt(), 3u);
+  EXPECT_EQ(ab.popcnt_and(mask, std::memory_order_relaxed), 0u);
 }
 
-TEST_F(CATEGORY, popcount_and_partial_word) {
+TEST_F(CATEGORY, popcnt_and_partial_word) {
   tmc::detail::atomic_bitmap ab;
   tmc::detail::bitmap mask;
 
@@ -370,8 +370,8 @@ TEST_F(CATEGORY, popcount_and_partial_word) {
   mask.set_bit(0);
   mask.set_bit(69);
 
-  EXPECT_EQ(ab.popcount(std::memory_order_relaxed), 3u);
-  EXPECT_EQ(ab.popcount_and(mask, std::memory_order_relaxed), 2u);
+  EXPECT_EQ(ab.popcnt(), 3u);
+  EXPECT_EQ(ab.popcnt_and(mask, std::memory_order_relaxed), 2u);
 }
 
 TEST_F(CATEGORY, bitmap_default_constructor) {
