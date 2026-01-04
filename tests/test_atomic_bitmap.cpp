@@ -616,6 +616,13 @@ TEST_F(CATEGORY, bitmap_popcnt_partial_word) {
 }
 
 #ifdef TMC_MORE_THREADS
+TEST_F(CATEGORY, atomic_bitmap_valid_mask_for_word) {
+  tmc::detail::atomic_bitmap ab;
+  ab.init(TMC_PLATFORM_BITS + 6);
+  ab.set_first_n_bits(TMC_PLATFORM_BITS + 6);
+  EXPECT_EQ(ab.valid_mask_for_word(0), TMC_ALL_ONES);
+  EXPECT_EQ(ab.valid_mask_for_word(1), (TMC_ONE_BIT << 6) - 1);
+}
 TEST_F(CATEGORY, atomic_bitmap_set_first_n_bits) {
   tmc::detail::atomic_bitmap ab;
   ab.init(TMC_PLATFORM_BITS * 2);
