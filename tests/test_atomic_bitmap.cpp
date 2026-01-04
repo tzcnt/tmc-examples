@@ -619,4 +619,85 @@ TEST_F(CATEGORY, bitmap_popcnt_partial_word) {
   EXPECT_EQ(bm.popcnt(), 10u);
 }
 
+#ifdef TMC_MORE_THREADS
+TEST_F(CATEGORY, atomic_bitmap_set_first_n_bits) {
+  tmc::detail::atomic_bitmap ab;
+  ab.init(128);
+
+  // Set first 10 bits
+  ab.set_first_n_bits(10);
+  EXPECT_EQ(ab.popcnt(), 10u);
+  for (size_t i = 0; i < 10; ++i) {
+    EXPECT_TRUE(ab.test_bit(i, std::memory_order_relaxed));
+  }
+  for (size_t i = 10; i < 128; ++i) {
+    EXPECT_FALSE(ab.test_bit(i, std::memory_order_relaxed));
+  }
+
+  ab.clear();
+  ab.init(128);
+
+  // Set exactly one full word
+  ab.set_first_n_bits(64);
+  EXPECT_EQ(ab.popcnt(), 64u);
+  EXPECT_EQ(ab.load_word(0, std::memory_order_relaxed), TMC_ALL_ONES);
+  EXPECT_EQ(ab.load_word(1, std::memory_order_relaxed), 0u);
+
+  ab.clear();
+  ab.init(128);
+
+  // Set more than one word
+  ab.set_first_n_bits(70);
+  EXPECT_EQ(ab.popcnt(), 70u);
+  EXPECT_EQ(ab.load_word(0, std::memory_order_relaxed), TMC_ALL_ONES);
+  EXPECT_EQ(ab.load_word(1, std::memory_order_relaxed), (TMC_ONE_BIT << 6) - 1);
+
+  ab.clear();
+  ab.init(128);
+
+  // Set all bits
+  ab.set_first_n_bits(128);
+  EXPECT_EQ(ab.popcnt(), 128u);
+  EXPECT_EQ(ab.load_word(0, std::memory_order_relaxed), TMC_ALL_ONES);
+  EXPECT_EQ(ab.load_word(1, std::memory_order_relaxed), TMC_ALL_ONES);
+
+  ab.clear();
+  ab.init(128);
+
+  // Set zero bits
+  ab.set_first_n_bits(0);
+  EXPECT_EQ(ab.popcnt(), 0u);
+}
+#else
+TEST_F(CATEGORY, atomic_bitmap_set_first_n_bits) {
+  tmc::detail::atomic_bitmap ab;
+  ab.init(64);
+
+  // Set first 10 bits
+  ab.set_first_n_bits(10);
+  EXPECT_EQ(ab.popcnt(), 10u);
+  for (size_t i = 0; i < 10; ++i) {
+    EXPECT_TRUE(ab.test_bit(i, std::memory_order_relaxed));
+  }
+  for (size_t i = 10; i < 64; ++i) {
+    EXPECT_FALSE(ab.test_bit(i, std::memory_order_relaxed));
+  }
+
+  ab.clear();
+  ab.init(64);
+
+  // Set all bits in single word
+  ab.set_first_n_bits(64);
+  EXPECT_EQ(ab.popcnt(), 64u);
+  EXPECT_EQ(ab.load_word(0, std::memory_order_relaxed), TMC_ALL_ONES);
+
+  ab.clear();
+  ab.init(64);
+
+  // Set zero bits
+  ab.set_first_n_bits(0);
+  EXPECT_EQ(ab.popcnt(), 0u);
+}
+#endif
+
 #undef CATEGORY
