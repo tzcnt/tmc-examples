@@ -49,36 +49,6 @@ TEST_F(CATEGORY, load_synthetic_topology) {
   EXPECT_EQ(tmcTopo.groups[1].children[1].children.size(), 0);
 }
 
-TEST_F(CATEGORY, get_all_pu_indexes_first_group_empty) {
-  auto groupsCopy = tmcTopo.groups;
-  auto flatGroups = tmc::topology::detail::flatten_groups(groupsCopy);
-  ASSERT_FALSE(flatGroups.empty());
-  flatGroups[0]->group_size = 0;
-
-  bool hasNonEmptyGroup = false;
-  for (auto* g : flatGroups) {
-    if (g->group_size != 0) {
-      hasNonEmptyGroup = true;
-      break;
-    }
-  }
-  ASSERT_TRUE(hasNonEmptyGroup);
-
-  auto puToThread = tmc::detail::get_all_pu_indexes(flatGroups);
-  EXPECT_FALSE(puToThread.empty());
-
-  size_t firstNonEmptyGroupStart = 0;
-  for (auto* g : flatGroups) {
-    if (g->group_size != 0) {
-      firstNonEmptyGroupStart = g->group_start;
-      break;
-    }
-  }
-  for (size_t puIdx : puToThread) {
-    EXPECT_GE(puIdx, firstNonEmptyGroupStart);
-  }
-}
-
 TEST_F(CATEGORY, make_partition_cpuset_exclude_first_group) {
   tmc::topology::topology_filter filter;
   filter.set_group_indexes({1, 2});

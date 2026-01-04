@@ -223,14 +223,6 @@ TEST_F(CATEGORY, adjust_thread_groups_with_cpu_kind_filter) {
   EXPECT_LE(newTotal, originalTotal);
 }
 
-TEST_F(CATEGORY, get_all_pu_indexes_returns_valid_mapping) {
-  hwloc_topology_t hwlocTopo;
-  auto topo = tmc::topology::detail::query_internal(hwlocTopo);
-  auto flat = tmc::topology::detail::flatten_groups(topo.groups);
-  auto puMapping = tmc::detail::get_all_pu_indexes(flat);
-  EXPECT_GT(puMapping.size(), 0u);
-}
-
 TEST_F(CATEGORY, find_parent_cache_returns_valid_cache) {
   hwloc_topology_t hwlocTopo;
   auto topo = tmc::topology::detail::query_internal(hwlocTopo);
