@@ -80,8 +80,14 @@ public:
     p.result_ptr = &result;
     return handle;
   }
-  inline Result& await_resume() & noexcept { return result; }
-  inline Result&& await_resume() && noexcept { return std::move(result); }
+  inline Result& await_resume() & noexcept {
+    handle.destroy();
+    return result;
+  }
+  inline Result&& await_resume() && noexcept {
+    handle.destroy();
+    return std::move(result);
+  }
 };
 
 template <> class aw_external_coro<void> {
@@ -97,5 +103,5 @@ public:
     p.continuation = Outer;
     return handle;
   }
-  inline void await_resume() const noexcept {}
+  inline void await_resume() const noexcept { handle.destroy(); }
 };
