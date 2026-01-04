@@ -422,6 +422,34 @@ TEST_F(CATEGORY, add_partition_priority_range_end_clamp) {
   ex.set_priority_count(2).add_partition(filter, 0, 5).init();
   EXPECT_GE(ex.thread_count(), 1);
 }
+
+TEST_F(CATEGORY, partition_split_group_thread_hint) {
+  auto topo = tmc::topology::query();
+
+  // This test requires a group with at least 2 cores
+  if (topo.groups[0].core_indexes.size() < 2) {
+    GTEST_SKIP();
+  }
+
+  tmc::topology::topology_filter f1;
+  f1.set_core_indexes({0});
+  tmc::topology::topology_filter f2;
+  f2.set_group_indexes({0});
+
+  // Split the 2 threads (which share a group) into separate priorities
+  tmc::ex_cpu ex;
+  ex.add_partition(f1, 0, 1)
+    .add_partition(f2, 1, 2)
+    .set_thread_pinning_level(tmc::topology::thread_pinning_level::CORE)
+    .set_priority_count(2)
+    //.set_thread_count(8)
+    .init();
+
+  tmc::post_waitable(ex, []() -> tmc::task<void> { co_return; }(), 0, 0).wait();
+  tmc::post_waitable(ex, []() -> tmc::task<void> { co_return; }(), 1, 0).wait();
+  tmc::post_waitable(ex, []() -> tmc::task<void> { co_return; }(), 0, 1).wait();
+  tmc::post_waitable(ex, []() -> tmc::task<void> { co_return; }(), 1, 1).wait();
+}
 #endif
 
 #include "test_executors.ipp"

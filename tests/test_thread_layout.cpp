@@ -407,23 +407,45 @@ TEST_F(CATEGORY, topology_filter_set_cpu_kinds) {
   EXPECT_EQ(filter.cpu_kinds(), tmc::topology::cpu_kind::ALL);
 }
 
-TEST_F(CATEGORY, topology_filter_or_operator) {
+TEST_F(CATEGORY, topology_filter_operator_or_cores_only) {
+  auto topo = tmc::topology::query();
+  if (topo.groups.size() < 1 || topo.groups[0].core_indexes.size() < 2) {
+    GTEST_SKIP() << "Topology has fewer than 2 cores in group 0";
+  }
+
   tmc::topology::topology_filter f1;
-  f1.set_core_indexes({0, 2});
-  f1.set_group_indexes({0});
-  f1.set_numa_indexes({0});
+  f1.set_core_indexes({topo.groups[0].core_indexes[0]});
+
+  tmc::topology::topology_filter f2;
+  f2.set_core_indexes({topo.groups[0].core_indexes[1]});
+
+  auto combined = f1 | f2;
+  EXPECT_EQ(
+    combined.core_indexes(),
+    (std::vector<size_t>{
+      topo.groups[0].core_indexes[0], topo.groups[0].core_indexes[1]
+    })
+  );
+  EXPECT_TRUE(combined.group_indexes().empty());
+  EXPECT_TRUE(combined.numa_indexes().empty());
+}
+
+TEST_F(CATEGORY, topology_filter_operator_or) {
+  tmc::topology::topology_filter f1;
+  f1.set_core_indexes({0});
   f1.set_cpu_kinds(tmc::topology::cpu_kind::PERFORMANCE);
 
   tmc::topology::topology_filter f2;
-  f2.set_core_indexes({1, 3});
-  f2.set_group_indexes({1});
-  f2.set_numa_indexes({1});
+  f2.set_group_indexes({0});
+  f2.set_numa_indexes({0});
   f2.set_cpu_kinds(tmc::topology::cpu_kind::EFFICIENCY1);
 
+  auto topo = tmc::topology::query();
+
   auto combined = f1 | f2;
-  EXPECT_EQ(combined.core_indexes(), (std::vector<size_t>{0, 1, 2, 3}));
-  EXPECT_EQ(combined.group_indexes(), (std::vector<size_t>{0, 1}));
-  EXPECT_EQ(combined.numa_indexes(), (std::vector<size_t>{0, 1}));
+  EXPECT_EQ(combined.core_indexes(), topo.groups[0].core_indexes);
+  EXPECT_TRUE(combined.group_indexes().empty());
+  EXPECT_TRUE(combined.numa_indexes().empty());
   EXPECT_EQ(
     combined.cpu_kinds(),
     tmc::topology::cpu_kind::PERFORMANCE | tmc::topology::cpu_kind::EFFICIENCY1
