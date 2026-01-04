@@ -138,17 +138,17 @@ TEST_F(CATEGORY, add_partition_numa) {
 }
 #endif
 
-#include "test_executors.ipp"
-#include "test_nested_executors.ipp"
-#include "test_spawn_composition.ipp"
-#include "test_spawn_func_many.ipp"
-#include "test_spawn_func_many_detach.ipp"
-#include "test_spawn_func_many_each.ipp"
-#include "test_spawn_func_many_fork.ipp"
-#include "test_spawn_many.ipp"
-#include "test_spawn_many_detach.ipp"
-#include "test_spawn_many_each.ipp"
-#include "test_spawn_many_fork.ipp"
-#include "test_spawn_tuple.ipp"
+#include "test_executors.cpp"
+#include "test_nested_executors.cpp"
+#include "test_spawn_composition.cpp"
+#include "test_spawn_func_many.cpp"
+#include "test_spawn_func_many_detach.cpp"
+#include "test_spawn_func_many_each.cpp"
+#include "test_spawn_func_many_fork.cpp"
+#include "test_spawn_many.cpp"
+#include "test_spawn_many_detach.cpp"
+#include "test_spawn_many_each.cpp"
+#include "test_spawn_many_fork.cpp"
+#include "test_spawn_tuple.cpp"
 
 #undef CATEGORY

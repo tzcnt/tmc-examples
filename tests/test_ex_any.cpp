@@ -105,6 +105,6 @@ TEST_F(CATEGORY, task_enter_context_ptr) {
   EXPECT_EQ(entry, std::noop_coroutine());
 }
 
-#include "test_executors.ipp"
+#include "test_executors.cpp"
 
 #undef CATEGORY
