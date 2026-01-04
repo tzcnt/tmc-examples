@@ -1,11 +1,10 @@
-// (no args): For each L3 cache group (e.g. on Zen Chiplet architecture where
-// there is a shared L3 cache per chiplet), create 1 I/O thread and a CPU thread
-// pool bound to the same cache.
+// (no args): For each core, create 1 I/O thread and a CPU thread bound to the
+// same core. This requires SMT/hyperthreading.
 
-// If called with '--query', returns the number of cache groups.
-// Then it can be called N times, passing the cache group index as the command
+// If called with '--query', returns the number of cores.
+// Then it can be called N times, passing the core index as the command
 // line argument each time, in parallel, to create a prefork process instead of
-// prefork threads. This is what the asio_server_per_cache_prefork.sh script
+// prefork threads. This is what the asio_server_per_core_prefork.sh script
 // does.
 
 #ifdef _WIN32
