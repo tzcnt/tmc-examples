@@ -11,16 +11,21 @@
 #include "tmc/ex_cpu.hpp"
 #include "tmc/fork_group.hpp"
 #include "tmc/task.hpp"
+#include "tmc/topology.hpp"
 
 #ifdef TMC_USE_BOOST_ASIO
+#include <boost/asio/basic_socket_acceptor.hpp>
 #include <boost/asio/buffer.hpp>
+#include <boost/asio/io_context.hpp>
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/write.hpp>
 
 namespace asio = boost::asio;
 using boost::system::error_code;
 #else
+#include <asio/basic_socket_acceptor.hpp>
 #include <asio/buffer.hpp>
+#include <asio/io_context.hpp>
 #include <asio/ip/tcp.hpp>
 #include <asio/write.hpp>
 
@@ -65,7 +70,9 @@ tmc::task<void> handler(auto Socket) {
 
 static tmc::task<void> accept(uint16_t Port) {
   std::printf("serving on http://localhost:%d/\n", Port);
-  tcp::acceptor acceptor(tmc::asio_executor(), {tcp::v4(), Port});
+  asio::basic_socket_acceptor<asio::ip::tcp, asio::io_context::executor_type>
+    acceptor(tmc::asio_executor(), {tcp::v4(), Port});
+
   auto handlers = tmc::fork_group();
   while (true) {
     auto [error, sock] = co_await acceptor.async_accept(tmc::aw_asio);
@@ -80,6 +87,15 @@ static tmc::task<void> accept(uint16_t Port) {
 
 int main() {
   tmc::cpu_executor().init();
+
+#ifdef TMC_USE_HWLOC
+  // A performance trick - pin the Asio thread to the first cache on the system.
+  // This is also where the CPU executor threads will be woken first, so the
+  // latency between I/O and CPU threads is reduced.
+  tmc::topology::topology_filter f;
+  f.set_group_indexes({0});
+  tmc::asio_executor().add_partition(f);
+#endif
   tmc::asio_executor().init();
   return tmc::async_main([]() -> tmc::task<int> {
     auto acceptors = tmc::fork_group();

@@ -19,7 +19,6 @@
 
 #include <gtest/gtest.h>
 
-#include <cmath>
 #include <cstdlib>
 #include <string>
 
