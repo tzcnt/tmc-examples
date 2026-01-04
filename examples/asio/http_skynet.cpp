@@ -18,17 +18,24 @@
 #include <array>
 
 #ifdef TMC_USE_BOOST_ASIO
+#include <boost/asio/basic_socket_acceptor.hpp>
 #include <boost/asio/buffer.hpp>
+#include <boost/asio/io_context.hpp>
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/streambuf.hpp>
 #include <boost/asio/write.hpp>
 
 namespace asio = boost::asio;
+using boost::system::error_code;
 #else
+#include <asio/basic_socket_acceptor.hpp>
 #include <asio/buffer.hpp>
+#include <asio/io_context.hpp>
 #include <asio/ip/tcp.hpp>
 #include <asio/streambuf.hpp>
 #include <asio/write.hpp>
+
+using asio::error_code;
 #endif
 
 #include <chrono>
@@ -131,7 +138,8 @@ tmc::task<void> handler(auto Socket) {
 
 static tmc::task<void> accept(uint16_t Port) {
   auto handlers = tmc::fork_group();
-  tcp::acceptor acceptor(tmc::asio_executor(), {tcp::v4(), Port});
+  asio::basic_socket_acceptor<asio::ip::tcp, asio::io_context::executor_type>
+    acceptor(tmc::asio_executor(), {tcp::v4(), Port});
   while (true) {
     auto [error, sock] = co_await acceptor.async_accept(tmc::aw_asio);
     if (error) {

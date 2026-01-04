@@ -22,15 +22,18 @@
 #include "tmc/topology.hpp"
 
 #ifdef TMC_USE_BOOST_ASIO
+#include <boost/asio/basic_socket_acceptor.hpp>
 #include <boost/asio/buffer.hpp>
+#include <boost/asio/io_context.hpp>
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/write.hpp>
 
 namespace asio = boost::asio;
 using boost::system::error_code;
 #else
-#include <asio.hpp>
+#include <asio/basic_socket_acceptor.hpp>
 #include <asio/buffer.hpp>
+#include <asio/io_context.hpp>
 #include <asio/ip/tcp.hpp>
 #include <asio/write.hpp>
 
@@ -84,7 +87,8 @@ static tmc::task<void> accept(tmc::ex_asio& ex, uint16_t Port) {
 
   // Set SO_REUSEPORT to allow multiple threads to bind to the same port.
   // The OS will distribute incoming connections among our preforked workers.
-  tcp::acceptor acceptor(ex);
+  asio::basic_socket_acceptor<asio::ip::tcp, asio::io_context::executor_type>
+    acceptor(ex);
   acceptor.open(tcp::v4());
   int one = 1;
 #ifdef _WIN32
