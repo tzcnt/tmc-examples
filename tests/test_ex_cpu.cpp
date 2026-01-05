@@ -343,6 +343,27 @@ TEST_F(CATEGORY, add_partition_hybrid_disjoint) {
     .add_partition(filter2, 1, 2)
     .init();
   EXPECT_GE(ex.thread_count(), 1);
+
+  // Prio 0 must run on low thread indexes
+  tmc::post_waitable(
+    ex,
+    [&]() { EXPECT_LT(tmc::current_thread_index(), topo.cpu_kind_counts[0]); },
+    0
+  )
+    .wait();
+
+  // Prio 1 must run on high thread indexes
+  tmc::post_waitable(
+    ex,
+    [&]() {
+      auto min = topo.cpu_kind_counts[0];
+      auto max = min + topo.cpu_kind_counts[1];
+      EXPECT_GE(tmc::current_thread_index(), min);
+      EXPECT_LT(tmc::current_thread_index(), max);
+    },
+    1
+  )
+    .wait();
 }
 
 TEST_F(CATEGORY, add_partition_hybrid_overlap) {
@@ -361,6 +382,30 @@ TEST_F(CATEGORY, add_partition_hybrid_overlap) {
     .add_partition(filter2, 1, 3)
     .init();
   EXPECT_GE(ex.thread_count(), 1);
+
+  // Prio 0 must run on low thread indexes
+  tmc::post_waitable(
+    ex,
+    [&]() { EXPECT_LT(tmc::current_thread_index(), topo.cpu_kind_counts[0]); },
+    0
+  )
+    .wait();
+
+  // Prio 1 may run on any thread
+  tmc::post_waitable(ex, [&]() {}, 1).wait();
+
+  // Prio 2 must run on high thread indexes
+  tmc::post_waitable(
+    ex,
+    [&]() {
+      auto min = topo.cpu_kind_counts[0];
+      auto max = min + topo.cpu_kind_counts[1];
+      EXPECT_GE(tmc::current_thread_index(), min);
+      EXPECT_LT(tmc::current_thread_index(), max);
+    },
+    2
+  )
+    .wait();
 }
 
 TEST_F(CATEGORY, post_with_thread_hint) {
