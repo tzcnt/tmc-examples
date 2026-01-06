@@ -19,9 +19,6 @@ protected:
   static void SetUpTestSuite() {
     exec.set_priority_count(2).init();
     worker = std::jthread([&](std::stop_token ThreadStopToken) -> void {
-      // Ensure this thread sees all non-atomic read-only values
-      tmc::detail::memory_barrier();
-
       size_t i = 0;
       while (!ThreadStopToken.stop_requested()) {
         // Test all 3 run() methods
