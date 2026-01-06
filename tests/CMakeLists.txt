@@ -37,7 +37,7 @@ endif()
 
 # copy compile_commands.json to the build directory after build so clangd can find it
 # clangd won't look in the /build/{config} directory, only in the top-level /build directory
-function(make_exe target_name)
+function(make_exe_base target_name)
   add_executable(${target_name} ${ARGN})
   target_link_libraries(${target_name} PRIVATE GTest::gtest_main)
 
@@ -64,6 +64,7 @@ endfunction()
 
 # Split compilation of the implementations into its own unit.
 # Only this unit and some specific tests need to include <hwloc.h>.
+# Regression test for https://github.com/tzcnt/TooManyCooks/issues/126
 add_library(tests_tmc_build OBJECT
   standalone_compilation.cpp
   test_hwloc.cpp
@@ -79,7 +80,7 @@ if(TMC_USE_HWLOC)
   target_include_directories(tests_tmc_build SYSTEM PRIVATE ${HWLOC_INCLUDE_PATH})
 endif()
 
-make_exe(
+make_exe_base(
   tests
   main.cpp
   fixtures/topo_13600k.cpp
@@ -120,6 +121,15 @@ make_exe(
 )
 target_link_libraries(tests PRIVATE tests_tmc_build)
 target_compile_definitions(tests PRIVATE TMC_NO_UNKNOWN_AWAITABLES)
+
+# Standalone test executables can include hwloc directly
+function(make_exe target_name)
+  make_exe_base(${target_name} ${ARGN})
+
+  if(TMC_USE_HWLOC)
+    target_include_directories(${target_name} SYSTEM PRIVATE ${HWLOC_INCLUDE_PATH})
+  endif()
+endfunction()
 
 make_exe(test_exceptions test_exceptions.cpp)
 
