@@ -148,11 +148,11 @@ make_exe(test_container
 target_compile_definitions(test_container PRIVATE TMC_NO_UNKNOWN_AWAITABLES)
 
 if(TMC_USE_HWLOC AND LIBHWLOC_FOUND)
-  target_link_libraries(tests ${LIBHWLOC_LIBRARY})
-  target_link_libraries(test_exceptions ${LIBHWLOC_LIBRARY})
-  target_link_libraries(test_halo ${LIBHWLOC_LIBRARY})
-  target_link_libraries(test_fuzz_chan ${LIBHWLOC_LIBRARY})
-  target_link_libraries(test_container ${LIBHWLOC_LIBRARY})
+  target_link_libraries(tests PRIVATE ${LIBHWLOC_LIBRARY})
+  target_link_libraries(test_exceptions PRIVATE ${LIBHWLOC_LIBRARY})
+  target_link_libraries(test_halo PRIVATE ${LIBHWLOC_LIBRARY})
+  target_link_libraries(test_fuzz_chan PRIVATE ${LIBHWLOC_LIBRARY})
+  target_link_libraries(test_container PRIVATE ${LIBHWLOC_LIBRARY})
 endif()
 
 gtest_discover_tests(tests)
