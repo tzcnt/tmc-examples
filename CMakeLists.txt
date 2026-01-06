@@ -66,11 +66,6 @@ else()
     set(TMC_ASIO_INCLUDE_PATH ${tmc_asio_SOURCE_DIR}/include CACHE STRING "" FORCE)
 endif()
 
-include_directories(
-    ${TMC_INCLUDE_PATH}
-    ${TMC_ASIO_INCLUDE_PATH}
-)
-
 if(CMAKE_SIZEOF_VOID_P EQUAL 8)
     set(PLATFORM_BITS 64)
 else()
@@ -89,8 +84,8 @@ if(TMC_USE_HWLOC)
             VERSION 2.12.2
             DOWNLOAD_ONLY
         )
-        include_directories(SYSTEM ${hwloc_SOURCE_DIR}/include)
         link_libraries(${hwloc_SOURCE_DIR}/lib/libhwloc.lib)
+        set(HWLOC_INCLUDE_PATH ${hwloc_SOURCE_DIR}/include CACHE STRING "" FORCE)
         add_compile_definitions(TMC_USE_HWLOC)
     else()
         message(STATUS "TMC_USE_HWLOC: running find_package(libhwloc)...")
@@ -102,7 +97,7 @@ if(TMC_USE_HWLOC)
             message(STATUS "TMC_USE_HWLOC: found library ${LIBHWLOC_LIBRARY}")
             message(STATUS "TMC_USE_HWLOC: found include ${LIBHWLOC_INCLUDE_DIR}/hwloc.h")
             link_libraries(${LIBHWLOC_LIBRARY})
-            include_directories(SYSTEM ${LIBHWLOC_INCLUDE_DIR})
+            set(HWLOC_INCLUDE_PATH ${LIBHWLOC_INCLUDE_DIR} CACHE STRING "" FORCE)
             add_compile_definitions(TMC_USE_HWLOC)
         endif()
     endif()
@@ -240,6 +235,16 @@ endif()
 # clangd won't look in the /build/{config} directory, only in the top-level /build directory
 function(make_exe target_name)
     add_executable(${target_name} ${ARGN})
+
+    target_include_directories(${target_name} PRIVATE
+        ${TMC_INCLUDE_PATH}
+        ${TMC_ASIO_INCLUDE_PATH}
+    )
+
+    if(TMC_USE_HWLOC)
+        target_include_directories(${target_name} SYSTEM PRIVATE ${HWLOC_INCLUDE_PATH})
+    endif()
+
     add_custom_command(TARGET ${target_name} POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
         ${CMAKE_BINARY_DIR}/compile_commands.json

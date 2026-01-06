@@ -17,17 +17,6 @@ CPMAddPackage(
 
 enable_testing()
 
-# Variables provided by parent project
-include_directories(
-  ${TMC_INCLUDE_PATH}
-  ${TMC_ASIO_INCLUDE_PATH}
-)
-
-# mark Asio headers as SYSTEM to ignore warnings
-include_directories(SYSTEM
-  ${ASIO_INCLUDE_PATH}
-)
-
 include(GoogleTest)
 
 # GoogleTest library itself (gtest-all.cc) emits a fair amount of warnings noise
@@ -50,7 +39,14 @@ endif()
 # clangd won't look in the /build/{config} directory, only in the top-level /build directory
 function(make_exe target_name)
   add_executable(${target_name} ${ARGN})
-  target_link_libraries(${target_name} GTest::gtest_main)
+  target_link_libraries(${target_name} PRIVATE GTest::gtest_main)
+
+  # Variables created by parent project
+  target_include_directories(${target_name} PRIVATE
+    ${TMC_INCLUDE_PATH}
+    ${TMC_ASIO_INCLUDE_PATH}
+  )
+
   add_custom_command(TARGET ${target_name} POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
     ${CMAKE_BINARY_DIR}/compile_commands.json
@@ -66,10 +62,26 @@ function(make_exe target_name)
   endif()
 endfunction()
 
+# Split compilation of the implementations into its own unit.
+# Only this unit and some specific tests need to include <hwloc.h>.
+add_library(tests_tmc_build OBJECT
+  standalone_compilation.cpp
+  test_hwloc.cpp
+  test_hwloc_synthetic.cpp
+)
+target_link_libraries(tests_tmc_build PRIVATE GTest::gtest_main)
+target_compile_definitions(tests_tmc_build PRIVATE TMC_NO_UNKNOWN_AWAITABLES)
+target_include_directories(tests_tmc_build PRIVATE
+  ${TMC_INCLUDE_PATH}
+  ${TMC_ASIO_INCLUDE_PATH})
+
+if(TMC_USE_HWLOC)
+  target_include_directories(tests_tmc_build SYSTEM PRIVATE ${HWLOC_INCLUDE_PATH})
+endif()
+
 make_exe(
   tests
   main.cpp
-  standalone_compilation.cpp
   fixtures/topo_13600k.cpp
   assert_ex_cpu.cpp
   assert_coro.cpp
@@ -101,13 +113,12 @@ make_exe(
   test_qu_lockfree.cpp
   test_qu_mpsc.cpp
   test_thread_layout.cpp
-  test_hwloc.cpp
-  test_hwloc_synthetic.cpp
   test_fork_group.cpp
   test_spawn_group.cpp
   test_fork_clang.cpp
   test_container.cpp
 )
+target_link_libraries(tests PRIVATE tests_tmc_build)
 target_compile_definitions(tests PRIVATE TMC_NO_UNKNOWN_AWAITABLES)
 
 make_exe(test_exceptions test_exceptions.cpp)
