@@ -118,64 +118,69 @@ static tmc::task<void> accept(tmc::ex_asio& ex, uint16_t Port) {
   co_await std::move(handlers);
 }
 
+// Create a single-threaded asio executor, bound to the cache specified by
+// CacheIdx. Also create a CPU thread pool, bound to the same cache.
+static void configure_executors(
+  tmc::ex_asio& ExAsio, tmc::ex_cpu& ExCpu, tmc::topology::cpu_topology Topo,
+  size_t CacheIdx
+) {
+  tmc::topology::topology_filter f{};
+  f.set_group_indexes({CacheIdx});
+
+  ExAsio.add_partition(f);
+  ExAsio.init();
+
+  ExCpu.add_partition(f);
+  // Create cores-1 CPU threads, leaving 1 core free for the I/O thread.
+  ExCpu.set_thread_count(Topo.groups[CacheIdx].core_indexes.size() - 1);
+
+  //// Optionally, you can increase the number of threads or use
+  //// set_thread_occupancy() to make use of SMT.
+  // if (topo.groups[cacheIdx].smt_level > 1) {
+  //   // Use hyperthreading if available. Set occupancy just below 2, since
+  //   // we need to leave room for the I/O thread.
+  //   exCpu.set_thread_occupancy(1.75f);
+  // }
+
+  ExCpu.init();
+}
+
 int main(int argc, char* argv[]) {
   auto topo = tmc::topology::query();
   if (argc > 1) {
     // Allow the shell to query how many caches there are for prefork
-
     if (0 == strcmp(argv[1], "--query")) {
       std::printf("%zu\n", topo.groups.size());
       return 0;
     }
 
-    // Create a single-threaded asio executor, bound to the cache specified by
-    // the shell. Also create a CPU thread pool, bound to the same cache.
-    //
+    // Only create 1 Asio/CPU executor pair.
     // The shell will create additional processes for each cache.
     size_t cacheIdx = static_cast<size_t>(atoi(argv[1]));
     tmc::ex_asio exAsio;
-    tmc::topology::topology_filter f{};
-    f.set_group_indexes({cacheIdx});
-    exAsio.add_partition(f);
-    exAsio.init();
-
     tmc::ex_cpu exCpu;
-    exCpu.add_partition(f);
-    if (topo.groups[cacheIdx].smt_level > 1) {
-      // Use hyperthreading if available. Set occupancy just below 2, since we
-      // need to leave room for the I/O thread.
-      exCpu.set_thread_occupancy(1.75f, tmc::topology::cpu_kind::PERFORMANCE);
-    }
+    configure_executors(exAsio, exCpu, topo, cacheIdx);
+
     exCpu.init();
     // Initiate the accept loop on the CPU executor to automate CPU offloading
     tmc::post_waitable(exCpu, accept(exAsio, 55550)).wait();
   } else {
     // Create 1 single-threaded asio executor, and a CPU thread pool, per cache.
     // All executors live in this process.
-    size_t count = topo.groups.size();
+    size_t cacheCount = topo.groups.size();
 
     // Executors are not movable, but they can be default-constructed, so
     // initialize the vectors with the right size up front.
-    std::vector<tmc::ex_asio> exAsios(count);
-    std::vector<tmc::ex_cpu> exCpus(count);
-    for (size_t i = 0; i < count; ++i) {
-      tmc::topology::topology_filter f{};
-      f.set_group_indexes({i});
-
-      exAsios[i].add_partition(f);
-      exAsios[i].init();
-
-      exCpus[i].add_partition(f);
-      exCpus[i].set_thread_occupancy(
-        1.5f, tmc::topology::cpu_kind::PERFORMANCE
-      );
-      exCpus[i].init();
+    std::vector<tmc::ex_asio> exAsios(cacheCount);
+    std::vector<tmc::ex_cpu> exCpus(cacheCount);
+    for (size_t i = 0; i < cacheCount; ++i) {
+      configure_executors(exAsios[i], exCpus[i], topo, i);
     }
 
     // Dispatch 1 acceptor/worker loop to each executor group
     std::vector<std::future<void>> workers;
-    workers.reserve(count);
-    for (size_t i = 0; i < count; ++i) {
+    workers.reserve(cacheCount);
+    for (size_t i = 0; i < cacheCount; ++i) {
       // Initiate the accept loop on the CPU executor to automate CPU
       // offloading. This CPU executor will communicate exclusively with the I/O
       // executor running on the same cache.
@@ -185,7 +190,7 @@ int main(int argc, char* argv[]) {
     }
 
     // Wait for all of the workers to complete.
-    for (size_t i = 0; i < count; ++i) {
+    for (size_t i = 0; i < cacheCount; ++i) {
       workers[i].wait();
     }
   }

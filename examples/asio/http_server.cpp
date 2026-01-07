@@ -86,7 +86,6 @@ static tmc::task<void> accept(uint16_t Port) {
 }
 
 int main() {
-  tmc::cpu_executor().init();
 
 #ifdef TMC_USE_HWLOC
   // A performance trick - pin the Asio thread to the first cache on the system.
@@ -96,22 +95,25 @@ int main() {
   f.set_group_indexes({0});
   tmc::asio_executor().add_partition(f);
 #endif
+
   tmc::asio_executor().init();
+  tmc::cpu_executor().init();
+
   return tmc::async_main([]() -> tmc::task<int> {
     auto acceptors = tmc::fork_group();
-    // The default behavior is to submit each I/O call to ASIO, then resume the
-    // coroutine back on tmc::cpu_executor(). Although there is additional
-    // overhead with this thread transition, it may still improve overall
-    // throughput since the Asio executor doesn't need to process any
-    // continuations inline. Additionally, it eliminates any risk of
-    // accidentally blocking the I/O thread.
+    // The default behavior is to submit each I/O call to ASIO, then
+    // resume the coroutine back on tmc::cpu_executor(). Although there
+    // is some overhead with this thread transition, it still improves
+    // overall throughput since the Asio executor doesn't need to
+    // process any continuations inline. Additionally, it eliminates
+    // any risk of accidentally blocking the I/O thread.
     acceptors.fork(accept(55550));
 
-    // This customization runs both the I/O calls and the continuations inline
-    // on the single-threaded tmc::asio_executor(). This may or may not yield
-    // higher performance for a strictly I/O latency bound benchmark such as
-    // this example, and care must be taken to manually offload CPU-bound work
-    // to the cpu executor.
+    // This customization runs both the I/O calls and the continuations
+    // inline on the single-threaded tmc::asio_executor(). This may
+    // improve latency in low load scenarios, but will have worse
+    // bandwidth under high load. Additionally, care must be taken to
+    // manually offload CPU-bound work to the cpu executor.
     acceptors.fork(accept(55551), tmc::asio_executor());
 
     co_await std::move(acceptors);

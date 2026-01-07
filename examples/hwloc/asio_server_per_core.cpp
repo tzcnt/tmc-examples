@@ -117,6 +117,21 @@ static tmc::task<void> accept(tmc::ex_asio& ex, uint16_t Port) {
   co_await std::move(handlers);
 }
 
+// Create a single-threaded asio executor, bound to the core specified by
+// CoreIdx. Also create a single-threaded CPU executor, bound to the same core.
+static void configure_executors(
+  tmc::ex_asio& ExAsio, tmc::ex_cpu_st& ExCpu, size_t CoreIdx
+) {
+  tmc::topology::topology_filter f{};
+  f.set_core_indexes({CoreIdx});
+
+  ExAsio.add_partition(f);
+  ExAsio.init();
+
+  ExCpu.add_partition(f);
+  ExCpu.init();
+}
+
 int main(int argc, char* argv[]) {
   auto topo = tmc::topology::query();
   if (topo.groups[0].smt_level == 1) {
@@ -134,47 +149,32 @@ int main(int argc, char* argv[]) {
       return 0;
     }
 
-    // Create a single-threaded asio executor, bound to the core specified by
-    // the shell. Also create a single-threaded CPU executor, bound to the
-    // same core.
-    //
+    // Only create 1 Asio/CPU executor pair.
     // The shell will create additional processes for each core.
     size_t coreIdx = static_cast<size_t>(atoi(argv[1]));
     tmc::ex_asio exAsio;
-    tmc::topology::topology_filter f{};
-    f.set_core_indexes({coreIdx});
-    exAsio.add_partition(f);
-    exAsio.init();
-
     tmc::ex_cpu_st exCpu;
-    exCpu.add_partition(f);
-    exCpu.init();
+    configure_executors(exAsio, exCpu, coreIdx);
+
     // Initiate the accept loop on the CPU executor to automate CPU offloading
     tmc::post_waitable(exCpu, accept(exAsio, 55550)).wait();
   } else {
     // Create 1 single-threaded asio executor, and a single-threaded CPU
     // executor, per core. All executors live in this process.
-    size_t count = topo.core_count();
+    size_t coreCount = topo.core_count();
 
     // Executors are not movable, but they can be default-constructed, so
     // initialize the vectors with the right size up front.
-    std::vector<tmc::ex_asio> exAsios(count);
-    std::vector<tmc::ex_cpu_st> exCpus(count);
-    for (size_t i = 0; i < count; ++i) {
-      tmc::topology::topology_filter f{};
-      f.set_core_indexes({i});
-
-      exAsios[i].add_partition(f);
-      exAsios[i].init();
-
-      exCpus[i].add_partition(f);
-      exCpus[i].init();
+    std::vector<tmc::ex_asio> exAsios(coreCount);
+    std::vector<tmc::ex_cpu_st> exCpus(coreCount);
+    for (size_t i = 0; i < coreCount; ++i) {
+      configure_executors(exAsios[i], exCpus[i], i);
     }
 
     // Dispatch 1 acceptor/worker loop to each executor group
     std::vector<std::future<void>> workers;
-    workers.reserve(count);
-    for (size_t i = 0; i < count; ++i) {
+    workers.reserve(coreCount);
+    for (size_t i = 0; i < coreCount; ++i) {
       // Initiate the accept loop on the CPU executor to automate CPU
       // offloading. Each CPU executor will communicate exclusively with the I/O
       // executor running on the same core.
@@ -184,7 +184,7 @@ int main(int argc, char* argv[]) {
     }
 
     // Wait for all of the workers to complete.
-    for (size_t i = 0; i < count; ++i) {
+    for (size_t i = 0; i < coreCount; ++i) {
       workers[i].wait();
     }
   }
