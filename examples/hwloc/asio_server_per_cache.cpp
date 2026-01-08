@@ -177,7 +177,7 @@ int main(int argc, char* argv[]) {
       configure_executors(exAsios[i], exCpus[i], topo, i);
     }
 
-    // Dispatch 1 acceptor/worker loop to each executor group
+    // Post 1 acceptor/worker loop to each executor group
     std::vector<std::future<void>> workers;
     workers.reserve(cacheCount);
     for (size_t i = 0; i < cacheCount; ++i) {

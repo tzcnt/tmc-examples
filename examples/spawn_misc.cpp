@@ -163,7 +163,7 @@ void large_task_spawn_bench_lazy_bulk() {
   );
 }
 
-// Dispatch lowest prio -> highest prio so that each task is interrupted
+// Post lowest prio -> highest prio so that each task is interrupted
 template <size_t Count, size_t nthreads, size_t npriorities>
 void prio_reversal_test() {
   std::printf("prio_reversal_test()...\n");
