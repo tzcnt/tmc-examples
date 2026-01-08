@@ -94,14 +94,13 @@ TEST_F(CATEGORY, post_bulk_work_item_ptr) { test_post_bulk_work_item(&ex()); }
 
 TEST_F(CATEGORY, post_bulk_work_item_ref) { test_post_bulk_work_item(ex()); }
 
-// Pointer version of task_enter_context is currently unused, because
+// Pointer version of dispatch is currently unused, because
 // tmc::enter() always delegates to the reference version.
 // Add a special test for it here.
-TEST_F(CATEGORY, task_enter_context_ptr) {
-  auto entry =
-    tmc::detail::get_executor_traits<tmc::ex_any*>::task_enter_context(
-      &ex(), []() -> tmc::task<void> { co_return; }(), 0
-    );
+TEST_F(CATEGORY, dispatch_ptr) {
+  auto entry = tmc::detail::get_executor_traits<tmc::ex_any*>::dispatch(
+    &ex(), []() -> tmc::task<void> { co_return; }(), 0
+  );
   EXPECT_EQ(entry, std::noop_coroutine());
 }
 
