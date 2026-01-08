@@ -25,7 +25,7 @@ protected:
 
 TEST_F(CATEGORY, yield) {
   test_async_main(ex(), []() -> tmc::task<void> {
-    // Dispatch lowest prio -> highest prio so that each task is interrupted
+    // Post lowest prio -> highest prio so that each task is interrupted
     std::array<size_t, Count> data;
     for (size_t i = 0; i < Count; ++i) {
       data[i] = 0;
@@ -71,7 +71,7 @@ TEST_F(CATEGORY, yield) {
 
 TEST_F(CATEGORY, yield_if_requested) {
   test_async_main(ex(), []() -> tmc::task<void> {
-    // Dispatch lowest prio -> highest prio so that each task is interrupted
+    // Post lowest prio -> highest prio so that each task is interrupted
     std::array<size_t, Count> data;
     for (size_t i = 0; i < Count; ++i) {
       data[i] = 0;
@@ -115,7 +115,7 @@ TEST_F(CATEGORY, yield_if_requested) {
 
 TEST_F(CATEGORY, yield_counter) {
   test_async_main(ex(), []() -> tmc::task<void> {
-    // Dispatch lowest prio -> highest prio so that each task is interrupted
+    // Post lowest prio -> highest prio so that each task is interrupted
     std::array<size_t, Count> data;
     for (size_t i = 0; i < Count; ++i) {
       data[i] = 0;
@@ -161,7 +161,7 @@ TEST_F(CATEGORY, yield_counter) {
 
 TEST_F(CATEGORY, yield_counter_dynamic) {
   test_async_main(ex(), []() -> tmc::task<void> {
-    // Dispatch lowest prio -> highest prio so that each task is interrupted
+    // Post lowest prio -> highest prio so that each task is interrupted
     std::array<size_t, Count> data;
     for (size_t i = 0; i < Count; ++i) {
       data[i] = 0;

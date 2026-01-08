@@ -1,5 +1,5 @@
 // A benchmark for the latency and/or bandwidth of single-threaded executors.
-// Tasks are dispatched from tmc::cpu_executor() into the single threaded
+// Tasks are posted from tmc::cpu_executor() into the single threaded
 // executor, and then awaited. Sweeps from 1 to N producers, where N is the
 // number of cores on the machine.
 
@@ -28,7 +28,7 @@ static tmc::task<void> producer(Exec& ex, size_t count) {
     co_await tmc::spawn(consumer(static_cast<int>(i))).run_on(ex);
   }
 
-  // // Single task dispatch, bulk await
+  // // Single task post, bulk await
   // auto fg = tmc::fork_group();
   // for (size_t i = 0; i < count; ++i) {
   //   fg.fork(consumer(static_cast<int>(i)), ex);

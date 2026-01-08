@@ -86,7 +86,7 @@ template <> struct tmc::detail::executor_traits<external_executor> {
     return Ex.type_erased();
   }
 
-  static inline std::coroutine_handle<> task_enter_context(
+  static inline std::coroutine_handle<> dispatch(
     external_executor& ex, std::coroutine_handle<> Outer, size_t Priority
   ) {
     ex.post(Outer, Priority);

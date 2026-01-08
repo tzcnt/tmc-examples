@@ -148,7 +148,7 @@ int main(int argc, char* argv[]) {
       exs[i].init();
     }
 
-    // Dispatch 1 acceptor/worker loop to each executor
+    // Post 1 acceptor/worker loop to each executor
     std::vector<std::future<void>> workers;
     workers.reserve(exs.size());
     for (size_t i = 0; i < exs.size(); ++i) {
