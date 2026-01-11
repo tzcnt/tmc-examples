@@ -25,6 +25,7 @@ add_definitions(
     # ## Prints information about work stealing matrixes.
     # ## If TMC_USE_HWLOC is enabled, also prints info about thread grouping and thread affinity.
     # "-DTMC_DEBUG_THREAD_CREATION"
+    "-DSNMALLOC_USE_WAIT_ON_ADDRESS=1"
 )
 
 # Optional flags can be passed at the command line. Used by GitHub Actions workflow.
@@ -54,13 +55,13 @@ else()
         NAME TooManyCooks
         GIT_REPOSITORY https://github.com/tzcnt/TooManyCooks.git
         GIT_TAG v1.3.0
-        DOWNLOAD_ONLY)
+        DOWNLOAD_ONLY YES)
 
     CPMAddPackage(
         NAME tmc_asio
         GIT_REPOSITORY https://github.com/tzcnt/tmc-asio.git
         GIT_TAG v1.3.0
-        DOWNLOAD_ONLY)
+        DOWNLOAD_ONLY YES)
 
     set(TMC_INCLUDE_PATH ${TooManyCooks_SOURCE_DIR}/include CACHE STRING "" FORCE)
     set(TMC_ASIO_INCLUDE_PATH ${tmc_asio_SOURCE_DIR}/include CACHE STRING "" FORCE)
@@ -108,30 +109,30 @@ endif()
 # Any of tcmalloc, mimalloc, or jemalloc provide
 # greatly superior performance to the default glibc malloc.
 # Try to find any of these 3 before falling back to default.
-find_package(libtcmalloc)
+# find_package(libtcmalloc)
 
-if(LIBTCMALLOC_FOUND)
-    set(MALLOC_LIB "${LIBTCMALLOC_LIBRARY}")
-    message(STATUS "Using malloc: ${MALLOC_LIB}")
-else()
-    find_package(libmimalloc)
+# if(LIBTCMALLOC_FOUND)
+#     set(MALLOC_LIB "${LIBTCMALLOC_LIBRARY}")
+#     message(STATUS "Using malloc: ${MALLOC_LIB}")
+# else()
+#     find_package(libmimalloc)
 
-    if(LIBMIMALLOC_FOUND)
-        set(MALLOC_LIB "${LIBMIMALLOC_LIBRARY}")
-        message(STATUS "Using malloc: ${MALLOC_LIB}")
-    else()
-        find_package(libjemalloc)
+#     if(LIBMIMALLOC_FOUND)
+#         set(MALLOC_LIB "${LIBMIMALLOC_LIBRARY}")
+#         message(STATUS "Using malloc: ${MALLOC_LIB}")
+#     else()
+#         find_package(libjemalloc)
 
-        if(LIBJEMALLOC_FOUND)
-            set(MALLOC_LIB "${LIBJEMALLOC_LIBRARY}")
-            message(STATUS "Using malloc: ${MALLOC_LIB}")
-        else()
-            message(STATUS "WARNING: No high performance allocator was found. Using default system allocator.")
-        endif()
-    endif()
-endif()
+#         if(LIBJEMALLOC_FOUND)
+#             set(MALLOC_LIB "${LIBJEMALLOC_LIBRARY}")
+#             message(STATUS "Using malloc: ${MALLOC_LIB}")
+#         else()
+#             message(STATUS "WARNING: No high performance allocator was found. Using default system allocator.")
+#         endif()
+#     endif()
+# endif()
 
-link_libraries(${MALLOC_LIB})
+# link_libraries(${MALLOC_LIB})
 
 
 set(SNMALLOC_HEADER_ONLY_LIBRARY ON)
@@ -139,12 +140,12 @@ CPMAddPackage(
     NAME snmalloc
     GIT_REPOSITORY https://github.com/microsoft/snmalloc.git
     GIT_TAG 0.7.3
-    # DOWNLOAD_ONLY
+    DOWNLOAD_ONLY YES
 )
 include_directories(${snmalloc_SOURCE_DIR}/src)
-#add_subdirectory(${snmalloc_SOURCE_DIR} EXCLUDE_FROM_ALL)
+add_subdirectory(${snmalloc_SOURCE_DIR} EXCLUDE_FROM_ALL)
     
-link_libraries(snmalloc_lib)
+#link_libraries(snmalloc_lib)
 
 # Standalone asio or boost::asio support
 option(TMC_USE_BOOST_ASIO "Use boost::asio instead of standalone asio" OFF)
