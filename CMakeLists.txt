@@ -133,6 +133,19 @@ endif()
 
 link_libraries(${MALLOC_LIB})
 
+
+set(SNMALLOC_HEADER_ONLY_LIBRARY ON)
+CPMAddPackage(
+    NAME snmalloc
+    GIT_REPOSITORY https://github.com/microsoft/snmalloc.git
+    GIT_TAG 0.7.3
+    # DOWNLOAD_ONLY
+)
+include_directories(${snmalloc_SOURCE_DIR}/src)
+#add_subdirectory(${snmalloc_SOURCE_DIR} EXCLUDE_FROM_ALL)
+    
+link_libraries(snmalloc_lib)
+
 # Standalone asio or boost::asio support
 option(TMC_USE_BOOST_ASIO "Use boost::asio instead of standalone asio" OFF)
 

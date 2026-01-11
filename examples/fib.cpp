@@ -1,6 +1,8 @@
 // An implementation of the recursive fork fibonacci parallelism test.
 // This is not intended to be an efficient fibonacci calculator,
 // but a test of the runtime's fork/join efficiency.
+#include "snmalloc/override/malloc.cc"
+#include "snmalloc/override/new.cc"
 
 #define TMC_IMPL
 
@@ -58,18 +60,7 @@ static tmc::task<void> top_fib(size_t n) {
 
 constexpr size_t NRUNS = 1;
 int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
-#ifndef NDEBUG
-  // Hardcode the size in debug mode so we don't have to fuss around with
-  // input arguments in the debug config.
-  size_t n = 30;
-#else
-  if (argc != 2) {
-    printf("Usage: fib <n-th fibonacci number requested>\n");
-    return -1;
-  }
-
-  size_t n = static_cast<size_t>(atoi(argv[1]));
-#endif
+  size_t n = 39;
   tmc::async_main([](size_t N) -> tmc::task<int> {
     auto startTime = std::chrono::high_resolution_clock::now();
     for (size_t i = 0; i < NRUNS; ++i) {
