@@ -1,304 +1,160 @@
 // A demonstration of the capabilities and performance of `ex_braid`
 // It is both a serializing executor, and an async mutex
+// Similar to asio::strand
 
 #define TMC_IMPL
 
 #include "tmc/aw_resume_on.hpp"
 #include "tmc/ex_braid.hpp"
 #include "tmc/ex_cpu.hpp"
-#include "tmc/spawn.hpp"
+#include "tmc/spawn_func.hpp"
+#include "tmc/spawn_group.hpp"
 #include "tmc/spawn_many.hpp"
 #include "tmc/task.hpp"
 
-#include <array>
-#include <chrono>
 #include <cstdio>
 #include <ranges>
-#include <vector>
 
-template <size_t Count> tmc::task<void> large_task_spawn_bench_lazy_bulk() {
+static inline constexpr size_t TASK_COUNT = 10000;
+
+// Child tasks that run_on(braid) will execute serially
+static tmc::task<void> child_tasks_run_on_braid() {
   tmc::ex_braid br;
-  std::array<size_t, Count> data;
-  for (size_t i = 0; i < Count; ++i) {
-    data[i] = 0;
-  }
-  auto pre = std::chrono::high_resolution_clock::now();
-  auto tasks =
-    std::ranges::views::transform(data, [](size_t& elem) -> tmc::task<void> {
-      return [](size_t* Elem) -> tmc::task<void> {
-        size_t a = 0;
-        size_t b = 1;
-        for (size_t i = 0; i < 1000; ++i) {
-          for (size_t j = 0; j < 500; ++j) {
-            a = a + b;
-            b = b + a;
-          }
-        }
-        *Elem = b;
-        co_return;
-      }(&elem);
-    });
-  co_await tmc::spawn_many<Count>(tasks.begin()).run_on(br);
-  auto done = std::chrono::high_resolution_clock::now();
-
-  size_t execDur = static_cast<size_t>(
-    std::chrono::duration_cast<std::chrono::nanoseconds>(done - pre).count()
-  );
-  std::printf(
-    "executed %zu tasks in %zu ns: %zu ns/task (wall), %zu "
-    "ns/task/thread\n",
-    Count, execDur, execDur / Count,
-    tmc::cpu_executor().thread_count() * execDur / Count
-  );
-}
-
-template <size_t Count> tmc::task<void> braid_lock() {
-  tmc::ex_braid br;
-  std::array<size_t, Count> data;
-  for (size_t i = 0; i < Count; ++i) {
-    data[i] = 0;
-  }
   size_t value = 0;
-  auto pre = std::chrono::high_resolution_clock::now();
-  auto tasks = std::ranges::views::transform(
-    data, [&br, &value](size_t& elem) -> tmc::task<void> {
-      return [](
-               size_t* Elem, tmc::ex_braid* Braid, size_t* Value
-             ) -> tmc::task<void> {
-        size_t a = 0;
-        size_t b = 1;
-        for (size_t i = 0; i < 1000; ++i) {
-          for (size_t j = 0; j < 500; ++j) {
-            a = a + b;
-            b = b + a;
-          }
-        }
-        *Elem = b;
-        co_await tmc::enter(Braid);
-        *Value = *Value + b;
-        // not necessary to exit the braid scope, since the task has ended
-      }(&elem, &br, &value);
-    }
-  );
-  co_await tmc::spawn_many<Count>(tasks.begin());
-  auto done = std::chrono::high_resolution_clock::now();
-
-  if (value != data[0] * Count) {
-    std::printf("FAIL: expected %zu but got %zu\n", data[0] * Count, value);
+  auto sg = tmc::spawn_group();
+  for (size_t i = 0; i < TASK_COUNT; ++i) {
+    sg.add([](size_t& v) -> tmc::task<void> {
+      v++;
+      co_return;
+    }(value));
   }
-  size_t execDur = static_cast<size_t>(
-    std::chrono::duration_cast<std::chrono::nanoseconds>(done - pre).count()
-  );
-  std::printf(
-    "executed %zu tasks in %zu ns: %zu ns/task (wall), %zu "
-    "ns/task/thread\n",
-    Count, execDur, execDur / Count,
-    tmc::cpu_executor().thread_count() * execDur / Count
-  );
+  co_await std::move(sg).run_on(br);
+  // Only the child tasks run on the braid.
+  // Afterward, this task resumes on its original executor (not the braid).
+  if (value != TASK_COUNT) {
+    std::printf("FAIL: expected %zu but got %zu\n", TASK_COUNT, value);
+  }
 }
 
-template <size_t Count> tmc::task<void> braid_lock_middle() {
+// Non-coroutine functions can also be serialized this way
+static tmc::task<void> child_funcs_run_on_braid() {
   tmc::ex_braid br;
-  std::array<size_t, Count> data;
-  for (size_t i = 0; i < Count; ++i) {
-    data[i] = 0;
-  }
   size_t value = 0;
-  size_t lockCount = 0;
-  auto pre = std::chrono::high_resolution_clock::now();
-  std::vector<tmc::task<void>> tasks;
-  tasks.resize(Count);
-  {
-    for (size_t slot = 0; slot < Count; ++slot) {
-      tasks[slot] = [](
-                      auto* DataSlot, tmc::ex_braid* Braid, size_t* Value,
-                      size_t* LockCount
-                    ) -> tmc::task<void> {
-        size_t a = 0;
-        size_t b = 1;
-        for (size_t i = 0; i < 499; ++i) {
-          for (size_t j = 0; j < 500; ++j) {
-            a = a + b;
-            b = b + a;
-          }
-        }
-        a = a + b;
-        b = b + a;
-        auto braidScope = co_await tmc::enter(Braid);
-        (*LockCount)++;
-        co_await braidScope.exit();
-        for (int i = 0; i < 500; ++i) {
-          for (int j = 0; j < 500; ++j) {
-            a = a + b;
-            b = b + a;
-          }
-        }
-
-        *DataSlot = b;
-        co_await tmc::enter(Braid);
-        *Value = *Value + b;
-        // not necessary to exit the braid scope, since the task has ended
-      }(&data[slot], &br, &value, &lockCount);
-    }
+  auto funcs =
+    std::ranges::views::iota(0, static_cast<int>(TASK_COUNT)) |
+    std::ranges::views::transform([&](int) { return [&]() { value++; }; });
+  co_await tmc::spawn_func_many(funcs).run_on(br);
+  // Only the child funcs run on the braid.
+  // Afterward, this task resumes on its original executor (not the braid).
+  if (value != TASK_COUNT) {
+    std::printf("FAIL: expected %zu but got %zu\n", TASK_COUNT, value);
   }
-  co_await spawn_many(tasks);
-  auto done = std::chrono::high_resolution_clock::now();
-
-  if (value != data[0] * Count) {
-    std::printf("FAIL: expected %zu but got %zu\n", data[0] * Count, value);
-  }
-  if (lockCount != Count) {
-    std::printf("FAIL: expected %zu but got %zu\n", data[0] * Count, value);
-  }
-
-  size_t execDur = static_cast<size_t>(
-    std::chrono::duration_cast<std::chrono::nanoseconds>(done - pre).count()
-  );
-  std::printf(
-    "executed %zu tasks in %zu ns: %zu ns/task (wall), %zu "
-    "ns/task/thread\n",
-    Count, execDur, execDur / Count,
-    tmc::cpu_executor().thread_count() * execDur / Count
-  );
 }
 
-template <size_t Count> tmc::task<void> braid_lock_middle_resume_on() {
+// Use the braid as a lock at the end of a task
+static tmc::task<void> braid_lock() {
   tmc::ex_braid br;
-  std::array<size_t, Count> data;
-  for (size_t i = 0; i < Count; ++i) {
-    data[i] = 0;
-  }
   size_t value = 0;
-  size_t lockCount = 0;
-  auto pre = std::chrono::high_resolution_clock::now();
-  std::vector<tmc::task<void>> tasks;
-  tasks.resize(Count);
-  {
-    for (size_t slot = 0; slot < Count; ++slot) {
-      tasks[slot] = [](
-                      auto* DataSlot, tmc::ex_braid* Braid, size_t* Value,
-                      size_t* LockCount
-                    ) -> tmc::task<void> {
-        size_t a = 0;
-        size_t b = 1;
-        for (size_t i = 0; i < 499; ++i) {
-          for (size_t j = 0; j < 500; ++j) {
-            a = a + b;
-            b = b + a;
-          }
-        }
-        a = a + b;
-        b = b + a;
-        co_await resume_on(Braid);
-        (*LockCount)++;
-        co_await resume_on(tmc::cpu_executor());
-        for (int i = 0; i < 500; ++i) {
-          for (int j = 0; j < 500; ++j) {
-            a = a + b;
-            b = b + a;
-          }
-        }
+  auto sg = tmc::spawn_group();
+  for (size_t i = 0; i < TASK_COUNT; ++i) {
+    sg.add([](tmc::ex_braid& braid, size_t& v) -> tmc::task<void> {
+      // ... do some work in parallel ...
 
-        *DataSlot = b;
-        co_await resume_on(Braid);
-        *Value = *Value + b;
-      }(&data[slot], &br, &value, &lockCount);
-    }
+      // Enter the braid for serial execution portion
+      co_await tmc::enter(braid);
+      v++;
+      // not necessary to exit the braid scope, since the task has ended
+      co_return;
+    }(br, value));
   }
-  co_await spawn_many(tasks);
-  auto done = std::chrono::high_resolution_clock::now();
-
-  if (value != data[0] * Count) {
-    std::printf("FAIL: expected %zu but got %zu\n", data[0] * Count, value);
+  co_await std::move(sg).run_on(br);
+  if (value != TASK_COUNT) {
+    std::printf("FAIL: expected %zu but got %zu\n", TASK_COUNT, value);
   }
-  if (lockCount != Count) {
-    std::printf("FAIL: expected %zu but got %zu\n", data[0] * Count, value);
-  }
-  size_t execDur = static_cast<size_t>(
-    std::chrono::duration_cast<std::chrono::nanoseconds>(done - pre).count()
-  );
-  std::printf(
-    "executed %zu tasks in %zu ns: %zu ns/task (wall), %zu "
-    "ns/task/thread\n",
-    Count, execDur, execDur / Count,
-    tmc::cpu_executor().thread_count() * execDur / Count
-  );
 }
 
-static tmc::task<void> increment(size_t* Value) {
-  (*Value)++;
-  co_return;
-}
-
-template <size_t Count> tmc::task<void> braid_lock_middle_child_task() {
+// Use the braid as a lock in the middle of a task
+static tmc::task<void> braid_lock_middle() {
   tmc::ex_braid br;
-  std::array<size_t, Count> data;
-  for (size_t i = 0; i < Count; ++i) {
-    data[i] = 0;
-  }
   size_t value = 0;
-  size_t lockCount = 0;
-  auto pre = std::chrono::high_resolution_clock::now();
-  std::vector<tmc::task<void>> tasks;
-  tasks.resize(Count);
-  {
-    for (size_t slot = 0; slot < Count; ++slot) {
-      tasks[slot] = [](
-                      auto* DataSlot, tmc::ex_braid* Braid, size_t* Value,
-                      size_t* LockCount
-                    ) -> tmc::task<void> {
-        size_t a = 0;
-        size_t b = 1;
-        for (size_t i = 0; i < 499; ++i) {
-          for (size_t j = 0; j < 500; ++j) {
-            a = a + b;
-            b = b + a;
-          }
-        }
-        a = a + b;
-        b = b + a;
-        co_await tmc::spawn(increment(LockCount)).run_on(Braid);
-        for (int i = 0; i < 500; ++i) {
-          for (int j = 0; j < 500; ++j) {
-            a = a + b;
-            b = b + a;
-          }
-        }
+  auto sg = tmc::spawn_group();
+  for (size_t i = 0; i < TASK_COUNT; ++i) {
+    sg.add([](tmc::ex_braid& braid, size_t& v) -> tmc::task<void> {
+      // ... do some work in parallel ...
 
-        *DataSlot = b;
-        co_await tmc::enter(Braid);
-        *Value = *Value + b;
-        // not necessary to exit the braid scope, since the task has ended
-      }(&data[slot], &br, &value, &lockCount);
-    }
-  }
-  co_await spawn_many(tasks);
-  auto done = std::chrono::high_resolution_clock::now();
+      // Enter the braid for serial execution portion only
+      auto braidScope = co_await tmc::enter(braid);
+      v++;
+      co_await braidScope.exit();
 
-  if (value != data[0] * Count) {
-    std::printf("FAIL: expected %zu but got %zu\n", data[0] * Count, value);
-  }
-  if (lockCount != Count) {
-    std::printf("FAIL: expected %zu but got %zu\n", data[0] * Count, value);
-  }
+      // ... more parallel work ...
 
-  size_t execDur = static_cast<size_t>(
-    std::chrono::duration_cast<std::chrono::nanoseconds>(done - pre).count()
-  );
-  std::printf(
-    "executed %zu tasks in %zu ns: %zu ns/task (wall), %zu "
-    "ns/task/thread\n",
-    Count, execDur, execDur / Count,
-    tmc::cpu_executor().thread_count() * execDur / Count
-  );
+      co_return;
+    }(br, value));
+  }
+  co_await std::move(sg).run_on(br);
+  if (value != TASK_COUNT) {
+    std::printf("FAIL: expected %zu but got %zu\n", TASK_COUNT, value);
+  }
 }
+
+// Use the braid as a lock in the middle of a task
+// Same as prior example but uses resume_on() instead of enter()/exit()
+// This means we need to know which executor we are exiting to
+static tmc::task<void> braid_lock_middle_resume_on() {
+  tmc::ex_braid br;
+  size_t value = 0;
+  auto sg = tmc::spawn_group();
+  for (size_t i = 0; i < TASK_COUNT; ++i) {
+    sg.add([](tmc::ex_braid& braid, size_t& v) -> tmc::task<void> {
+      // ... do some work in parallel ...
+
+      // Enter the braid for serial execution portion only
+      co_await tmc::resume_on(braid);
+      v++;
+      co_await tmc::resume_on(tmc::cpu_executor());
+
+      // ... more parallel work ...
+
+      co_return;
+    }(br, value));
+  }
+  co_await std::move(sg).run_on(br);
+  if (value != TASK_COUNT) {
+    std::printf("FAIL: expected %zu but got %zu\n", TASK_COUNT, value);
+  }
+}
+
+// Lock in the middle of the task using a child function
+static tmc::task<void> braid_lock_middle_child() {
+  tmc::ex_braid br;
+  size_t value = 0;
+  auto sg = tmc::spawn_group();
+  for (size_t i = 0; i < TASK_COUNT; ++i) {
+    sg.add([](tmc::ex_braid& braid, size_t& v) -> tmc::task<void> {
+      // ... do some work in parallel ...
+
+      // Run only the increment function on the braid
+      co_await tmc::spawn_func([&]() { v++; }).run_on(braid);
+
+      // ... more parallel work ...
+
+      co_return;
+    }(br, value));
+  }
+  co_await std::move(sg).run_on(br);
+  if (value != TASK_COUNT) {
+    std::printf("FAIL: expected %zu but got %zu\n", TASK_COUNT, value);
+  }
+}
+
 static tmc::task<int> async_main() {
-  co_await large_task_spawn_bench_lazy_bulk<1000>();
-  co_await braid_lock<32000>();
-  co_await braid_lock_middle<32000>();
-  co_await braid_lock_middle_resume_on<32000>();
-  co_await braid_lock_middle_child_task<32000>();
+  co_await child_tasks_run_on_braid();
+  co_await child_funcs_run_on_braid();
+  co_await braid_lock();
+  co_await braid_lock_middle();
+  co_await braid_lock_middle_resume_on();
+  co_await braid_lock_middle_child();
   co_return 0;
-  // TODO clean these up - they don't need all the a + b stuff...
 }
 int main() { return tmc::async_main(async_main()); }
