@@ -270,24 +270,24 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND NOT CMAKE_CXX_SIMULATE_ID STREQUAL 
     endif()
 endif()
 
-make_exe(callback_awaitable
-    examples/callback_awaitable.cpp
+make_exe(external_callback_awaitable
+    examples/external/callback_awaitable.cpp
+)
+
+make_exe(external_coro
+    examples/external/external_coro.cpp
+)
+
+make_exe(external_executor
+    examples/external/external_executor.cpp
+)
+
+make_exe(external_awaitable
+    examples/external/external_awaitable.cpp
 )
 
 make_exe(exec_st_roundtrip_bench
     examples/exec_st_roundtrip_bench.cpp
-)
-
-make_exe(external_coro
-    examples/external_coro.cpp
-)
-
-make_exe(external_executor
-    examples/external_executor.cpp
-)
-
-make_exe(external_awaitable
-    examples/external_awaitable.cpp
 )
 
 make_exe(braid

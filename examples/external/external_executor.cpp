@@ -5,6 +5,7 @@
 
 #define TMC_IMPL
 
+#include "../util/thread_name.hpp"
 #include "tmc/detail/compat.hpp"
 #include "tmc/detail/concepts_awaitable.hpp"
 #include "tmc/detail/thread_locals.hpp"
@@ -14,7 +15,6 @@
 #include "tmc/sync.hpp"
 #include "tmc/task.hpp"
 #include "tmc/work_item.hpp"
-#include "util/thread_name.hpp"
 
 #include <coroutine>
 #include <cstddef>

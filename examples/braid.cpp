@@ -1,4 +1,4 @@
-// A demonstration of the capabilities and performance of `ex_braid`
+// A demonstration of the capabilities of `ex_braid`
 // It is both a serializing executor, and an async mutex
 // Similar to asio::strand
 
