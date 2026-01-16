@@ -52,6 +52,9 @@ TEST_F(CATEGORY, one_waiter) {
   }());
 }
 
+// This specific test is kind of flaky on the CI runners, especially the MacOS
+// runner. The issue is not with the library, but if one of the threads gets
+// pre-empted for a while then the timed wait may not be long enough.
 TEST_F(CATEGORY, multi_waiter) {
   test_async_main(ex(), []() -> tmc::task<void> {
     tmc::atomic_condvar<int> cv(1);
