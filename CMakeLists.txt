@@ -303,7 +303,7 @@ make_exe(braid
 )
 
 make_exe(skynet
-    examples/skynet/main.cpp
+    examples/skynet.cpp
 )
 target_include_directories(skynet PRIVATE examples/skynet)
 
