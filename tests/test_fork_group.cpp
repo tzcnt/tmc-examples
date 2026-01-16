@@ -10,13 +10,19 @@
 
 class CATEGORY : public testing::Test {
 protected:
+  static inline tmc::ex_cpu otherExec;
   static void SetUpTestSuite() {
+    // Create two executors so we can test run_on / resume_on
     tmc::cpu_executor().set_thread_count(4).set_priority_count(2).init();
+    otherExec.set_thread_count(4).set_priority_count(2).init();
   }
 
-  static void TearDownTestSuite() { tmc::cpu_executor().teardown(); }
+  static void TearDownTestSuite() {
+    otherExec.teardown();
+    tmc::cpu_executor().teardown();
+  }
 
-  static tmc::ex_cpu& ex() { return tmc::cpu_executor(); }
+  static tmc::ex_cpu& ex() { return otherExec; }
 };
 
 static tmc::task<int> task_int(int value) { co_return value; }
@@ -162,39 +168,106 @@ TEST_F(CATEGORY, reset) {
   }());
 }
 
-// Test fork_group with custom executor
-TEST_F(CATEGORY, with_custom_executor) {
+static tmc::task<int>
+with_task_int(int value, tmc::ex_any* expectedExec, size_t expectedPrio) {
+  EXPECT_EQ(tmc::current_executor(), expectedExec);
+  EXPECT_EQ(tmc::current_priority(), expectedPrio);
+  co_return value;
+}
+
+// Test fork_group with run_on (sized)
+TEST_F(CATEGORY, with_run_on_sized) {
   test_async_main(ex(), []() -> tmc::task<void> {
     auto fg = tmc::fork_group<2, int>();
-    fg.fork(task_int(5), tmc::cpu_executor());
-    fg.fork(task_int(6), tmc::cpu_executor());
+    fg.fork(
+      with_task_int(5, tmc::cpu_executor().type_erased(), 0),
+      tmc::cpu_executor()
+    );
+    fg.fork(
+      with_task_int(6, tmc::cpu_executor().type_erased(), 0),
+      tmc::cpu_executor()
+    );
     auto results = co_await std::move(fg);
     EXPECT_EQ(results[0], 5);
     EXPECT_EQ(results[1], 6);
+    // Outer task's executor should not have changed
+    EXPECT_EQ(tmc::current_executor(), ex().type_erased());
   }());
 }
 
-// Test fork_group with custom priority
-TEST_F(CATEGORY, with_custom_priority) {
+// Test fork_group with run_on (runtime size)
+TEST_F(CATEGORY, with_run_on_runtime) {
   test_async_main(ex(), []() -> tmc::task<void> {
-    auto fg = tmc::fork_group<2, int>();
-    fg.fork(task_int(7), tmc::cpu_executor(), 0);
-    fg.fork(task_int(8), tmc::cpu_executor(), 1);
+    auto fg = tmc::fork_group<int>(2);
+    fg.fork(
+      with_task_int(5, tmc::cpu_executor().type_erased(), 0),
+      tmc::cpu_executor()
+    );
+    fg.fork(
+      with_task_int(6, tmc::cpu_executor().type_erased(), 0),
+      tmc::cpu_executor()
+    );
     auto results = co_await std::move(fg);
-    EXPECT_EQ(results[0], 7);
-    EXPECT_EQ(results[1], 8);
+    EXPECT_EQ(results[0], 5);
+    EXPECT_EQ(results[1], 6);
+    // Outer task's executor should not have changed
+    EXPECT_EQ(tmc::current_executor(), ex().type_erased());
   }());
 }
 
-// Test fork_group with resume_on
-TEST_F(CATEGORY, with_resume_on) {
+// Test fork_group with resume_on (sized)
+TEST_F(CATEGORY, with_resume_on_sized) {
   test_async_main(ex(), []() -> tmc::task<void> {
     auto fg = tmc::fork_group<2, int>();
-    fg.fork(task_int(11));
-    fg.fork(task_int(12));
+    fg.fork(with_task_int(11, ex().type_erased(), 0));
+    fg.fork(with_task_int(12, ex().type_erased(), 0));
     auto results = co_await std::move(fg).resume_on(tmc::cpu_executor());
     EXPECT_EQ(results[0], 11);
     EXPECT_EQ(results[1], 12);
+    // Outer task's executor should have changed
+    EXPECT_EQ(tmc::current_executor(), tmc::cpu_executor().type_erased());
+  }());
+}
+
+// Test fork_group with resume_on (runtime size)
+TEST_F(CATEGORY, with_resume_on_runtime) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    auto fg = tmc::fork_group<int>(2);
+    fg.fork(with_task_int(11, ex().type_erased(), 0));
+    fg.fork(with_task_int(12, ex().type_erased(), 0));
+    auto results = co_await std::move(fg).resume_on(tmc::cpu_executor());
+    EXPECT_EQ(results[0], 11);
+    EXPECT_EQ(results[1], 12);
+    // Outer task's executor should have changed
+    EXPECT_EQ(tmc::current_executor(), tmc::cpu_executor().type_erased());
+  }());
+}
+
+// Test fork_group with custom priority (sized)
+TEST_F(CATEGORY, with_custom_priority_sized) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    auto fg = tmc::fork_group<2, int>();
+    fg.fork(with_task_int(7, ex().type_erased(), 1), ex(), 1);
+    fg.fork(with_task_int(8, ex().type_erased(), 1), ex(), 1);
+    auto results = co_await std::move(fg);
+    EXPECT_EQ(results[0], 7);
+    EXPECT_EQ(results[1], 8);
+    // Outer task's priority should not have changed
+    EXPECT_EQ(tmc::current_priority(), 0);
+  }());
+}
+
+// Test fork_group with custom priority (runtime size)
+TEST_F(CATEGORY, with_custom_priority_runtime) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    auto fg = tmc::fork_group<int>(2);
+    fg.fork(with_task_int(7, ex().type_erased(), 1), ex(), 1);
+    fg.fork(with_task_int(8, ex().type_erased(), 1), ex(), 1);
+    auto results = co_await std::move(fg);
+    EXPECT_EQ(results[0], 7);
+    EXPECT_EQ(results[1], 8);
+    // Outer task's priority should not have changed
+    EXPECT_EQ(tmc::current_priority(), 0);
   }());
 }
 
