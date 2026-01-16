@@ -9,13 +9,19 @@
 
 class CATEGORY : public testing::Test {
 protected:
+  static inline tmc::ex_cpu otherExec;
   static void SetUpTestSuite() {
+    // Create two executors so we can test run_on / resume_on
     tmc::cpu_executor().set_thread_count(4).set_priority_count(2).init();
+    otherExec.set_thread_count(4).set_priority_count(2).init();
   }
 
-  static void TearDownTestSuite() { tmc::cpu_executor().teardown(); }
+  static void TearDownTestSuite() {
+    otherExec.teardown();
+    tmc::cpu_executor().teardown();
+  }
 
-  static tmc::ex_cpu& ex() { return tmc::cpu_executor(); }
+  static tmc::ex_cpu& ex() { return otherExec; }
 };
 
 static tmc::task<int> task_int(int value) { co_return value; }
@@ -87,36 +93,91 @@ TEST_F(CATEGORY, reset) {
   }());
 }
 
+static tmc::task<int>
+with_task_int(int value, tmc::ex_any* expectedExec, size_t expectedPrio) {
+  EXPECT_EQ(tmc::current_executor(), expectedExec);
+  EXPECT_EQ(tmc::current_priority(), expectedPrio);
+  co_return value;
+}
+
 // Test spawn_group with run_on
-TEST_F(CATEGORY, with_run_on) {
+TEST_F(CATEGORY, with_run_on_sized) {
   test_async_main(ex(), []() -> tmc::task<void> {
-    auto sg = tmc::spawn_group<2>(task_int(5));
-    sg.add(task_int(6));
+    auto sg = tmc::spawn_group<2>(
+      with_task_int(5, tmc::cpu_executor().type_erased(), 0)
+    );
+    sg.add(with_task_int(6, tmc::cpu_executor().type_erased(), 0));
     auto results = co_await std::move(sg).run_on(tmc::cpu_executor());
     EXPECT_EQ(results[0], 5);
     EXPECT_EQ(results[1], 6);
+    // Outer task's executor should not have changed
+    EXPECT_EQ(tmc::current_executor(), ex().type_erased());
+  }());
+}
+
+// Test spawn_group with run_on
+TEST_F(CATEGORY, with_run_on_unsized) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    auto sg =
+      tmc::spawn_group(with_task_int(5, tmc::cpu_executor().type_erased(), 0));
+    sg.add(with_task_int(6, tmc::cpu_executor().type_erased(), 0));
+    auto results = co_await std::move(sg).run_on(tmc::cpu_executor());
+    EXPECT_EQ(results[0], 5);
+    EXPECT_EQ(results[1], 6);
+    // Outer task's executor should not have changed
+    EXPECT_EQ(tmc::current_executor(), ex().type_erased());
   }());
 }
 
 // Test spawn_group with resume_on
-TEST_F(CATEGORY, with_resume_on) {
+TEST_F(CATEGORY, with_resume_on_sized) {
   test_async_main(ex(), []() -> tmc::task<void> {
-    auto sg = tmc::spawn_group<2>(task_int(11));
-    sg.add(task_int(12));
+    auto sg = tmc::spawn_group<2>(with_task_int(11, ex().type_erased(), 0));
+    sg.add(with_task_int(12, ex().type_erased(), 0));
     auto results = co_await std::move(sg).resume_on(tmc::cpu_executor());
     EXPECT_EQ(results[0], 11);
     EXPECT_EQ(results[1], 12);
+    // Outer task's executor should have changed
+    EXPECT_EQ(tmc::current_executor(), tmc::cpu_executor().type_erased());
+  }());
+}
+
+// Test spawn_group with resume_on
+TEST_F(CATEGORY, with_resume_on_unsized) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    auto sg = tmc::spawn_group(with_task_int(11, ex().type_erased(), 0));
+    sg.add(with_task_int(12, ex().type_erased(), 0));
+    auto results = co_await std::move(sg).resume_on(tmc::cpu_executor());
+    EXPECT_EQ(results[0], 11);
+    EXPECT_EQ(results[1], 12);
+    // Outer task's executor should have changed
+    EXPECT_EQ(tmc::current_executor(), tmc::cpu_executor().type_erased());
   }());
 }
 
 // Test spawn_group with priority
-TEST_F(CATEGORY, with_custom_priority) {
+TEST_F(CATEGORY, with_custom_priority_sized) {
   test_async_main(ex(), []() -> tmc::task<void> {
-    auto sg = tmc::spawn_group<2>(task_int(7));
-    sg.add(task_int(8));
+    auto sg = tmc::spawn_group(with_task_int(7, ex().type_erased(), 1));
+    sg.add(with_task_int(8, ex().type_erased(), 1));
     auto results = co_await std::move(sg).with_priority(1);
     EXPECT_EQ(results[0], 7);
     EXPECT_EQ(results[1], 8);
+    // Outer task's priority should not have changed
+    EXPECT_EQ(tmc::current_priority(), 0);
+  }());
+}
+
+// Test spawn_group with priority
+TEST_F(CATEGORY, with_custom_priority_unsized) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    auto sg = tmc::spawn_group<2>(with_task_int(7, ex().type_erased(), 1));
+    sg.add(with_task_int(8, ex().type_erased(), 1));
+    auto results = co_await std::move(sg).with_priority(1);
+    EXPECT_EQ(results[0], 7);
+    EXPECT_EQ(results[1], 8);
+    // Outer task's priority should not have changed
+    EXPECT_EQ(tmc::current_priority(), 0);
   }());
 }
 
