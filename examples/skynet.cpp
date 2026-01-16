@@ -4,6 +4,7 @@
 #define TMC_IMPL
 
 #include "tmc/ex_cpu.hpp"
+#include "tmc/spawn_group.hpp"
 #include "tmc/spawn_many.hpp"
 #include "tmc/task.hpp"
 
@@ -32,15 +33,13 @@ tmc::task<size_t> skynet_one(size_t BaseNum, size_t Depth) {
   }
 
   // // Simplest way to spawn subtasks
-  // std::array<tmc::task<size_t>, 10> children;
+  // auto sg = tmc::spawn_group<10, tmc::task<size_t>>();
   // for (size_t idx = 0; idx < 10; ++idx) {
-  //   children[idx] =
-  //     skynet_one<DepthMax>(BaseNum + depthOffset * idx, Depth + 1);
+  //   sg.add(skynet_one<DepthMax>(BaseNum + depthOffset * idx, Depth + 1));
   // }
-  // std::array<size_t, 10> results =
-  //   co_await tmc::spawn_many<10>(children.data());
+  // std::array<size_t, 10> results = co_await std::move(sg);
 
-  // Construction from a sized iterator has slightly better performance
+  // spawn_many from a sized iterator has slightly better performance
   std::array<size_t, 10> results = co_await tmc::spawn_many<10>(
     (
       std::ranges::views::iota(0UL) |
