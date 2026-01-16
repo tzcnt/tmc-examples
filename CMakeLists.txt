@@ -270,10 +270,6 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND NOT CMAKE_CXX_SIMULATE_ID STREQUAL 
     endif()
 endif()
 
-make_exe(spawn_misc
-    examples/spawn_misc.cpp
-)
-
 make_exe(equilibrium
     examples/equilibrium.cpp
 )
