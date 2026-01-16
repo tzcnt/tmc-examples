@@ -1,4 +1,4 @@
-// Example of transforming a callback-based async API into a TMC awaitable.
+// Usage example of transforming a C-style callback API into a TMC awaitable.
 // Generic implementation is in callback_awaitable.hpp.
 
 #define TMC_IMPL

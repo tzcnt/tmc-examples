@@ -13,7 +13,7 @@
 
 #define TMC_IMPL
 
-#include "util/thread_name.hpp"
+#include "../util/thread_name.hpp"
 
 #include "tmc/current.hpp"
 #include "tmc/detail/tiny_lock.hpp"

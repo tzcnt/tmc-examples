@@ -35,8 +35,6 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL 
   )
 endif()
 
-# copy compile_commands.json to the build directory after build so clangd can find it
-# clangd won't look in the /build/{config} directory, only in the top-level /build directory
 function(make_exe_base target_name)
   add_executable(${target_name} ${ARGN})
   target_link_libraries(${target_name} PRIVATE GTest::gtest_main)
@@ -47,6 +45,8 @@ function(make_exe_base target_name)
     ${TMC_ASIO_INCLUDE_PATH}
   )
 
+  # copy compile_commands.json to the build directory after build so clangd can find it
+  # clangd won't look in the /build/{config} directory, only in the top-level /build directory
   add_custom_command(TARGET ${target_name} POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
     ${CMAKE_BINARY_DIR}/compile_commands.json
@@ -62,7 +62,7 @@ function(make_exe_base target_name)
   endif()
 endfunction()
 
-# Split compilation of the implementations into its own unit.
+# Split compilation of the TMC implementations into its own unit.
 # Only this unit and some specific tests need to include <hwloc.h>.
 # Regression test for https://github.com/tzcnt/TooManyCooks/issues/126
 add_library(tests_tmc_build OBJECT

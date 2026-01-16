@@ -66,17 +66,17 @@ else()
     set(TMC_ASIO_INCLUDE_PATH ${tmc_asio_SOURCE_DIR}/include CACHE STRING "" FORCE)
 endif()
 
-if(CMAKE_SIZEOF_VOID_P EQUAL 8)
-    set(PLATFORM_BITS 64)
-else()
-    set(PLATFORM_BITS 32)
-endif()
-
 # TMC HWLOC support
 option(TMC_USE_HWLOC "libhwloc" ON)
 
 if(TMC_USE_HWLOC)
     if(WIN32)
+        if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+            set(PLATFORM_BITS 64)
+        else()
+            set(PLATFORM_BITS 32)
+        endif()
+
         # Finding user-provided libraries on Windows is a hassle. For this example, just get the built .lib and .dll directly.
         CPMAddPackage(
             NAME hwloc
@@ -230,9 +230,6 @@ endif()
 # add_link_options("-fsanitize=thread")
 # add_definitions("-fsanitize=undefined -fno-sanitize-recover")
 # add_link_options("-fsanitize=undefined")
-
-# copy compile_commands.json to the build directory after build so clangd can find it
-# clangd won't look in the /build/{config} directory, only in the top-level /build directory
 function(make_exe target_name)
     add_executable(${target_name} ${ARGN})
 
@@ -245,6 +242,8 @@ function(make_exe target_name)
         target_include_directories(${target_name} SYSTEM PRIVATE ${HWLOC_INCLUDE_PATH})
     endif()
 
+    # copy compile_commands.json to the build directory after build so clangd can find it
+    # clangd won't look in the /build/{PRESET} directory, only in the top-level /build directory
     add_custom_command(TARGET ${target_name} POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
         ${CMAKE_BINARY_DIR}/compile_commands.json
@@ -270,32 +269,24 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND NOT CMAKE_CXX_SIMULATE_ID STREQUAL 
     endif()
 endif()
 
-make_exe(spawn_misc
-    examples/spawn_misc.cpp
+make_exe(external_callback_awaitable
+    examples/external/callback_awaitable.cpp
 )
 
-make_exe(equilibrium
-    examples/equilibrium.cpp
+make_exe(external_coro
+    examples/external/external_coro.cpp
 )
 
-make_exe(callback_awaitable
-    examples/callback_awaitable.cpp
+make_exe(external_executor
+    examples/external/external_executor.cpp
+)
+
+make_exe(external_awaitable
+    examples/external/external_awaitable.cpp
 )
 
 make_exe(exec_st_roundtrip_bench
     examples/exec_st_roundtrip_bench.cpp
-)
-
-make_exe(external_coro
-    examples/external_coro.cpp
-)
-
-make_exe(external_executor
-    examples/external_executor.cpp
-)
-
-make_exe(external_awaitable
-    examples/external_awaitable.cpp
 )
 
 make_exe(braid
@@ -303,9 +294,8 @@ make_exe(braid
 )
 
 make_exe(skynet
-    examples/skynet/main.cpp
+    examples/skynet.cpp
 )
-target_include_directories(skynet PRIVATE examples/skynet)
 
 make_exe(fib
     examples/fib.cpp
@@ -313,10 +303,6 @@ make_exe(fib
 
 make_exe(chan_bench
     examples/chan_bench.cpp
-)
-
-make_exe(braid_bench
-    examples/braid_bench.cpp
 )
 
 make_exe(sync

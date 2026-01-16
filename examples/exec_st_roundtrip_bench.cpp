@@ -1,7 +1,7 @@
-// A benchmark for the latency and/or bandwidth of single-threaded executors.
-// Tasks are posted from tmc::cpu_executor() into the single threaded
-// executor, and then awaited. Sweeps from 1 to N producers, where N is the
-// number of cores on the machine.
+// A benchmark for the latency and/or bandwidth of single-threaded or
+// serializing executors. Tasks are posted from tmc::cpu_executor() into the
+// single threaded executor, and then awaited. Sweeps from 1 to N producers,
+// where N is the number of cores on the machine.
 
 #define TMC_IMPL
 
@@ -23,7 +23,7 @@ static tmc::task<void> consumer([[maybe_unused]] int i) {
 
 template <typename Exec>
 static tmc::task<void> producer(Exec& ex, size_t count) {
-  // Single task round trip latency
+  // Single task ping-pong latency
   for (size_t i = 0; i < count; ++i) {
     co_await tmc::spawn(consumer(static_cast<int>(i))).run_on(ex);
   }
@@ -39,7 +39,7 @@ static tmc::task<void> producer(Exec& ex, size_t count) {
 // A mutex is faster than the serializing executors - perhaps because mutex is
 // LIFO/unfair and the others are FIFO/fair
 static tmc::task<void> mutex_producer(tmc::mutex& mut, size_t count) {
-  // Single task round trip latency
+  // Single task ping-pong latency
   for (size_t i = 0; i < count; ++i) {
     auto scope = co_await mut.lock_scope();
     co_await consumer(static_cast<int>(i));
