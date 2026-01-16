@@ -315,10 +315,6 @@ make_exe(chan_bench
     examples/chan_bench.cpp
 )
 
-make_exe(braid_bench
-    examples/braid_bench.cpp
-)
-
 make_exe(sync
     examples/sync.cpp
 )
