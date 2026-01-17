@@ -1,4 +1,5 @@
 #include "test_common.hpp"
+#include "tmc/detail/mixins.hpp"
 #include "tmc/detail/task_wrapper.hpp"
 #include "tmc/traits.hpp"
 
@@ -414,9 +415,15 @@ TEST_F(CATEGORY, detail_task_result_t) {
 }
 
 // Test detail::func_result_t type trait
+struct LvalueCallable {
+  int operator()() & { return 1; }
+};
 TEST_F(CATEGORY, detail_func_result_t) {
   static_assert(std::is_void_v<tmc::detail::func_result_t<CallableVoid>>);
   static_assert(std::is_same_v<tmc::detail::func_result_t<CallableInt>, int>);
+  static_assert(
+    std::is_same_v<tmc::detail::func_result_t<LvalueCallable>, int>
+  );
   static_assert(
     std::is_same_v<tmc::detail::func_result_t<void>, tmc::detail::unknown_t>
   );
@@ -570,51 +577,78 @@ struct TaggedAwaitableCoAwait : tmc::detail::AwaitTagNoGroupCoAwait {
   Awaiter operator co_await() && { return Awaiter{}; }
 };
 
-struct TaggedAwaitableCoAwaitLvalue
-    : tmc::detail::AwaitTagNoGroupCoAwaitLvalue {
-  struct Awaiter {
-    bool await_ready() { return true; }
-    void await_suspend(std::coroutine_handle<>) {}
-    float await_resume() { return 1.5f; }
-  };
-  Awaiter operator co_await() & { return Awaiter{}; }
+struct LvalueAwaitableBase {
+  bool await_ready() { return true; }
+  void await_suspend(std::coroutine_handle<>) {}
+  float await_resume() { return 1.5f; }
 };
 
+using TaggedAwaitableCoAwaitLvalue =
+  tmc::detail::lvalue_only_awaitable<LvalueAwaitableBase>;
+
 TEST_F(CATEGORY, detail_HasAwaitTagNoGroupAsIs) {
+  static_assert(tmc::traits::is_awaitable<TaggedAwaitableAsIs>);
   static_assert(tmc::detail::HasAwaitTagNoGroupAsIs<TaggedAwaitableAsIs>);
   static_assert(!tmc::detail::HasAwaitTagNoGroupAsIs<AwaitableVoid>);
   static_assert(!tmc::detail::HasAwaitTagNoGroupAsIs<void>);
   static_assert(!tmc::detail::HasAwaitTagNoGroupAsIs<int>);
   static_assert(!tmc::detail::HasAwaitTagNoGroupAsIs<TaggedAwaitableCoAwait>);
   static_assert(
+    !tmc::detail::HasAwaitTagNoGroupAsIs<TaggedAwaitableCoAwaitLvalue>
+  );
+  static_assert(
     tmc::detail::awaitable_traits<TaggedAwaitableAsIs>::mode ==
     tmc::detail::configure_mode::WRAPPER
   );
-  using awaiter_t =
+
+  // By inheriting from AwaitTagNoGroupAsIs this is rvalue-only awaitable
+  using xvalue_awaiter_t =
+    decltype(tmc::detail::awaitable_traits<TaggedAwaitableAsIs>::get_awaiter(
+      std::declval<TaggedAwaitableAsIs&&>()
+    ));
+  static_assert(std::is_same_v<xvalue_awaiter_t, TaggedAwaitableAsIs&&>);
+  using value_awaiter_t =
     decltype(tmc::detail::awaitable_traits<TaggedAwaitableAsIs>::get_awaiter(
       std::declval<TaggedAwaitableAsIs>()
     ));
-  static_assert(std::is_same_v<awaiter_t, TaggedAwaitableAsIs&&>);
+  static_assert(std::is_same_v<value_awaiter_t, TaggedAwaitableAsIs&&>);
 }
 
 TEST_F(CATEGORY, detail_HasAwaitTagNoGroupCoAwait) {
+  static_assert(tmc::traits::is_awaitable<TaggedAwaitableCoAwait>);
   static_assert(tmc::detail::HasAwaitTagNoGroupCoAwait<TaggedAwaitableCoAwait>);
   static_assert(!tmc::detail::HasAwaitTagNoGroupCoAwait<AwaitableVoid>);
   static_assert(!tmc::detail::HasAwaitTagNoGroupCoAwait<void>);
   static_assert(!tmc::detail::HasAwaitTagNoGroupCoAwait<int>);
   static_assert(!tmc::detail::HasAwaitTagNoGroupCoAwait<TaggedAwaitableAsIs>);
   static_assert(
+    !tmc::detail::HasAwaitTagNoGroupCoAwait<TaggedAwaitableCoAwaitLvalue>
+  );
+  static_assert(
     tmc::detail::awaitable_traits<TaggedAwaitableCoAwait>::mode ==
     tmc::detail::configure_mode::WRAPPER
   );
-  using awaiter_t =
+
+  // By inheriting from AwaitTagNoGroupCoAwait this is rvalue-only awaitable
+  using xvalue_awaiter_t =
     decltype(tmc::detail::awaitable_traits<TaggedAwaitableCoAwait>::get_awaiter(
       std::declval<TaggedAwaitableCoAwait>()
     ));
-  static_assert(std::is_same_v<awaiter_t, TaggedAwaitableCoAwait::Awaiter>);
+  static_assert(
+    std::is_same_v<xvalue_awaiter_t, TaggedAwaitableCoAwait::Awaiter>
+  );
+
+  using value_awaiter_t =
+    decltype(tmc::detail::awaitable_traits<TaggedAwaitableCoAwait>::get_awaiter(
+      std::declval<TaggedAwaitableCoAwait&&>()
+    ));
+  static_assert(
+    std::is_same_v<value_awaiter_t, TaggedAwaitableCoAwait::Awaiter>
+  );
 }
 
 TEST_F(CATEGORY, detail_HasAwaitTagNoGroupCoAwaitLvalue) {
+  static_assert(tmc::traits::is_awaitable<TaggedAwaitableCoAwaitLvalue>);
   static_assert(
     tmc::detail::HasAwaitTagNoGroupCoAwaitLvalue<TaggedAwaitableCoAwaitLvalue>
   );
@@ -622,18 +656,26 @@ TEST_F(CATEGORY, detail_HasAwaitTagNoGroupCoAwaitLvalue) {
   static_assert(!tmc::detail::HasAwaitTagNoGroupCoAwaitLvalue<void>);
   static_assert(!tmc::detail::HasAwaitTagNoGroupCoAwaitLvalue<int>);
   static_assert(
+    !tmc::detail::HasAwaitTagNoGroupCoAwaitLvalue<TaggedAwaitableAsIs>
+  );
+  static_assert(
     !tmc::detail::HasAwaitTagNoGroupCoAwaitLvalue<TaggedAwaitableCoAwait>
   );
   static_assert(
     tmc::detail::awaitable_traits<TaggedAwaitableCoAwaitLvalue>::mode ==
     tmc::detail::configure_mode::WRAPPER
   );
-  using awaiter_t =
+
+  using lvalue_awaiter_t =
     decltype(tmc::detail::awaitable_traits<TaggedAwaitableCoAwaitLvalue>::
                get_awaiter(std::declval<TaggedAwaitableCoAwaitLvalue&>()));
-  static_assert(
-    std::is_same_v<awaiter_t, TaggedAwaitableCoAwaitLvalue::Awaiter>
-  );
+  static_assert(std::is_same_v<lvalue_awaiter_t, LvalueAwaitableBase&>);
+
+  // Doesn't compile - this is LValue only awaitable
+  // using value_awaiter_t =
+  //   decltype(tmc::detail::awaitable_traits<TaggedAwaitableCoAwaitLvalue>::
+  //              get_awaiter(std::declval<TaggedAwaitableCoAwaitLvalue>()));
+  // static_assert(std::is_same_v<value_awaiter_t, LvalueAwaitableBase&>);
 }
 
 TEST_F(CATEGORY, tagged_awaitable_result_types) {
