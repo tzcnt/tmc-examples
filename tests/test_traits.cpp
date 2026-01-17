@@ -98,6 +98,14 @@ TEST_F(CATEGORY, awaitable_result_t_custom_awaitable) {
   );
 }
 
+TEST_F(CATEGORY, awaitable_result_t_other) {
+  static_assert(std::is_same_v<
+                tmc::traits::awaitable_result_t<void>, tmc::traits::unknown_t>);
+  static_assert(
+    std::is_same_v<tmc::traits::awaitable_result_t<int>, tmc::traits::unknown_t>
+  );
+}
+
 /************** is_callable Concept Tests **************/
 
 TEST_F(CATEGORY, is_callable_callable) {
@@ -116,6 +124,7 @@ TEST_F(CATEGORY, is_callable_both_awaitable_and_callable) {
 }
 
 TEST_F(CATEGORY, is_callable_non_callable) {
+  static_assert(!tmc::traits::is_callable<void>);
   static_assert(!tmc::traits::is_callable<int>);
   static_assert(!tmc::traits::is_callable<NonAwaitableNonCallable>);
 }
@@ -188,6 +197,10 @@ TEST_F(CATEGORY, executable_kind_v_both_is_awaitable) {
 
 TEST_F(CATEGORY, executable_kind_v_unknown) {
   static_assert(
+    tmc::traits::executable_kind_v<void> ==
+    tmc::traits::executable_kind::UNKNOWN
+  );
+  static_assert(
     tmc::traits::executable_kind_v<int> == tmc::traits::executable_kind::UNKNOWN
   );
   static_assert(
@@ -227,6 +240,10 @@ TEST_F(CATEGORY, executable_result_t_both_uses_awaitable_result) {
 }
 
 TEST_F(CATEGORY, executable_result_t_unknown) {
+  static_assert(
+    std::is_same_v<
+      tmc::traits::executable_result_t<void>, tmc::traits::unknown_t>
+  );
   static_assert(std::is_same_v<
                 tmc::traits::executable_result_t<int>, tmc::traits::unknown_t>);
   static_assert(std::is_same_v<
@@ -277,6 +294,12 @@ TEST_F(CATEGORY, executable_traits_both_is_awaitable) {
 }
 
 TEST_F(CATEGORY, executable_traits_unknown) {
+  using traits_void = tmc::traits::executable_traits<void>;
+  static_assert(traits_void::kind == tmc::traits::executable_kind::UNKNOWN);
+  static_assert(
+    std::is_same_v<traits_void::result_type, tmc::traits::unknown_t>
+  );
+
   using traits_int = tmc::traits::executable_traits<int>;
   static_assert(traits_int::kind == tmc::traits::executable_kind::UNKNOWN);
   static_assert(
@@ -296,6 +319,7 @@ TEST_F(CATEGORY, executable_traits_unknown) {
 TEST_F(CATEGORY, detail_is_task) {
   static_assert(tmc::detail::is_task<tmc::task<void>>);
   static_assert(tmc::detail::is_task<tmc::task<int>>);
+  static_assert(!tmc::detail::is_task<void>);
   static_assert(!tmc::detail::is_task<int>);
   static_assert(!tmc::detail::is_task<CallableVoid>);
   static_assert(!tmc::detail::is_task<AwaitableVoid>);
@@ -306,6 +330,7 @@ TEST_F(CATEGORY, detail_is_task) {
 TEST_F(CATEGORY, detail_is_task_void) {
   static_assert(tmc::detail::is_task_void<tmc::task<void>>);
   static_assert(!tmc::detail::is_task_void<tmc::task<int>>);
+  static_assert(!tmc::detail::is_task_void<void>);
   static_assert(!tmc::detail::is_task_void<int>);
   static_assert(!tmc::detail::is_task_void<CallableVoid>);
 }
@@ -315,6 +340,7 @@ TEST_F(CATEGORY, detail_is_task_nonvoid) {
   static_assert(!tmc::detail::is_task_nonvoid<tmc::task<void>>);
   static_assert(tmc::detail::is_task_nonvoid<tmc::task<int>>);
   static_assert(tmc::detail::is_task_nonvoid<tmc::task<double>>);
+  static_assert(!tmc::detail::is_task_nonvoid<void>);
   static_assert(!tmc::detail::is_task_nonvoid<int>);
   static_assert(!tmc::detail::is_task_nonvoid<CallableInt>);
 }
@@ -324,6 +350,7 @@ TEST_F(CATEGORY, detail_is_task_result) {
   static_assert(tmc::detail::is_task_result<tmc::task<void>, void>);
   static_assert(tmc::detail::is_task_result<tmc::task<int>, int>);
   static_assert(!tmc::detail::is_task_result<tmc::task<int>, double>);
+  static_assert(!tmc::detail::is_task_result<void, int>);
   static_assert(!tmc::detail::is_task_result<int, int>);
   static_assert(!tmc::detail::is_task_result<CallableInt, int>);
 }
@@ -334,6 +361,7 @@ TEST_F(CATEGORY, detail_is_func) {
   static_assert(tmc::detail::is_func<CallableInt>);
   static_assert(!tmc::detail::is_func<tmc::task<void>>);
   static_assert(!tmc::detail::is_func<tmc::task<int>>);
+  static_assert(!tmc::detail::is_func<void>);
   static_assert(!tmc::detail::is_func<int>);
   static_assert(!tmc::detail::is_func<NonAwaitableNonCallable>);
 }
@@ -343,6 +371,7 @@ TEST_F(CATEGORY, detail_is_func_void) {
   static_assert(tmc::detail::is_func_void<CallableVoid>);
   static_assert(!tmc::detail::is_func_void<CallableInt>);
   static_assert(!tmc::detail::is_func_void<tmc::task<void>>);
+  static_assert(!tmc::detail::is_func_void<void>);
   static_assert(!tmc::detail::is_func_void<int>);
 }
 
@@ -351,6 +380,7 @@ TEST_F(CATEGORY, detail_is_func_nonvoid) {
   static_assert(!tmc::detail::is_func_nonvoid<CallableVoid>);
   static_assert(tmc::detail::is_func_nonvoid<CallableInt>);
   static_assert(!tmc::detail::is_func_nonvoid<tmc::task<int>>);
+  static_assert(!tmc::detail::is_func_nonvoid<void>);
   static_assert(!tmc::detail::is_func_nonvoid<int>);
   static_assert(!tmc::detail::is_func_nonvoid<NonAwaitableNonCallable>);
 }
@@ -361,6 +391,7 @@ TEST_F(CATEGORY, detail_is_func_result) {
   static_assert(tmc::detail::is_func_result<CallableInt, int>);
   static_assert(!tmc::detail::is_func_result<CallableInt, double>);
   static_assert(!tmc::detail::is_func_result<tmc::task<int>, int>);
+  static_assert(!tmc::detail::is_func_result<void, int>);
   static_assert(!tmc::detail::is_func_result<int, int>);
 }
 
@@ -369,6 +400,9 @@ TEST_F(CATEGORY, detail_task_result_t) {
   static_assert(std::is_void_v<tmc::detail::task_result_t<tmc::task<void>>>);
   static_assert(
     std::is_same_v<tmc::detail::task_result_t<tmc::task<int>>, int>
+  );
+  static_assert(
+    std::is_same_v<tmc::detail::task_result_t<void>, tmc::detail::unknown_t>
   );
   static_assert(
     std::is_same_v<tmc::detail::task_result_t<int>, tmc::detail::unknown_t>
@@ -384,6 +418,9 @@ TEST_F(CATEGORY, detail_func_result_t) {
   static_assert(std::is_void_v<tmc::detail::func_result_t<CallableVoid>>);
   static_assert(std::is_same_v<tmc::detail::func_result_t<CallableInt>, int>);
   static_assert(
+    std::is_same_v<tmc::detail::func_result_t<void>, tmc::detail::unknown_t>
+  );
+  static_assert(
     std::is_same_v<tmc::detail::func_result_t<int>, tmc::detail::unknown_t>
   );
   static_assert(std::is_same_v<
@@ -395,6 +432,7 @@ TEST_F(CATEGORY, detail_func_result_t) {
 TEST_F(CATEGORY, detail_HasTaskResult) {
   static_assert(tmc::detail::HasTaskResult<tmc::task<void>>);
   static_assert(tmc::detail::HasTaskResult<tmc::task<int>>);
+  static_assert(!tmc::detail::HasTaskResult<void>);
   static_assert(!tmc::detail::HasTaskResult<int>);
   static_assert(!tmc::detail::HasTaskResult<CallableVoid>);
   static_assert(!tmc::detail::HasTaskResult<NonAwaitableNonCallable>);
@@ -404,6 +442,7 @@ TEST_F(CATEGORY, detail_HasTaskResult) {
 TEST_F(CATEGORY, detail_HasFuncResult) {
   static_assert(tmc::detail::HasFuncResult<CallableVoid>);
   static_assert(tmc::detail::HasFuncResult<CallableInt>);
+  static_assert(!tmc::detail::HasFuncResult<void>);
   static_assert(!tmc::detail::HasFuncResult<int>);
   static_assert(!tmc::detail::HasFuncResult<NonAwaitableNonCallable>);
 }
@@ -414,6 +453,7 @@ TEST_F(CATEGORY, detail_is_awaitable) {
   static_assert(tmc::detail::is_awaitable<tmc::task<int>>);
   static_assert(tmc::detail::is_awaitable<AwaitableVoid>);
   static_assert(tmc::detail::is_awaitable<AwaitableInt>);
+  static_assert(!tmc::detail::is_awaitable<void>);
   static_assert(!tmc::detail::is_awaitable<int>);
   static_assert(!tmc::detail::is_awaitable<CallableVoid>);
   static_assert(!tmc::detail::is_awaitable<NonAwaitableNonCallable>);
@@ -426,6 +466,7 @@ TEST_F(CATEGORY, detail_is_callable) {
   static_assert(!tmc::detail::is_callable<tmc::task<void>>);
   static_assert(!tmc::detail::is_callable<AwaitableVoid>);
   static_assert(!tmc::detail::is_callable<AwaitableAndCallable>);
+  static_assert(!tmc::detail::is_callable<void>);
   static_assert(!tmc::detail::is_callable<int>);
   static_assert(!tmc::detail::is_callable<NonAwaitableNonCallable>);
 }
@@ -434,6 +475,14 @@ TEST_F(CATEGORY, detail_is_callable) {
 TEST_F(CATEGORY, detail_awaitable_result_t) {
   static_assert(
     std::is_void_v<tmc::detail::awaitable_result_t<tmc::task<void>>>
+  );
+  static_assert(
+    std::is_same_v<tmc::detail::awaitable_result_t<tmc::task<int>>, int>
+  );
+  static_assert(std::is_same_v<
+                tmc::detail::awaitable_result_t<void>, tmc::detail::unknown_t>);
+  static_assert(
+    std::is_same_v<tmc::detail::awaitable_result_t<int>, tmc::detail::unknown_t>
   );
   static_assert(
     std::is_same_v<tmc::detail::awaitable_result_t<tmc::task<int>>, int>
@@ -455,6 +504,10 @@ TEST_F(CATEGORY, detail_executable_kind_v) {
     tmc::detail::executable_kind::CALLABLE
   );
   static_assert(
+    tmc::detail::executable_kind_v<void> ==
+    tmc::detail::executable_kind::UNKNOWN
+  );
+  static_assert(
     tmc::detail::executable_kind_v<int> == tmc::detail::executable_kind::UNKNOWN
   );
 }
@@ -466,6 +519,10 @@ TEST_F(CATEGORY, detail_executable_result_t) {
   );
   static_assert(
     std::is_same_v<tmc::detail::executable_result_t<CallableInt>, int>
+  );
+  static_assert(
+    std::is_same_v<
+      tmc::detail::executable_result_t<void>, tmc::detail::unknown_t>
   );
   static_assert(std::is_same_v<
                 tmc::detail::executable_result_t<int>, tmc::detail::unknown_t>);
@@ -482,6 +539,12 @@ TEST_F(CATEGORY, detail_executable_traits) {
     traits_callable::kind == tmc::detail::executable_kind::CALLABLE
   );
   static_assert(std::is_same_v<traits_callable::result_type, int>);
+
+  using traits_void = tmc::detail::executable_traits<void>;
+  static_assert(traits_void::kind == tmc::detail::executable_kind::UNKNOWN);
+  static_assert(
+    std::is_same_v<traits_void::result_type, tmc::detail::unknown_t>
+  );
 
   using traits_unknown = tmc::detail::executable_traits<int>;
   static_assert(traits_unknown::kind == tmc::detail::executable_kind::UNKNOWN);
@@ -520,6 +583,7 @@ struct TaggedAwaitableCoAwaitLvalue
 TEST_F(CATEGORY, detail_HasAwaitTagNoGroupAsIs) {
   static_assert(tmc::detail::HasAwaitTagNoGroupAsIs<TaggedAwaitableAsIs>);
   static_assert(!tmc::detail::HasAwaitTagNoGroupAsIs<AwaitableVoid>);
+  static_assert(!tmc::detail::HasAwaitTagNoGroupAsIs<void>);
   static_assert(!tmc::detail::HasAwaitTagNoGroupAsIs<int>);
   static_assert(!tmc::detail::HasAwaitTagNoGroupAsIs<TaggedAwaitableCoAwait>);
   static_assert(
@@ -536,6 +600,7 @@ TEST_F(CATEGORY, detail_HasAwaitTagNoGroupAsIs) {
 TEST_F(CATEGORY, detail_HasAwaitTagNoGroupCoAwait) {
   static_assert(tmc::detail::HasAwaitTagNoGroupCoAwait<TaggedAwaitableCoAwait>);
   static_assert(!tmc::detail::HasAwaitTagNoGroupCoAwait<AwaitableVoid>);
+  static_assert(!tmc::detail::HasAwaitTagNoGroupCoAwait<void>);
   static_assert(!tmc::detail::HasAwaitTagNoGroupCoAwait<int>);
   static_assert(!tmc::detail::HasAwaitTagNoGroupCoAwait<TaggedAwaitableAsIs>);
   static_assert(
@@ -554,6 +619,7 @@ TEST_F(CATEGORY, detail_HasAwaitTagNoGroupCoAwaitLvalue) {
     tmc::detail::HasAwaitTagNoGroupCoAwaitLvalue<TaggedAwaitableCoAwaitLvalue>
   );
   static_assert(!tmc::detail::HasAwaitTagNoGroupCoAwaitLvalue<AwaitableVoid>);
+  static_assert(!tmc::detail::HasAwaitTagNoGroupCoAwaitLvalue<void>);
   static_assert(!tmc::detail::HasAwaitTagNoGroupCoAwaitLvalue<int>);
   static_assert(
     !tmc::detail::HasAwaitTagNoGroupCoAwaitLvalue<TaggedAwaitableCoAwait>
@@ -597,6 +663,7 @@ TEST_F(CATEGORY, tagged_awaitable_result_types) {
 TEST_F(CATEGORY, detail_IsRange) {
   static_assert(tmc::detail::IsRange<std::vector<int>>);
   static_assert(tmc::detail::IsRange<std::array<int, 5>>);
+  static_assert(!tmc::detail::IsRange<void>);
   static_assert(!tmc::detail::IsRange<int>);
   static_assert(!tmc::detail::IsRange<CallableVoid>);
   static_assert(!tmc::detail::IsRange<NonAwaitableNonCallable>);
@@ -609,17 +676,6 @@ TEST_F(CATEGORY, detail_range_iter) {
   static_assert(std::is_same_v<
                 typename tmc::detail::range_iter<std::array<int, 5>>::type,
                 std::array<int, 5>::iterator>);
-}
-
-/************** is_instance_of_v Tests **************/
-
-TEST_F(CATEGORY, detail_is_instance_of_v) {
-  static_assert(tmc::detail::is_instance_of_v<std::vector<int>, std::vector>);
-  static_assert(
-    tmc::detail::is_instance_of_v<std::optional<int>, std::optional>
-  );
-  static_assert(!tmc::detail::is_instance_of_v<int, std::vector>);
-  static_assert(!tmc::detail::is_instance_of_v<int, std::optional>);
 }
 
 /************** result_storage_t Tests **************/
@@ -640,24 +696,36 @@ TEST_F(CATEGORY, detail_result_storage_t) {
 
 /************** forward_awaitable Tests **************/
 
+struct Movable {};
+
+struct NonMovable {
+  NonMovable() {}
+  NonMovable(NonMovable&&) = delete;
+  NonMovable& operator=(NonMovable&&) = delete;
+};
+
 TEST_F(CATEGORY, detail_forward_awaitable) {
+
   static_assert(std::is_same_v<tmc::detail::forward_awaitable<int>, int>);
   static_assert(std::is_same_v<tmc::detail::forward_awaitable<int&>, int&>);
   static_assert(
     std::is_same_v<tmc::detail::forward_awaitable<const int&>, const int&>
   );
-}
 
-/************** configure_mode Tests **************/
-
-TEST_F(CATEGORY, detail_configure_mode_enum) {
-  static_assert(static_cast<int>(tmc::detail::configure_mode::TMC_TASK) == 0);
-  static_assert(static_cast<int>(tmc::detail::configure_mode::COROUTINE) == 1);
   static_assert(
-    static_cast<int>(tmc::detail::configure_mode::ASYNC_INITIATE) == 2
+    std::is_same_v<tmc::detail::forward_awaitable<Movable&>, Movable&>
   );
-  static_assert(static_cast<int>(tmc::detail::configure_mode::WRAPPER) == 3);
-  static_assert(static_cast<int>(tmc::detail::configure_mode::UNKNOWN) == 4);
+  static_assert(
+    std::is_same_v<tmc::detail::forward_awaitable<Movable&&>, Movable>
+  );
+
+  static_assert(
+    std::is_same_v<tmc::detail::forward_awaitable<NonMovable&>, NonMovable&>
+  );
+  // If a type cannot be moved then its rvalue category must be preserved
+  static_assert(
+    std::is_same_v<tmc::detail::forward_awaitable<NonMovable&&>, NonMovable&&>
+  );
 }
 
 /************** AwaitResumeIsWellFormed Concept Tests **************/
@@ -665,6 +733,7 @@ TEST_F(CATEGORY, detail_configure_mode_enum) {
 TEST_F(CATEGORY, detail_AwaitResumeIsWellFormed) {
   static_assert(tmc::detail::AwaitResumeIsWellFormed<AwaitableVoid>);
   static_assert(tmc::detail::AwaitResumeIsWellFormed<AwaitableInt>);
+  static_assert(!tmc::detail::AwaitResumeIsWellFormed<void>);
   static_assert(!tmc::detail::AwaitResumeIsWellFormed<int>);
   static_assert(!tmc::detail::AwaitResumeIsWellFormed<CallableVoid>);
   static_assert(!tmc::detail::AwaitResumeIsWellFormed<NonAwaitableNonCallable>);
@@ -673,49 +742,20 @@ TEST_F(CATEGORY, detail_AwaitResumeIsWellFormed) {
     std::is_same_v<
       tmc::detail::unknown_t, tmc::detail::awaitable_traits<int>::result_type>
   );
+  static_assert(
+    std::is_same_v<
+      tmc::detail::unknown_t, tmc::detail::awaitable_traits<void>::result_type>
+  );
 }
 
-/************** CanDeclval Concept Tests **************/
+/************** unknown_awaitable_traits Concept Tests **************/
 
-TEST_F(CATEGORY, detail_CanDeclval) {
-  static_assert(tmc::detail::CanDeclval<int>);
-  static_assert(tmc::detail::CanDeclval<CallableVoid>);
-  static_assert(tmc::detail::CanDeclval<AwaitableVoid>);
-  static_assert(!tmc::detail::CanDeclval<void>);
-}
-
-/************** UnknownAwaitableTraitsIsWellFormed Concept Tests **************/
-
-TEST_F(CATEGORY, detail_UnknownAwaitableTraitsIsWellFormed) {
-  static_assert(tmc::detail::UnknownAwaitableTraitsIsWellFormed<AwaitableVoid>);
-  static_assert(tmc::detail::UnknownAwaitableTraitsIsWellFormed<AwaitableInt>);
-  static_assert(!tmc::detail::UnknownAwaitableTraitsIsWellFormed<int>);
-  static_assert(!tmc::detail::UnknownAwaitableTraitsIsWellFormed<CallableVoid>);
-  static_assert(
-    !tmc::detail::UnknownAwaitableTraitsIsWellFormed<NonAwaitableNonCallable>
-  );
-  static_assert(
-    tmc::detail::awaitable_traits<AwaitableVoid>::mode ==
-    tmc::detail::configure_mode::WRAPPER
-  );
-  static_assert(
-    tmc::detail::awaitable_traits<AwaitableInt>::mode ==
-    tmc::detail::configure_mode::WRAPPER
-  );
-  static_assert(
-    tmc::detail::awaitable_traits<int>::mode ==
-    tmc::detail::configure_mode::UNKNOWN
-  );
-  static_assert(
-    tmc::detail::awaitable_traits<CallableVoid>::mode ==
-    tmc::detail::configure_mode::UNKNOWN
-  );
-  static_assert(
-    tmc::detail::awaitable_traits<NonAwaitableNonCallable>::mode ==
-    tmc::detail::configure_mode::UNKNOWN
-  );
+TEST_F(CATEGORY, detail_unknown_awaitable_traits) {
+  static_assert(!tmc::detail::is_known_awaitable<void>);
+  static_assert(!tmc::detail::is_known_awaitable<int>);
   static_assert(!tmc::detail::is_known_awaitable<AwaitableVoid>);
   static_assert(!tmc::detail::is_known_awaitable<AwaitableInt>);
+
   using awaiter_void_t =
     decltype(tmc::detail::safe_wrap(std::declval<AwaitableVoid>()));
   static_assert(
@@ -738,7 +778,15 @@ TEST_F(CATEGORY, detail_awaitable_traits_mode) {
     tmc::detail::configure_mode::WRAPPER
   );
   static_assert(
+    tmc::detail::awaitable_traits<void>::mode ==
+    tmc::detail::configure_mode::UNKNOWN
+  );
+  static_assert(
     tmc::detail::awaitable_traits<int>::mode ==
+    tmc::detail::configure_mode::UNKNOWN
+  );
+  static_assert(
+    tmc::detail::awaitable_traits<CallableVoid>::mode ==
     tmc::detail::configure_mode::UNKNOWN
   );
   static_assert(
@@ -750,6 +798,7 @@ TEST_F(CATEGORY, detail_awaitable_traits_mode) {
 TEST_F(CATEGORY, is_task) {
   static_assert(tmc::traits::is_task<tmc::task<void>>);
   static_assert(tmc::traits::is_task<tmc::task<int>>);
+  static_assert(!tmc::traits::is_task<void>);
   static_assert(!tmc::traits::is_task<int>);
   static_assert(!tmc::traits::is_task<CallableVoid>);
   static_assert(!tmc::traits::is_task<AwaitableVoid>);
@@ -759,6 +808,7 @@ TEST_F(CATEGORY, is_task) {
 TEST_F(CATEGORY, is_task_void) {
   static_assert(tmc::traits::is_task_void<tmc::task<void>>);
   static_assert(!tmc::traits::is_task_void<tmc::task<int>>);
+  static_assert(!tmc::traits::is_task_void<void>);
   static_assert(!tmc::traits::is_task_void<int>);
   static_assert(!tmc::traits::is_task_void<CallableVoid>);
 }
@@ -767,6 +817,7 @@ TEST_F(CATEGORY, is_task_nonvoid) {
   static_assert(!tmc::traits::is_task_nonvoid<tmc::task<void>>);
   static_assert(tmc::traits::is_task_nonvoid<tmc::task<int>>);
   static_assert(tmc::traits::is_task_nonvoid<tmc::task<double>>);
+  static_assert(!tmc::traits::is_task_nonvoid<void>);
   static_assert(!tmc::traits::is_task_nonvoid<int>);
   static_assert(!tmc::traits::is_task_nonvoid<CallableInt>);
 }
@@ -775,6 +826,7 @@ TEST_F(CATEGORY, is_task_result) {
   static_assert(tmc::traits::is_task_result<tmc::task<void>, void>);
   static_assert(tmc::traits::is_task_result<tmc::task<int>, int>);
   static_assert(!tmc::traits::is_task_result<tmc::task<int>, double>);
+  static_assert(!tmc::traits::is_task_result<void, int>);
   static_assert(!tmc::traits::is_task_result<int, int>);
   static_assert(!tmc::traits::is_task_result<CallableInt, int>);
 }
@@ -784,6 +836,7 @@ TEST_F(CATEGORY, is_func) {
   static_assert(tmc::traits::is_func<CallableInt>);
   static_assert(!tmc::traits::is_func<tmc::task<void>>);
   static_assert(!tmc::traits::is_func<tmc::task<int>>);
+  static_assert(!tmc::traits::is_func<void>);
   static_assert(!tmc::traits::is_func<int>);
   static_assert(!tmc::traits::is_func<NonAwaitableNonCallable>);
 }
@@ -792,6 +845,7 @@ TEST_F(CATEGORY, is_func_void) {
   static_assert(tmc::traits::is_func_void<CallableVoid>);
   static_assert(!tmc::traits::is_func_void<CallableInt>);
   static_assert(!tmc::traits::is_func_void<tmc::task<void>>);
+  static_assert(!tmc::traits::is_func_void<void>);
   static_assert(!tmc::traits::is_func_void<int>);
 }
 
@@ -799,6 +853,7 @@ TEST_F(CATEGORY, is_func_nonvoid) {
   static_assert(!tmc::traits::is_func_nonvoid<CallableVoid>);
   static_assert(tmc::traits::is_func_nonvoid<CallableInt>);
   static_assert(!tmc::traits::is_func_nonvoid<tmc::task<int>>);
+  static_assert(!tmc::traits::is_func_nonvoid<void>);
   static_assert(!tmc::traits::is_func_nonvoid<int>);
   static_assert(!tmc::traits::is_func_nonvoid<NonAwaitableNonCallable>);
 }
@@ -808,6 +863,7 @@ TEST_F(CATEGORY, is_func_result) {
   static_assert(tmc::traits::is_func_result<CallableInt, int>);
   static_assert(!tmc::traits::is_func_result<CallableInt, double>);
   static_assert(!tmc::traits::is_func_result<tmc::task<int>, int>);
+  static_assert(!tmc::traits::is_func_result<void, int>);
   static_assert(!tmc::traits::is_func_result<int, int>);
 }
 
