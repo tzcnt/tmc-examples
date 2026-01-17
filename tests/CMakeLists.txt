@@ -118,6 +118,7 @@ make_exe_base(
   test_spawn_group.cpp
   test_fork_clang.cpp
   test_container.cpp
+  test_traits.cpp
 )
 target_link_libraries(tests PRIVATE tests_tmc_build)
 target_compile_definitions(tests PRIVATE TMC_NO_UNKNOWN_AWAITABLES)
