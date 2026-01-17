@@ -495,6 +495,42 @@ TEST_F(CATEGORY, fork_group_fork_clang_void) {
   }());
 }
 
+// Volatile var prevents compiler from optimizing away the if statements.
+// It will statically allocate space for each fork, even if they don't run.
+static volatile bool flip;
+
+// Test HALO with aw_fork_group::fork_clang() inside of an unpredictable
+// conditional.
+TEST_F(CATEGORY, fork_group_fork_clang_conditional) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    tmc::debug::set_task_alloc_count(0);
+    {
+      // HALO: fork_clang() is directly awaited for each task
+      auto fg = tmc::fork_group();
+      if (flip) {
+        co_await fg.fork_clang(task_void());
+      }
+      flip = !flip;
+      if (flip) {
+        co_await fg.fork_clang(task_void());
+      }
+      flip = !flip;
+      if (flip) {
+        co_await fg.fork_clang(task_void());
+      }
+      flip = !flip;
+      if (flip) {
+        co_await fg.fork_clang(task_void());
+      }
+      EXPECT_EQ(fg.size(), 2);
+      co_await std::move(fg);
+
+      size_t alloc_count = tmc::debug::get_task_alloc_count();
+      EXPECT_EQ(alloc_count, 0);
+    }
+  }());
+}
+
 // Test HALO with aw_spawn_group constructor initialized with a task
 TEST_F(CATEGORY, spawn_group_constructor) {
   test_async_main(ex(), []() -> tmc::task<void> {
