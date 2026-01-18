@@ -414,4 +414,393 @@ TEST_F(CATEGORY, move_only_type) {
   }());
 }
 
+struct move_counter {
+  int value;
+  std::atomic<size_t>* count;
+
+  move_counter(int v, std::atomic<size_t>* c) noexcept : value(v), count(c) {}
+
+  move_counter(move_counter&& Other) noexcept
+      : value(Other.value), count(Other.count) {
+    Other.count = nullptr;
+    if (count != nullptr) {
+      ++(*count);
+    }
+  }
+
+  move_counter& operator=(move_counter&& Other) noexcept {
+    value = Other.value;
+    count = Other.count;
+    Other.count = nullptr;
+    if (count != nullptr) {
+      ++(*count);
+    }
+    return *this;
+  }
+
+  ~move_counter() = default;
+
+  move_counter() = delete;
+  move_counter(const move_counter&) = delete;
+  move_counter& operator=(const move_counter&) = delete;
+};
+
+// Test that pushing data through the channel only
+// calls the move constructor once
+TEST_F(CATEGORY, move_count_push_pull) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    auto chan = tmc::make_channel<move_counter, chan_config<0>>();
+    std::atomic<size_t> moves{0};
+
+    co_await chan.push(42, &moves);
+    auto v = co_await chan.pull();
+
+    EXPECT_TRUE(v.has_value());
+    EXPECT_EQ(v.value().value, 42);
+    EXPECT_EQ(moves.load(), 1);
+  }());
+}
+
+TEST_F(CATEGORY, move_count_push_try_pull) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    auto chan = tmc::make_channel<move_counter, chan_config<0>>();
+    std::atomic<size_t> moves{0};
+
+    co_await chan.push(42, &moves);
+    auto v = chan.try_pull();
+
+    EXPECT_EQ(v.index(), tmc::chan_err::OK);
+    EXPECT_EQ(std::get<0>(v).value, 42);
+    EXPECT_EQ(moves.load(), 1);
+  }());
+}
+
+TEST_F(CATEGORY, move_count_post_pull) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    auto chan = tmc::make_channel<move_counter, chan_config<0>>();
+    std::atomic<size_t> moves{0};
+
+    chan.post(42, &moves);
+    auto v = co_await chan.pull();
+
+    EXPECT_TRUE(v.has_value());
+    EXPECT_EQ(v.value().value, 42);
+    EXPECT_EQ(moves.load(), 1);
+  }());
+}
+
+TEST_F(CATEGORY, move_count_post_try_pull) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    auto chan = tmc::make_channel<move_counter, chan_config<0>>();
+    std::atomic<size_t> moves{0};
+
+    chan.post(42, &moves);
+    auto v = chan.try_pull();
+
+    EXPECT_EQ(v.index(), tmc::chan_err::OK);
+    EXPECT_EQ(std::get<0>(v).value, 42);
+    EXPECT_EQ(moves.load(), 1);
+    co_return;
+  }());
+}
+
+// Test zero-copy pull functionality
+TEST_F(CATEGORY, pull_zc) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    auto chan = tmc::make_channel<move_counter, chan_config<0>>();
+    std::atomic<size_t> moves{0};
+
+    chan.post(42, &moves);
+
+    {
+      auto scope = co_await chan.pull_zc();
+      EXPECT_TRUE(scope.has_value());
+      // Test chan_zc_scope::get()
+      EXPECT_EQ(scope->get().value, 42);
+      // Test chan_zc_scope::operator*
+      EXPECT_EQ((*(*scope)).value, 42);
+      // Test chan_zc_scope::operator->
+      EXPECT_EQ(scope.value()->value, 42);
+      // Should be zero moves - data accessed directly in channel storage
+      EXPECT_EQ(moves.load(), 0);
+    }
+    // Scope destroyed, slot released
+
+    // Verify channel is empty now
+    chan.close();
+    auto v = co_await chan.pull();
+    EXPECT_FALSE(v.has_value());
+  }());
+}
+
+// Test pull_zc with channel close
+TEST_F(CATEGORY, pull_zc_closed) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    auto chan = tmc::make_channel<size_t, chan_config<0>>();
+    chan.post(1u);
+    chan.post(2u);
+    chan.close();
+
+    auto s1 = co_await chan.pull_zc();
+    EXPECT_TRUE(s1.has_value());
+    EXPECT_EQ(s1->get(), 1);
+    s1.reset();
+
+    auto s2 = co_await chan.pull_zc();
+    EXPECT_TRUE(s2.has_value());
+    EXPECT_EQ(s2->get(), 2);
+    s2.reset();
+
+    auto s3 = co_await chan.pull_zc();
+    EXPECT_FALSE(s3.has_value());
+  }());
+}
+
+// Test EmbedFirstBlock config option
+template <size_t Pack> struct chan_config_embed : tmc::chan_default_config {
+  static inline constexpr size_t BlockSize = 2;
+  static inline constexpr size_t PackingLevel = Pack;
+  static inline constexpr bool EmbedFirstBlock = true;
+};
+
+TEST_F(CATEGORY, embed_first_block) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    static constexpr size_t NITEMS = 100;
+
+    auto chan = tmc::make_channel<size_t, chan_config_embed<0>>();
+    // EmbedFirstBlock forces reuse_blocks to true, so no need to set it
+
+    for (size_t i = 0; i < NITEMS; ++i) {
+      bool ok = chan.post(i);
+      EXPECT_TRUE(ok);
+    }
+
+    size_t sum = 0;
+    for (size_t i = 0; i < NITEMS; ++i) {
+      auto v = co_await chan.pull();
+      EXPECT_TRUE(v.has_value());
+      sum += v.value();
+    }
+
+    size_t expectedSum = 0;
+    for (size_t i = 0; i < NITEMS; ++i) {
+      expectedSum += i;
+    }
+    EXPECT_EQ(expectedSum, sum);
+  }());
+}
+
+// Test drain_wait (blocking version of drain)
+// This needs to run on a non-executor thread to avoid deadlock
+TEST_F(CATEGORY, drain_wait) {
+  auto chan = tmc::make_channel<size_t, chan_config<0>>();
+
+  std::thread producer([&chan]() {
+    for (size_t i = 0; i < 10; ++i) {
+      chan.post(i);
+    }
+    chan.drain_wait();
+  });
+
+  test_async_main(ex(), [](auto Chan) -> tmc::task<void> {
+    size_t count = 0;
+    while (auto v = co_await Chan.pull()) {
+      ++count;
+    }
+    EXPECT_EQ(count, 10);
+  }(chan));
+
+  producer.join();
+}
+
+// Test new_token() explicit token creation
+TEST_F(CATEGORY, new_token) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    static constexpr size_t NITEMS = 100;
+    auto chan = tmc::make_channel<size_t, chan_config<0>>();
+
+    auto results = co_await tmc::spawn_tuple(
+      [](auto Chan) -> tmc::task<size_t> {
+        for (size_t i = 0; i < NITEMS; ++i) {
+          co_await Chan.push(i);
+        }
+        co_await Chan.drain();
+        co_return NITEMS;
+      }(chan.new_token()),
+      [](auto Chan) -> tmc::task<size_t> {
+        size_t count = 0;
+        while (co_await Chan.pull()) {
+          ++count;
+        }
+        co_return count;
+      }(chan.new_token())
+    );
+    EXPECT_EQ(std::get<0>(results), NITEMS);
+    EXPECT_EQ(std::get<1>(results), NITEMS);
+  }());
+}
+
+// Test token copy and move semantics
+TEST_F(CATEGORY, token_copy_move) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    auto chan1 = tmc::make_channel<size_t, chan_config<0>>();
+
+    // Test copy constructor
+    auto chan2 = chan1;
+    chan1.post(1u);
+    auto v = co_await chan2.pull();
+    EXPECT_TRUE(v.has_value());
+    EXPECT_EQ(v.value(), 1);
+
+    // Test move constructor
+    auto chan3 = std::move(chan2);
+    chan1.post(2u);
+    v = co_await chan3.pull();
+    EXPECT_TRUE(v.has_value());
+    EXPECT_EQ(v.value(), 2);
+
+    // Test copy assignment
+    auto chan4 = tmc::make_channel<size_t, chan_config<0>>();
+    chan4 = chan1;
+    chan1.post(3u);
+    v = co_await chan4.pull();
+    EXPECT_TRUE(v.has_value());
+    EXPECT_EQ(v.value(), 3);
+
+    // Test move assignment
+    auto chan5 = tmc::make_channel<size_t, chan_config<0>>();
+    chan5 = std::move(chan4);
+    chan1.post(4u);
+    v = co_await chan5.pull();
+    EXPECT_TRUE(v.has_value());
+    EXPECT_EQ(v.value(), 4);
+  }());
+}
+
+// Test with multiple producers and consumers
+TEST_F(CATEGORY, mpmc) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    static constexpr size_t NPRODUCERS = 4;
+    static constexpr size_t NCONSUMERS = 4;
+    static constexpr size_t ITEMS_PER_PRODUCER = 1000;
+
+    auto chan = tmc::make_channel<size_t, chan_config<0>>();
+    std::atomic<size_t> totalProduced{0};
+    std::atomic<size_t> totalConsumed{0};
+    std::atomic<size_t> consumedSum{0};
+
+    std::array<tmc::task<void>, NPRODUCERS> producers;
+    for (size_t p = 0; p < NPRODUCERS; ++p) {
+      producers[p] = [](
+                       auto Chan, std::atomic<size_t>* Produced,
+                       size_t ProducerId
+                     ) -> tmc::task<void> {
+        for (size_t i = 0; i < ITEMS_PER_PRODUCER; ++i) {
+          size_t val = ProducerId * ITEMS_PER_PRODUCER + i;
+          co_await Chan.push(val);
+          Produced->fetch_add(1, std::memory_order_relaxed);
+        }
+      }(chan.new_token(), &totalProduced, p);
+    }
+
+    std::array<tmc::task<void>, NCONSUMERS> consumers;
+    for (size_t c = 0; c < NCONSUMERS; ++c) {
+      consumers[c] = [](
+                       auto Chan, std::atomic<size_t>* Consumed,
+                       std::atomic<size_t>* Sum
+                     ) -> tmc::task<void> {
+        while (auto v = co_await Chan.pull()) {
+          Consumed->fetch_add(1, std::memory_order_relaxed);
+          Sum->fetch_add(v.value(), std::memory_order_relaxed);
+        }
+      }(chan.new_token(), &totalConsumed, &consumedSum);
+    }
+
+    auto prods = tmc::spawn_many<NPRODUCERS>(producers.data()).fork();
+    auto cons = tmc::spawn_many<NCONSUMERS>(consumers.data()).fork();
+
+    co_await std::move(prods);
+    co_await chan.drain();
+    co_await std::move(cons);
+
+    EXPECT_EQ(totalProduced.load(), NPRODUCERS * ITEMS_PER_PRODUCER);
+    EXPECT_EQ(totalConsumed.load(), NPRODUCERS * ITEMS_PER_PRODUCER);
+
+    size_t expectedSum = 0;
+    for (size_t p = 0; p < NPRODUCERS; ++p) {
+      for (size_t i = 0; i < ITEMS_PER_PRODUCER; ++i) {
+        expectedSum += p * ITEMS_PER_PRODUCER + i;
+      }
+    }
+    EXPECT_EQ(consumedSum.load(), expectedSum);
+  }());
+}
+
+// Test post_bulk with iterator + count overload
+TEST_F(CATEGORY, post_bulk_iterator_count) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    auto chan = tmc::make_channel<size_t, chan_config<0>>();
+
+    std::vector<size_t> items{10, 20, 30, 40, 50};
+    bool ok = chan.post_bulk(items.begin(), 3); // Only post first 3
+    EXPECT_TRUE(ok);
+
+    auto v1 = co_await chan.pull();
+    EXPECT_TRUE(v1.has_value());
+    EXPECT_EQ(v1.value(), 10);
+
+    auto v2 = co_await chan.pull();
+    EXPECT_TRUE(v2.has_value());
+    EXPECT_EQ(v2.value(), 20);
+
+    auto v3 = co_await chan.pull();
+    EXPECT_TRUE(v3.has_value());
+    EXPECT_EQ(v3.value(), 30);
+
+    // Post remaining items with begin/end overload
+    ok = chan.post_bulk(items.begin() + 3, items.end());
+    EXPECT_TRUE(ok);
+
+    auto v4 = co_await chan.pull();
+    EXPECT_TRUE(v4.has_value());
+    EXPECT_EQ(v4.value(), 40);
+
+    auto v5 = co_await chan.pull();
+    EXPECT_TRUE(v5.has_value());
+    EXPECT_EQ(v5.value(), 50);
+  }());
+}
+
+// Test chan_zc_scope move semantics
+TEST_F(CATEGORY, zc_scope_move) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    auto chan = tmc::make_channel<size_t, chan_config<0>>();
+    chan.post(42u);
+
+    auto scope1 = co_await chan.pull_zc();
+    EXPECT_TRUE(scope1.has_value());
+
+    // Move the scope
+    auto scope2 = std::move(scope1.value());
+    EXPECT_EQ(scope2.get(), 42);
+
+    // Original scope1 optional still has_value but inner was moved
+    scope1.reset();
+
+    chan.close();
+  }());
+}
+
+TEST_F(CATEGORY, drain_empty_channel) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    auto chan = tmc::make_channel<size_t, chan_config<0>>();
+    co_await chan.drain();
+  }());
+}
+
+TEST_F(CATEGORY, drain_wait_empty_channel) {
+  auto chan = tmc::make_channel<size_t, chan_config<0>>();
+  chan.drain_wait();
+}
+
 #undef CATEGORY
