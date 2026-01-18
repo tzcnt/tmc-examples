@@ -538,8 +538,7 @@ TEST_F(CATEGORY, pull_zc) {
 }
 
 // This struct can't be moved and tracks the number of times it was destroyed.
-// Destructor count should be 1 unless there is UB with the zero-copy handle's
-// lifetime overlapping with the chan_tok.
+// Destructor count should be 1 (obviously) unless there is a double-destroy.
 struct immovable_destructor_counter {
   size_t value;
   std::atomic<size_t>* count;
