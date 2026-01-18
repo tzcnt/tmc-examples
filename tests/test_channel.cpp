@@ -445,8 +445,11 @@ struct move_counter {
   move_counter& operator=(const move_counter&) = delete;
 };
 
-// Test that pushing data through the channel only
-// calls the move constructor once
+#ifdef __clang__
+// Test that moving data through the channel only
+// calls the move constructor once.
+// Clang can do this by applying NRVO to the returned optional or variant, but
+// GCC fails to do so. I don't know about MSVC.
 TEST_F(CATEGORY, move_count_push_pull) {
   test_async_main(ex(), []() -> tmc::task<void> {
     auto chan = tmc::make_channel<move_counter, chan_config<0>>();
@@ -503,6 +506,7 @@ TEST_F(CATEGORY, move_count_post_try_pull) {
     co_return;
   }());
 }
+#endif
 
 // Test zero-copy pull functionality
 TEST_F(CATEGORY, pull_zc) {
