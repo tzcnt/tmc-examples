@@ -453,7 +453,7 @@ TEST_F(CATEGORY, topology_filter_operator_or) {
 }
 
 TEST_F(CATEGORY, cpu_topology_is_hybrid) {
-  tmc::topology::cpu_topology topo;
+  tmc::topology::cpu_topology topo{};
   topo.cpu_kind_counts = {8};
   EXPECT_FALSE(topo.is_hybrid());
   topo.cpu_kind_counts = {6, 8};
@@ -461,11 +461,11 @@ TEST_F(CATEGORY, cpu_topology_is_hybrid) {
 }
 
 TEST_F(CATEGORY, cpu_topology_pu_count) {
-  tmc::topology::cpu_topology topo;
-  tmc::topology::core_group g1;
+  tmc::topology::cpu_topology topo{};
+  tmc::topology::core_group g1{};
   g1.core_indexes = {0, 1, 2, 3};
   g1.smt_level = 2;
-  tmc::topology::core_group g2;
+  tmc::topology::core_group g2{};
   g2.core_indexes = {4, 5};
   g2.smt_level = 1;
   topo.groups = {g1, g2};
@@ -473,26 +473,26 @@ TEST_F(CATEGORY, cpu_topology_pu_count) {
 }
 
 TEST_F(CATEGORY, cpu_topology_core_count) {
-  tmc::topology::cpu_topology topo;
-  tmc::topology::core_group g1;
+  tmc::topology::cpu_topology topo{};
+  tmc::topology::core_group g1{};
   g1.core_indexes = {0, 1, 2, 3};
-  tmc::topology::core_group g2;
+  tmc::topology::core_group g2{};
   g2.core_indexes = {4, 5, 6, 7};
   topo.groups = {g1, g2};
   EXPECT_EQ(topo.core_count(), 8u);
 }
 
 TEST_F(CATEGORY, cpu_topology_group_count) {
-  tmc::topology::cpu_topology topo;
+  tmc::topology::cpu_topology topo{};
   topo.groups.resize(4);
   EXPECT_EQ(topo.group_count(), 4u);
 }
 
 TEST_F(CATEGORY, cpu_topology_numa_count) {
-  tmc::topology::cpu_topology topo;
-  tmc::topology::core_group g1;
+  tmc::topology::cpu_topology topo{};
+  tmc::topology::core_group g1{};
   g1.numa_index = 0;
-  tmc::topology::core_group g2;
+  tmc::topology::core_group g2{};
   g2.numa_index = 1;
   topo.groups = {g1, g2};
   EXPECT_EQ(topo.numa_count(), 2u);
