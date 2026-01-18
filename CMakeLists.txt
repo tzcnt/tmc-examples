@@ -53,13 +53,13 @@ else()
     CPMAddPackage(
         NAME TooManyCooks
         GIT_REPOSITORY https://github.com/tzcnt/TooManyCooks.git
-        GIT_TAG v1.3.0
+        GIT_TAG 30d4863173829341f01ec9cc62e8f4749b7a1303
         DOWNLOAD_ONLY)
 
     CPMAddPackage(
         NAME tmc_asio
         GIT_REPOSITORY https://github.com/tzcnt/tmc-asio.git
-        GIT_TAG v1.3.0
+        GIT_TAG 892273a9ea5160088554e32087c7c1578a277fdc
         DOWNLOAD_ONLY)
 
     set(TMC_INCLUDE_PATH ${TooManyCooks_SOURCE_DIR}/include CACHE STRING "" FORCE)
@@ -311,6 +311,13 @@ make_exe(sync
 
 make_exe(spawn_iterator
     examples/spawn_iterator.cpp
+)
+
+make_exe(pipeline
+    examples/pipeline.cpp
+)
+make_exe(pipeline_fifo
+    examples/pipeline_fifo.cpp
 )
 
 make_exe(asio_prio
