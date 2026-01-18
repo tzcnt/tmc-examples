@@ -537,6 +537,57 @@ TEST_F(CATEGORY, pull_zc) {
   }());
 }
 
+// This struct can't be moved and tracks the number of times it was destroyed.
+// Destructor count should be 1 unless there is UB with the zero-copy handle's
+// lifetime overlapping with the chan_tok.
+struct immovable_destructor_counter {
+  size_t value;
+  std::atomic<size_t>* count;
+
+  immovable_destructor_counter(size_t v, std::atomic<size_t>* c) noexcept
+      : value(v), count(c) {}
+
+  ~immovable_destructor_counter() { ++(*count); }
+
+  immovable_destructor_counter() = delete;
+
+  immovable_destructor_counter(const immovable_destructor_counter&) = delete;
+  immovable_destructor_counter&
+  operator=(const immovable_destructor_counter&) = delete;
+
+  immovable_destructor_counter(immovable_destructor_counter&& Other) = delete;
+  immovable_destructor_counter&
+  operator=(immovable_destructor_counter&& Other) = delete;
+};
+
+TEST_F(CATEGORY, pull_zc_immovable) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    auto chan =
+      tmc::make_channel<immovable_destructor_counter, chan_config<0>>();
+    std::array<std::atomic<size_t>, 100> destroys{};
+
+    for (size_t i = 0; i < destroys.size(); ++i) {
+      chan.post(i, &destroys[i]);
+    }
+    chan.close();
+
+    size_t taskCount = 0;
+    while (auto data = co_await chan.pull_zc()) {
+      EXPECT_EQ(data->get().value, taskCount);
+      ++taskCount;
+    }
+    EXPECT_EQ(taskCount, destroys.size());
+
+    for (size_t i = 0; i < destroys.size(); ++i) {
+      EXPECT_EQ(destroys[i].load(), 1u);
+    }
+
+    // Verify channel is empty now
+    auto v = co_await chan.pull_zc();
+    EXPECT_FALSE(v.has_value());
+  }());
+}
+
 // Test pull_zc with channel close
 TEST_F(CATEGORY, pull_zc_closed) {
   test_async_main(ex(), []() -> tmc::task<void> {
