@@ -1055,4 +1055,102 @@ TEST_F(CATEGORY, hierarchical_matrix_skips_empty_groups) {
 }
 #endif
 
+TEST_F(CATEGORY, get_thread_inbox_indexes_empty) {
+  std::vector<tmc::detail::ThreadInboxInfo> data;
+  auto indexes = tmc::detail::get_thread_inbox_indexes(data);
+  EXPECT_TRUE(indexes.empty());
+}
+
+TEST_F(CATEGORY, get_thread_inbox_indexes_single_thread) {
+  std::vector<tmc::detail::ThreadInboxInfo> data = {{0, 7, 0}};
+  auto indexes = tmc::detail::get_thread_inbox_indexes(data);
+  EXPECT_EQ(indexes.size(), 1u);
+  EXPECT_EQ(indexes[0], 0u);
+}
+
+TEST_F(CATEGORY, get_thread_inbox_indexes_same_group_same_priority) {
+  std::vector<tmc::detail::ThreadInboxInfo> data = {
+    {0, 7, 0},
+    {0, 7, 0},
+    {0, 7, 0},
+  };
+  auto indexes = tmc::detail::get_thread_inbox_indexes(data);
+  EXPECT_EQ(indexes.size(), 3u);
+  EXPECT_EQ(indexes[0], 0u);
+  EXPECT_EQ(indexes[1], 0u);
+  EXPECT_EQ(indexes[2], 0u);
+}
+
+TEST_F(CATEGORY, get_thread_inbox_indexes_same_group_different_priority) {
+  std::vector<tmc::detail::ThreadInboxInfo> data = {
+    {0, 7, 0},
+    {0, 3, 0},
+    {4, 7, 0},
+  };
+  auto indexes = tmc::detail::get_thread_inbox_indexes(data);
+  EXPECT_EQ(indexes.size(), 3u);
+  EXPECT_EQ(indexes[0], 0u);
+  EXPECT_EQ(indexes[1], 1u);
+  EXPECT_EQ(indexes[2], 2u);
+}
+
+TEST_F(CATEGORY, get_thread_inbox_indexes_multiple_groups_same_priority) {
+  std::vector<tmc::detail::ThreadInboxInfo> data = {
+    {0, 7, 0},
+    {0, 7, 0},
+    {0, 7, 1},
+    {0, 7, 1},
+  };
+  auto indexes = tmc::detail::get_thread_inbox_indexes(data);
+  EXPECT_EQ(indexes.size(), 4u);
+  EXPECT_EQ(indexes[0], 0u);
+  EXPECT_EQ(indexes[1], 0u);
+  EXPECT_EQ(indexes[2], 1u);
+  EXPECT_EQ(indexes[3], 1u);
+}
+
+TEST_F(CATEGORY, get_thread_inbox_indexes_multiple_groups_different_priority) {
+  std::vector<tmc::detail::ThreadInboxInfo> data = {
+    {0, 7, 0},
+    {0, 3, 0},
+    {0, 7, 1},
+    {4, 7, 1},
+  };
+  auto indexes = tmc::detail::get_thread_inbox_indexes(data);
+  EXPECT_EQ(indexes.size(), 4u);
+  EXPECT_EQ(indexes[0], 0u);
+  EXPECT_EQ(indexes[1], 1u);
+  EXPECT_EQ(indexes[2], 2u);
+  EXPECT_EQ(indexes[3], 3u);
+}
+
+TEST_F(CATEGORY, get_thread_inbox_indexes_shared_priority_in_group) {
+  std::vector<tmc::detail::ThreadInboxInfo> data = {
+    {0, 7, 0},
+    {0, 3, 0},
+    {0, 7, 0},
+    {0, 3, 0},
+  };
+  auto indexes = tmc::detail::get_thread_inbox_indexes(data);
+  EXPECT_EQ(indexes.size(), 4u);
+  EXPECT_EQ(indexes[0], 0u);
+  EXPECT_EQ(indexes[1], 1u);
+  EXPECT_EQ(indexes[2], 0u);
+  EXPECT_EQ(indexes[3], 1u);
+}
+
+TEST_F(CATEGORY, get_thread_inbox_indexes_ascending_order) {
+  std::vector<tmc::detail::ThreadInboxInfo> data = {
+    {0, 7, 0},
+    {0, 7, 1},
+    {0, 7, 2},
+  };
+  auto indexes = tmc::detail::get_thread_inbox_indexes(data);
+  EXPECT_EQ(indexes.size(), 3u);
+  for (size_t i = 1; i < indexes.size(); ++i) {
+    EXPECT_GE(indexes[i], indexes[i - 1]);
+  }
+  EXPECT_EQ(indexes.back(), 2u);
+}
+
 #undef CATEGORY
