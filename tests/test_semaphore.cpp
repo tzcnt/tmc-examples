@@ -175,8 +175,6 @@ TEST_F(CATEGORY, move_scope) {
   }());
 }
 
-#ifndef TSAN_ENABLED
-
 // Sem should be usable as a mutex to protect access to a non-atomic
 // resource with acquire/release semantics
 TEST_F(CATEGORY, access_control) {
@@ -228,8 +226,6 @@ TEST_F(CATEGORY, access_control_scope) {
     EXPECT_EQ(count, 1000);
   }());
 }
-
-#endif // TSAN_ENABLED
 
 TEST_F(CATEGORY, co_release) {
   test_async_main(ex(), []() -> tmc::task<void> {

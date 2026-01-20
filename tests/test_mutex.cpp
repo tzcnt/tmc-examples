@@ -143,8 +143,6 @@ TEST_F(CATEGORY, move_scope) {
   }());
 }
 
-#ifndef TSAN_ENABLED
-
 // Protect access to a non-atomic resource with acquire/release semantics
 TEST_F(CATEGORY, access_control) {
   test_async_main(ex(), []() -> tmc::task<void> {
@@ -196,8 +194,6 @@ TEST_F(CATEGORY, access_control_scope) {
     EXPECT_EQ(count, 1000);
   }());
 }
-
-#endif // TSAN_ENABLED
 
 TEST_F(CATEGORY, co_unlock) {
   test_async_main(ex(), []() -> tmc::task<void> {
