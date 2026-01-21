@@ -73,6 +73,14 @@ TEST_F(CATEGORY, negative_init) {
   }());
 }
 
+TEST_F(CATEGORY, one_init) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    tmc::barrier bar(static_cast<size_t>(1));
+    co_await bar;
+    co_await bar;
+  }());
+}
+
 TEST_F(CATEGORY, once) {
   test_async_main(ex(), []() -> tmc::task<void> {
     tmc::barrier bar(5);
