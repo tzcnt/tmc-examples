@@ -21,6 +21,26 @@ protected:
   static tmc::ex_cpu& ex() { return tmc::cpu_executor(); }
 };
 
+TEST_F(CATEGORY, no_waiters) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    tmc::manual_reset_event event(false);
+    EXPECT_FALSE(event.is_set());
+    event.set();
+    EXPECT_TRUE(event.is_set());
+    co_return;
+  }());
+}
+
+TEST_F(CATEGORY, no_waiters_co_set) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    tmc::manual_reset_event event(false);
+    EXPECT_FALSE(event.is_set());
+    co_await event.co_set();
+    EXPECT_TRUE(event.is_set());
+    co_return;
+  }());
+}
+
 TEST_F(CATEGORY, nonblocking) {
   test_async_main(ex(), []() -> tmc::task<void> {
     tmc::manual_reset_event event(true);
