@@ -582,6 +582,7 @@ TEST_F(CATEGORY, partition_split_group_thread_hint_overlap) {
 
 #include "test_executors.ipp"
 #include "test_nested_executors.ipp"
+#include "test_spawn_clang.ipp"
 #include "test_spawn_composition.ipp"
 #include "test_spawn_func_many.ipp"
 #include "test_spawn_func_many_detach.ipp"

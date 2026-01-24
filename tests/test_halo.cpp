@@ -11,6 +11,7 @@
 
 #include "test_common.hpp"
 #include "tmc/current.hpp"
+#include "tmc/ex_cpu_st.hpp"
 #include "tmc/fork_group.hpp"
 #include "tmc/spawn.hpp"
 #include "tmc/spawn_group.hpp"
@@ -137,6 +138,38 @@ TEST_F(CATEGORY, spawn) {
   }());
 }
 
+// Test HALO with tmc::spawn_clang()
+TEST_F(CATEGORY, spawn_clang) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    tmc::debug::set_task_alloc_count(0);
+    {
+      // HALO: spawn_clang() is directly awaited
+      auto result = co_await tmc::spawn_clang(task_int(5));
+      EXPECT_EQ(result, 5);
+      size_t alloc_count = tmc::debug::get_task_alloc_count();
+      EXPECT_EQ(alloc_count, 0);
+    }
+    {
+      // HALO: spawn_clang() is directly awaited
+      // (with custom executor and priority)
+      tmc::ex_cpu_st localEx;
+      localEx.set_priority_count(2).init();
+      auto result = co_await tmc::spawn_clang(task_int(5), localEx, 1);
+      EXPECT_EQ(result, 5);
+      size_t alloc_count = tmc::debug::get_task_alloc_count();
+      EXPECT_EQ(alloc_count, 0);
+    }
+    {
+      // Non-HALO: spawn_clang() stored in variable
+      auto t = tmc::spawn_clang(task_int(6));
+      auto result = co_await std::move(t);
+      EXPECT_EQ(result, 6);
+      size_t alloc_count = tmc::debug::get_task_alloc_count();
+      EXPECT_EQ(alloc_count, 1);
+    }
+  }());
+}
+
 // Test HALO with tmc::fork_clang()
 TEST_F(CATEGORY, fork_clang) {
   test_async_main(ex(), []() -> tmc::task<void> {
@@ -144,6 +177,17 @@ TEST_F(CATEGORY, fork_clang) {
     {
       // HALO: fork_clang() is directly awaited
       auto forked = co_await tmc::fork_clang(task_int(5));
+      auto result = co_await std::move(forked);
+      EXPECT_EQ(result, 5);
+      size_t alloc_count = tmc::debug::get_task_alloc_count();
+      EXPECT_EQ(alloc_count, 0);
+    }
+    {
+      // HALO: fork_clang() is directly awaited
+      // (with custom executor and priority)
+      tmc::ex_cpu_st localEx;
+      localEx.set_priority_count(2).init();
+      auto forked = co_await tmc::fork_clang(task_int(5), localEx, 1);
       auto result = co_await std::move(forked);
       EXPECT_EQ(result, 5);
       size_t alloc_count = tmc::debug::get_task_alloc_count();
