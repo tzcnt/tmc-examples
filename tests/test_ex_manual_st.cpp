@@ -128,6 +128,7 @@ TEST_F(CATEGORY, teardown_and_destroy) {
 
 #include "test_executors.ipp"
 #include "test_nested_executors.ipp"
+#include "test_spawn_clang.ipp"
 #include "test_spawn_composition.ipp"
 #include "test_spawn_func_many.ipp"
 #include "test_spawn_func_many_detach.ipp"
