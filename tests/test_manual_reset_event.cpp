@@ -181,6 +181,40 @@ TEST_F(CATEGORY, resume_in_destructor) {
   }());
 }
 
+TEST_F(CATEGORY, co_set) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    tmc::manual_reset_event event;
+    {
+      EXPECT_EQ(event.is_set(), false);
+      co_await event.co_set();
+      EXPECT_EQ(event.is_set(), true);
+      event.reset();
+      EXPECT_EQ(event.is_set(), false);
+      co_await event.co_set();
+      EXPECT_EQ(event.is_set(), true);
+    }
+    event.reset();
+    {
+      atomic_awaitable<int> aa(1);
+      auto t = tmc::spawn(
+                 [](
+                   tmc::manual_reset_event& Event, atomic_awaitable<int>& AA
+                 ) -> tmc::task<void> {
+                   co_await Event;
+                   AA.inc();
+                 }(event, aa)
+      )
+                 .fork();
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+      EXPECT_EQ(event.is_set(), false);
+      EXPECT_EQ(aa.load(), 0);
+      co_await event.co_set();
+      co_await aa;
+      co_await std::move(t);
+    }
+  }());
+}
+
 // The task should not be symmetric transferred as it is scheduled with a
 // different priority.
 TEST_F(CATEGORY, co_set_no_symmetric) {

@@ -1,5 +1,6 @@
 #include "atomic_awaitable.hpp"
 #include "test_common.hpp"
+#include "tmc/current.hpp"
 #include "tmc/semaphore.hpp"
 #include "tmc/utils.hpp"
 
@@ -20,6 +21,26 @@ protected:
 
   static tmc::ex_cpu& ex() { return tmc::cpu_executor(); }
 };
+
+TEST_F(CATEGORY, no_waiters) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    tmc::semaphore sem(0);
+    EXPECT_EQ(sem.count(), 0);
+    sem.release();
+    EXPECT_EQ(sem.count(), 1);
+    co_return;
+  }());
+}
+
+TEST_F(CATEGORY, no_waiters_co_release) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    tmc::semaphore sem(0);
+    EXPECT_EQ(sem.count(), 0);
+    co_await sem.co_release();
+    EXPECT_EQ(sem.count(), 1);
+    co_return;
+  }());
+}
 
 TEST_F(CATEGORY, nonblocking) {
   test_async_main(ex(), []() -> tmc::task<void> {
