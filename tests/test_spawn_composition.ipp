@@ -33,10 +33,17 @@ static inline tmc::task<void> spawn_tuple_compose() {
     )
       .fork();
 
+  auto sgf = tmc::spawn_group<1>(work(15));
+  auto sgu = tmc::spawn_group(work(16));
+
+  auto fgf = tmc::fork_group<1>(work(17));
+  auto fgu = tmc::fork_group(1, work(18));
+
   std::tuple<
     int, int, int, std::tuple<int>, std::tuple<int>, std::array<int, 1>,
     std::array<int, 1>, std::vector<int>, std::vector<int>, int, int,
-    std::array<int, 1>, std::array<int, 1>, std::vector<int>, std::vector<int>>
+    std::array<int, 1>, std::array<int, 1>, std::vector<int>, std::vector<int>,
+    std::array<int, 1>, std::vector<int>, std::array<int, 1>, std::vector<int>>
     results = co_await tmc::spawn_tuple(
       work(0), tmc::spawn(work(1)), std::move(sf), tmc::spawn_tuple(work(3)),
       std::move(tf), tmc::spawn_many<1>(tmc::iter_adapter(5, work)),
@@ -53,7 +60,8 @@ static inline tmc::task<void> spawn_tuple_compose() {
         ),
         1
       ),
-      std::move(sfmvf)
+      std::move(sfmvf), std::move(sgf), std::move(sgu), std::move(fgf),
+      std::move(fgu)
     );
 
   auto sum = std::get<0>(results) + std::get<1>(results) +
@@ -63,13 +71,18 @@ static inline tmc::task<void> spawn_tuple_compose() {
              std::get<8>(results)[0] + std::get<9>(results) +
              std::get<10>(results) + std::get<11>(results)[0] +
              std::get<12>(results)[0] + std::get<13>(results)[0] +
-             std::get<14>(results)[0];
+             std::get<14>(results)[0] + std::get<15>(results)[0] +
+             std::get<16>(results)[0] + std::get<17>(results)[0] +
+             std::get<18>(results)[0];
 
-  EXPECT_EQ(sum, (1 << 15) - 1);
+  EXPECT_EQ(sum, (1 << 19) - 1);
 }
 
 static inline tmc::task<void> spawn_tuple_compose_void() {
-  std::array<int, 9> results{0, 1, 2, 3, 4, 5, 6, 7, 8};
+  std::array<int, 12> results{};
+  for (size_t i = 0; i < results.size(); ++i) {
+    results[i] = static_cast<int>(i);
+  }
   auto set = [](int& i) -> tmc::task<void> {
     i = (1 << i);
     co_return;
@@ -88,19 +101,26 @@ static inline tmc::task<void> spawn_tuple_compose_void() {
 
   auto t5 = set(results[5]);
   auto t7 = set(results[7]);
+
+  auto sg = tmc::spawn_group<1>(set(results[9]));
+  auto sgu = tmc::spawn_group(set(results[10]));
+
+  auto fgu = tmc::fork_group(set(results[11]));
+
   [[maybe_unused]] std::tuple<
     std::monostate, std::monostate, std::monostate, std::tuple<std::monostate>,
     std::tuple<std::monostate>, std::monostate, std::monostate, std::monostate,
-    std::monostate, std::tuple<>> foo =
+    std::monostate, std::tuple<>, std::monostate, std::monostate,
+    std::monostate> foo =
     co_await tmc::spawn_tuple(
       set(results[0]), tmc::spawn(set(results[1])), std::move(sf),
       tmc::spawn_tuple(set(results[3])), std::move(tf), tmc::spawn_many<1>(&t5),
       std::move(smaf), tmc::spawn_many(&t7, 1), std::move(smvf),
-      tmc::spawn_tuple()
+      tmc::spawn_tuple(), std::move(sg), std::move(sgu), std::move(fgu)
     );
   auto sum = std::accumulate(results.begin(), results.end(), 0);
 
-  EXPECT_EQ(sum, (1 << 9) - 1);
+  EXPECT_EQ(sum, (1 << 12) - 1);
 }
 
 static inline tmc::task<void> spawn_tuple_compose_void_detach() {
