@@ -316,9 +316,6 @@ make_exe(spawn_iterator
 make_exe(pipeline
     examples/pipeline.cpp
 )
-make_exe(pipeline_fifo
-    examples/pipeline_fifo.cpp
-)
 
 make_exe(asio_prio
     examples/asio/prio.cpp

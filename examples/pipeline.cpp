@@ -1,11 +1,11 @@
 // A parallel actor-based data pipeline with:
 // - Processing functions can be regular functions or coroutines
 // - Configurable number of stages / input / output types
-// - Configurable number of workers per stage
-// - Automatic backpressure based on the number of workers in the current stage
+// - Configurable parallelism per stage
+// - Automatic backpressure based on the current stage parallelism
 
-// This pipeline may process tasks out of order. For a FIFO pipeline, see
-// pipeline_fifo.cpp.
+// This is just the user application.
+// The generic implementation is in "pipeline.hpp" or "pipeline_fifo.hpp".
 
 #define TMC_IMPL
 
@@ -15,8 +15,12 @@
 #include "tmc/semaphore.hpp"
 #include "tmc/task.hpp"
 
-// Generic implementation of pipeline
+// This pipeline may process tasks out of order. For a FIFO pipeline,
+// include pipeline_fifo.hpp instead.
 #include "pipeline.hpp"
+
+// // Strictly FIFO pipeline implementation
+// #include "pipeline_fifo.hpp"
 
 #include <chrono>
 #include <cstdio>
@@ -47,9 +51,6 @@ static bool as_bool(int i) { return i > 2; }
 
 int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
   return tmc::async_main([]() -> tmc::task<int> {
-    size_t sum = 0;
-    size_t count = 0;
-
     std::printf("testing %d items through 5-stage pipeline...\n", NELEMS);
     auto constructStart = std::chrono::high_resolution_clock::now();
 
@@ -62,6 +63,9 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
     auto second = pipeline_transform(fg, first, times_two, 10);
     auto third = pipeline_transform(fg, second, minus_one, 10);
     auto fourth = pipeline_transform(fg, third, as_bool, 10);
+
+    size_t sum = 0;
+    size_t count = 0;
 
     // The final stage serializes all the results with workerCount = 1
     // So it's the bottleneck in this pipeline design
