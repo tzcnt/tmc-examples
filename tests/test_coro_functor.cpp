@@ -3,6 +3,9 @@
 
 #include <gtest/gtest.h>
 
+static_assert(std::is_trivially_copyable_v<tmc::detail::coro_functor>);
+static_assert(std::is_trivially_destructible_v<tmc::detail::coro_functor>);
+
 #define CATEGORY test_coro_functor
 
 class CATEGORY : public testing::Test {
@@ -118,6 +121,50 @@ TEST_F(CATEGORY, invokable_struct) {
       tmc::detail::coro_functor f(&inv_lvalue);
       EXPECT_EQ(f.is_coroutine(), false);
       f();
+    }
+    EXPECT_EQ(result, 1);
+    EXPECT_EQ(destructor_count, 1);
+  }
+}
+
+// After constructing the coro_functor, copies it into a 2nd coro_functor.
+// However it is trivially copyable and only destroys the owned object once
+// (when called).
+TEST_F(CATEGORY, copy_construct) {
+  {
+    // rvalue
+    int result = 0;
+    int destructor_count = 0;
+    {
+      tmc::detail::coro_functor f(inv{result, destructor_count});
+      tmc::detail::coro_functor f2(f);
+      f2();
+    }
+    EXPECT_EQ(result, 1);
+    EXPECT_EQ(destructor_count, 1);
+  }
+  {
+    // lvalue makes a copy
+    int result = 0;
+    int destructor_count = 0;
+    {
+      auto inv_lvalue = inv{result, destructor_count};
+      tmc::detail::coro_functor f(inv_lvalue);
+      tmc::detail::coro_functor f2(f);
+      f2();
+    }
+    EXPECT_EQ(result, 1);
+    EXPECT_EQ(destructor_count, 2);
+  }
+  {
+    // pointer does not copy
+    int result = 0;
+    int destructor_count = 0;
+    {
+      auto inv_lvalue = inv{result, destructor_count};
+      tmc::detail::coro_functor f(&inv_lvalue);
+      tmc::detail::coro_functor f2(f);
+      f2();
     }
     EXPECT_EQ(result, 1);
     EXPECT_EQ(destructor_count, 1);
