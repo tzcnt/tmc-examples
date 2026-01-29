@@ -3,6 +3,9 @@
 
 #include <gtest/gtest.h>
 
+static_assert(std::is_trivially_copyable_v<tmc::detail::coro_functor>);
+static_assert(std::is_trivially_destructible_v<tmc::detail::coro_functor>);
+
 #define CATEGORY test_coro_functor
 
 class CATEGORY : public testing::Test {
@@ -20,7 +23,7 @@ static int test_coro_functor_free_func_result = 0;
 static void free_func() { test_coro_functor_free_func_result = 1; }
 
 TEST_F(CATEGORY, free_function) {
-  tmc::coro_functor f(free_func);
+  tmc::detail::coro_functor f(free_func);
   f();
   EXPECT_EQ(test_coro_functor_free_func_result, 1);
   EXPECT_EQ(f.is_coroutine(), false);
@@ -30,7 +33,7 @@ TEST_F(CATEGORY, lambda) {
   {
     // rvalue
     int result = 0;
-    tmc::coro_functor f([&result]() { result = 1; });
+    tmc::detail::coro_functor f([&result]() { result = 1; });
     f();
     EXPECT_EQ(result, 1);
     EXPECT_EQ(f.is_coroutine(), false);
@@ -39,7 +42,7 @@ TEST_F(CATEGORY, lambda) {
     // lvalue
     int result = 0;
     auto inv = [&result]() { result = 1; };
-    tmc::coro_functor f(inv);
+    tmc::detail::coro_functor f(inv);
     f();
     EXPECT_EQ(result, 1);
     EXPECT_EQ(f.is_coroutine(), false);
@@ -88,7 +91,7 @@ TEST_F(CATEGORY, invokable_struct) {
     int result = 0;
     int destructor_count = 0;
     {
-      tmc::coro_functor f(inv{result, destructor_count});
+      tmc::detail::coro_functor f(inv{result, destructor_count});
       EXPECT_EQ(f.is_coroutine(), false);
       f();
     }
@@ -101,7 +104,7 @@ TEST_F(CATEGORY, invokable_struct) {
     int destructor_count = 0;
     {
       auto inv_lvalue = inv{result, destructor_count};
-      tmc::coro_functor f(inv_lvalue);
+      tmc::detail::coro_functor f(inv_lvalue);
       EXPECT_EQ(f.is_coroutine(), false);
       f();
     }
@@ -115,9 +118,53 @@ TEST_F(CATEGORY, invokable_struct) {
     int destructor_count = 0;
     {
       auto inv_lvalue = inv{result, destructor_count};
-      tmc::coro_functor f(&inv_lvalue);
+      tmc::detail::coro_functor f(&inv_lvalue);
       EXPECT_EQ(f.is_coroutine(), false);
       f();
+    }
+    EXPECT_EQ(result, 1);
+    EXPECT_EQ(destructor_count, 1);
+  }
+}
+
+// After constructing the coro_functor, copies it into a 2nd coro_functor.
+// However it is trivially copyable and only destroys the owned object once
+// (when called).
+TEST_F(CATEGORY, copy_construct) {
+  {
+    // rvalue
+    int result = 0;
+    int destructor_count = 0;
+    {
+      tmc::detail::coro_functor f(inv{result, destructor_count});
+      tmc::detail::coro_functor f2(f);
+      f2();
+    }
+    EXPECT_EQ(result, 1);
+    EXPECT_EQ(destructor_count, 1);
+  }
+  {
+    // lvalue makes a copy
+    int result = 0;
+    int destructor_count = 0;
+    {
+      auto inv_lvalue = inv{result, destructor_count};
+      tmc::detail::coro_functor f(inv_lvalue);
+      tmc::detail::coro_functor f2(f);
+      f2();
+    }
+    EXPECT_EQ(result, 1);
+    EXPECT_EQ(destructor_count, 2);
+  }
+  {
+    // pointer does not copy
+    int result = 0;
+    int destructor_count = 0;
+    {
+      auto inv_lvalue = inv{result, destructor_count};
+      tmc::detail::coro_functor f(&inv_lvalue);
+      tmc::detail::coro_functor f2(f);
+      f2();
     }
     EXPECT_EQ(result, 1);
     EXPECT_EQ(destructor_count, 1);
@@ -130,8 +177,8 @@ TEST_F(CATEGORY, move_construct) {
     int result = 0;
     int destructor_count = 0;
     {
-      tmc::coro_functor f(inv{result, destructor_count});
-      tmc::coro_functor f2;
+      tmc::detail::coro_functor f(inv{result, destructor_count});
+      tmc::detail::coro_functor f2;
       f2 = std::move(f);
       f2();
     }
@@ -144,8 +191,8 @@ TEST_F(CATEGORY, move_construct) {
     int destructor_count = 0;
     {
       auto inv_lvalue = inv{result, destructor_count};
-      tmc::coro_functor f(inv_lvalue);
-      tmc::coro_functor f2;
+      tmc::detail::coro_functor f(inv_lvalue);
+      tmc::detail::coro_functor f2;
       f2 = std::move(f);
       f2();
     }
@@ -158,8 +205,8 @@ TEST_F(CATEGORY, move_construct) {
     int destructor_count = 0;
     {
       auto inv_lvalue = inv{result, destructor_count};
-      tmc::coro_functor f(&inv_lvalue);
-      tmc::coro_functor f2;
+      tmc::detail::coro_functor f(&inv_lvalue);
+      tmc::detail::coro_functor f2;
       f2 = std::move(f);
       f2();
     }
@@ -173,7 +220,7 @@ TEST_F(CATEGORY, coro) {
     // rvalue
     int result = 0;
     {
-      tmc::coro_functor f([](int& r) -> tmc::task<void> {
+      tmc::detail::coro_functor f([](int& r) -> tmc::task<void> {
         ++r;
         co_return;
       }(result));
@@ -190,7 +237,7 @@ TEST_F(CATEGORY, coro) {
         ++r;
         co_return;
       }(result);
-      tmc::coro_functor f(std::move(t));
+      tmc::detail::coro_functor f(std::move(t));
       EXPECT_EQ(f.is_coroutine(), true);
       f();
     }
@@ -203,11 +250,11 @@ TEST_F(CATEGORY, coro_move_construct) {
     // rvalue
     int result = 0;
     {
-      tmc::coro_functor f([](int& r) -> tmc::task<void> {
+      tmc::detail::coro_functor f([](int& r) -> tmc::task<void> {
         ++r;
         co_return;
       }(result));
-      tmc::coro_functor f2;
+      tmc::detail::coro_functor f2;
       f2 = std::move(f);
       f2();
     }
@@ -221,8 +268,8 @@ TEST_F(CATEGORY, coro_move_construct) {
         ++r;
         co_return;
       }(result);
-      tmc::coro_functor f(std::move(t));
-      tmc::coro_functor f2;
+      tmc::detail::coro_functor f(std::move(t));
+      tmc::detail::coro_functor f2;
       f2 = std::move(f);
       f2();
     }
@@ -235,7 +282,7 @@ TEST_F(CATEGORY, coro_take) {
     // rvalue
     int result = 0;
     {
-      tmc::coro_functor f([](int& r) -> tmc::task<void> {
+      tmc::detail::coro_functor f([](int& r) -> tmc::task<void> {
         ++r;
         co_return;
       }(result));
@@ -253,7 +300,7 @@ TEST_F(CATEGORY, coro_take) {
         ++r;
         co_return;
       }(result);
-      tmc::coro_functor f(std::move(t));
+      tmc::detail::coro_functor f(std::move(t));
       EXPECT_EQ(f.is_coroutine(), true);
       auto t2 = f.as_coroutine();
       t2.resume();
