@@ -10,6 +10,7 @@
 #include "tmc/detail/compat.hpp"
 #include "tmc/detail/concepts_awaitable.hpp"
 #include "tmc/detail/thread_locals.hpp"
+#include "tmc/ex_braid.hpp"
 #include "tmc/spawn.hpp"
 
 #include <coroutine>
@@ -323,6 +324,181 @@ TEST_F(CATEGORY, wrapper_no_throw_non_default_constructible) {
   test_async_main(ex(), []() -> tmc::task<void> {
     auto x = co_await non_throwing_unknown_non_default_constructible{};
     EXPECT_EQ(x.a, 5);
+  }());
+}
+
+struct move_only_int {
+  int a;
+  move_only_int(int x) : a{x} {}
+  move_only_int(move_only_int const&) = delete;
+  move_only_int& operator=(move_only_int const&) = delete;
+  move_only_int(move_only_int&& other) noexcept : a{other.a} { other.a = -1; }
+  move_only_int& operator=(move_only_int&& other) noexcept {
+    a = other.a;
+    other.a = -1;
+    return *this;
+  }
+};
+
+template <bool Known> struct aw_move_only_int : public KnownTag<Known> {
+  bool await_ready() { return false; }
+  void await_suspend(std::coroutine_handle<> Outer) {
+    tmc::detail::post_checked(tmc::current_executor(), std::move(Outer));
+  }
+  move_only_int await_resume() { return move_only_int{42}; }
+};
+
+TEST_F(CATEGORY, wrapper_move_only_known) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    auto x = co_await aw_move_only_int<true>{};
+    EXPECT_EQ(x.a, 42);
+  }());
+}
+
+TEST_F(CATEGORY, wrapper_move_only_unknown) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    auto x = co_await aw_move_only_int<false>{};
+    EXPECT_EQ(x.a, 42);
+  }());
+}
+
+template <bool Known> struct aw_throw_move_only_int : public KnownTag<Known> {
+  bool await_ready() { return false; }
+  void await_suspend(std::coroutine_handle<> Outer) {
+    tmc::detail::post_checked(tmc::current_executor(), std::move(Outer));
+  }
+  move_only_int await_resume() {
+    throws();
+    return move_only_int{42};
+  }
+};
+
+TEST_F(CATEGORY, wrapper_throw_move_only_known) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    bool caught = false;
+    try {
+      [[maybe_unused]] auto x = co_await aw_throw_move_only_int<true>{};
+    } catch (std::runtime_error const& ex) {
+      EXPECT_EQ(0, strcmp(ex.what(), "foo"));
+      caught = true;
+    }
+    EXPECT_TRUE(caught);
+  }());
+}
+
+TEST_F(CATEGORY, wrapper_throw_move_only_unknown) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    bool caught = false;
+    try {
+      [[maybe_unused]] auto x = co_await aw_throw_move_only_int<false>{};
+    } catch (std::runtime_error const& ex) {
+      EXPECT_EQ(0, strcmp(ex.what(), "foo"));
+      caught = true;
+    }
+    EXPECT_TRUE(caught);
+  }());
+}
+
+template <bool Known>
+struct aw_throw_on_other_executor_void : public KnownTag<Known> {
+  tmc::ex_braid& other_ex;
+  aw_throw_on_other_executor_void(tmc::ex_braid& OtherEx) : other_ex{OtherEx} {}
+  bool await_ready() { return false; }
+  void await_suspend(std::coroutine_handle<> Outer) {
+    tmc::detail::post_checked(other_ex.type_erased(), std::move(Outer));
+  }
+  void await_resume() { throws(); }
+};
+
+template <bool Known>
+struct aw_throw_on_other_executor_int : public KnownTag<Known> {
+  tmc::ex_braid& other_ex;
+  aw_throw_on_other_executor_int(tmc::ex_braid& OtherEx) : other_ex{OtherEx} {}
+  bool await_ready() { return false; }
+  void await_suspend(std::coroutine_handle<> Outer) {
+    tmc::detail::post_checked(other_ex.type_erased(), std::move(Outer));
+  }
+  int await_resume() {
+    throws();
+    return 5;
+  }
+};
+
+TEST_F(CATEGORY, throw_does_not_restore_executor_known_void) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    tmc::ex_braid other_ex(tmc::cpu_executor());
+    void* original_ex = tmc::detail::this_thread::executor;
+    bool caught = false;
+    try {
+      co_await aw_throw_on_other_executor_void<true>{other_ex};
+    } catch (std::runtime_error const& ex) {
+      EXPECT_EQ(0, strcmp(ex.what(), "foo"));
+      caught = true;
+    }
+    EXPECT_TRUE(caught);
+    // Known awaitables are NOT wrapped, so executor is NOT restored.
+    // In practice this won't happen, as restoring the executor is part of the
+    // contract of known awaitables.
+    EXPECT_NE(tmc::detail::this_thread::executor, original_ex);
+    EXPECT_EQ(tmc::detail::this_thread::executor, other_ex.type_erased());
+  }());
+}
+
+TEST_F(CATEGORY, throw_restores_executor_unknown_void) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    tmc::ex_braid other_ex(tmc::cpu_executor());
+    void* original_ex = tmc::detail::this_thread::executor;
+    bool caught = false;
+    try {
+      co_await aw_throw_on_other_executor_void<false>{other_ex};
+    } catch (std::runtime_error const& ex) {
+      EXPECT_EQ(0, strcmp(ex.what(), "foo"));
+      caught = true;
+    }
+    EXPECT_TRUE(caught);
+    // task_wrapper ensures we restore back to our original executor even if the
+    // unknown awaitable throws an exception on another thread.
+    EXPECT_EQ(tmc::detail::this_thread::executor, original_ex);
+  }());
+}
+
+TEST_F(CATEGORY, throw_does_not_restore_executor_known_result) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    tmc::ex_braid other_ex(tmc::cpu_executor());
+    void* original_ex = tmc::detail::this_thread::executor;
+    bool caught = false;
+    try {
+      [[maybe_unused]] auto x =
+        co_await aw_throw_on_other_executor_int<true>{other_ex};
+    } catch (std::runtime_error const& ex) {
+      EXPECT_EQ(0, strcmp(ex.what(), "foo"));
+      caught = true;
+    }
+    EXPECT_TRUE(caught);
+    // Known awaitables are NOT wrapped, so executor is NOT restored.
+    // In practice this won't happen, as restoring the executor is part of the
+    // contract of known awaitables.
+    EXPECT_NE(tmc::detail::this_thread::executor, original_ex);
+    EXPECT_EQ(tmc::detail::this_thread::executor, other_ex.type_erased());
+  }());
+}
+
+TEST_F(CATEGORY, throw_restores_executor_unknown_result) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    tmc::ex_braid other_ex(tmc::cpu_executor());
+    void* original_ex = tmc::detail::this_thread::executor;
+    bool caught = false;
+    try {
+      [[maybe_unused]] auto x =
+        co_await aw_throw_on_other_executor_int<false>{other_ex};
+    } catch (std::runtime_error const& ex) {
+      EXPECT_EQ(0, strcmp(ex.what(), "foo"));
+      caught = true;
+    }
+    EXPECT_TRUE(caught);
+    // task_wrapper ensures we restore back to our original executor even if the
+    // unknown awaitable throws an exception on another thread.
+    EXPECT_EQ(tmc::detail::this_thread::executor, original_ex);
   }());
 }
 
