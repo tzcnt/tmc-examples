@@ -463,6 +463,18 @@ TEST_F(CATEGORY, cross_post_thread_hint) {
   }());
 }
 
+TEST_F(CATEGORY, resume_on) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    tmc::ex_cpu localEx;
+    localEx.set_thread_count(1).init();
+    EXPECT_EQ(tmc::current_executor(), ex().type_erased());
+    co_await tmc::resume_on(localEx);
+    EXPECT_EQ(tmc::current_executor(), localEx.type_erased());
+    co_await tmc::resume_on(ex());
+    EXPECT_EQ(tmc::current_executor(), ex().type_erased());
+  }());
+}
+
 TEST_F(CATEGORY, resume_on_with_priority) {
   test_async_main(ex(), []() -> tmc::task<void> {
     EXPECT_EQ(tmc::current_priority(), 0);
@@ -471,6 +483,18 @@ TEST_F(CATEGORY, resume_on_with_priority) {
     EXPECT_EQ(tmc::current_priority(), 1);
     co_await tmc::resume_on(ex()).with_priority(0);
     EXPECT_EQ(tmc::current_priority(), 0);
+  }());
+}
+
+TEST_F(CATEGORY, enter_exit) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    tmc::ex_cpu localEx;
+    localEx.set_thread_count(1).init();
+    EXPECT_EQ(tmc::current_executor(), ex().type_erased());
+    auto scope = co_await tmc::enter(localEx);
+    EXPECT_EQ(tmc::current_executor(), localEx.type_erased());
+    co_await scope.exit();
+    EXPECT_EQ(tmc::current_executor(), ex().type_erased());
   }());
 }
 
