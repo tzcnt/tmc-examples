@@ -452,6 +452,20 @@ TEST_F(CATEGORY, topology_filter_operator_or) {
   );
 }
 
+TEST_F(CATEGORY, cpu_kind_operator_or) {
+  using ck = tmc::topology::cpu_kind;
+
+  ck::value combined = ck::PERFORMANCE | ck::EFFICIENCY1;
+  EXPECT_EQ(combined, static_cast<ck::value>(3u));
+
+  ck::value v = ck::PERFORMANCE;
+  v |= ck::EFFICIENCY2;
+  EXPECT_EQ(v, static_cast<ck::value>(5u));
+
+  ck::value all = ck::PERFORMANCE | ck::EFFICIENCY1 | ck::EFFICIENCY2;
+  EXPECT_EQ(all, ck::ALL);
+}
+
 TEST_F(CATEGORY, cpu_topology_is_hybrid) {
   tmc::topology::cpu_topology topo{};
   topo.cpu_kind_counts = {8};
