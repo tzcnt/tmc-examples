@@ -462,3 +462,62 @@ TEST_F(CATEGORY, cross_post_thread_hint) {
     co_return;
   }());
 }
+
+TEST_F(CATEGORY, resume_on_with_priority) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    EXPECT_EQ(tmc::current_priority(), 0);
+    co_await tmc::resume_on(ex()).with_priority(1);
+    EXPECT_EQ(tmc::current_executor(), ex().type_erased());
+    EXPECT_EQ(tmc::current_priority(), 1);
+    co_await tmc::resume_on(ex()).with_priority(0);
+    EXPECT_EQ(tmc::current_priority(), 0);
+  }());
+}
+
+TEST_F(CATEGORY, enter_with_priority) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    tmc::ex_cpu localEx;
+    localEx.set_thread_count(1).set_priority_count(2).init();
+    auto scope = co_await tmc::enter(localEx).with_priority(1);
+    EXPECT_EQ(tmc::current_executor(), localEx.type_erased());
+    EXPECT_EQ(tmc::current_priority(), 1);
+    // After exit(), the priority should be restored to 1
+    co_await scope.exit();
+    EXPECT_EQ(tmc::current_executor(), ex().type_erased());
+    EXPECT_EQ(tmc::current_priority(), 0);
+  }());
+}
+
+TEST_F(CATEGORY, exit_with_priority) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    tmc::ex_cpu localEx;
+    localEx.set_thread_count(1).set_priority_count(2).init();
+
+    EXPECT_EQ(tmc::current_priority(), 0);
+    auto scope = co_await tmc::enter(localEx);
+    EXPECT_EQ(tmc::current_executor(), localEx.type_erased());
+    co_await scope.exit().with_priority(1);
+    EXPECT_EQ(tmc::current_executor(), ex().type_erased());
+    EXPECT_EQ(tmc::current_priority(), 1);
+    co_await tmc::change_priority(0);
+    EXPECT_EQ(tmc::current_executor(), ex().type_erased());
+    EXPECT_EQ(tmc::current_priority(), 0);
+  }());
+}
+
+TEST_F(CATEGORY, exit_resume_on) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    tmc::ex_cpu localEx;
+    localEx.set_thread_count(2).init();
+
+    tmc::ex_any* originalExec = tmc::detail::this_thread::executor;
+    auto scope = co_await tmc::enter(localEx).with_priority(1);
+    EXPECT_EQ(tmc::detail::this_thread::executor, localEx.type_erased());
+    // Exit but resume on the local executor instead of original
+    co_await scope.exit().resume_on(localEx);
+    EXPECT_EQ(tmc::detail::this_thread::executor, localEx.type_erased());
+    EXPECT_EQ(tmc::current_priority(), 0);
+    co_await tmc::resume_on(originalExec);
+    EXPECT_EQ(tmc::current_executor(), ex().type_erased());
+  }());
+}
