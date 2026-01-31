@@ -465,83 +465,168 @@ TEST_F(CATEGORY, cross_post_thread_hint) {
 
 TEST_F(CATEGORY, resume_on) {
   test_async_main(ex(), []() -> tmc::task<void> {
-    tmc::ex_cpu localEx;
-    localEx.set_thread_count(1).init();
-    EXPECT_EQ(tmc::current_executor(), ex().type_erased());
-    co_await tmc::resume_on(localEx);
-    EXPECT_EQ(tmc::current_executor(), localEx.type_erased());
-    co_await tmc::resume_on(ex());
-    EXPECT_EQ(tmc::current_executor(), ex().type_erased());
+    {
+      tmc::ex_cpu localEx;
+      localEx.set_thread_count(1).init();
+      EXPECT_EQ(tmc::current_executor(), ex().type_erased());
+      co_await tmc::resume_on(localEx);
+      EXPECT_EQ(tmc::current_executor(), localEx.type_erased());
+      co_await tmc::resume_on(ex());
+      EXPECT_EQ(tmc::current_executor(), ex().type_erased());
+    }
+    {
+      tmc::ex_cpu localEx;
+      localEx.set_thread_count(1).init();
+      EXPECT_EQ(tmc::current_executor(), ex().type_erased());
+      auto v = tmc::resume_on(localEx);
+      co_await std::move(v);
+      EXPECT_EQ(tmc::current_executor(), localEx.type_erased());
+      auto v2 = tmc::resume_on(ex());
+      co_await std::move(v2);
+      EXPECT_EQ(tmc::current_executor(), ex().type_erased());
+    }
   }());
 }
 
 TEST_F(CATEGORY, resume_on_with_priority) {
   test_async_main(ex(), []() -> tmc::task<void> {
-    EXPECT_EQ(tmc::current_priority(), 0);
-    co_await tmc::resume_on(ex()).with_priority(1);
-    EXPECT_EQ(tmc::current_executor(), ex().type_erased());
-    EXPECT_EQ(tmc::current_priority(), 1);
-    co_await tmc::resume_on(ex()).with_priority(0);
-    EXPECT_EQ(tmc::current_priority(), 0);
+    {
+      EXPECT_EQ(tmc::current_priority(), 0);
+      co_await tmc::resume_on(ex()).with_priority(1);
+      EXPECT_EQ(tmc::current_executor(), ex().type_erased());
+      EXPECT_EQ(tmc::current_priority(), 1);
+      co_await tmc::resume_on(ex()).with_priority(0);
+      EXPECT_EQ(tmc::current_priority(), 0);
+    }
+    {
+      EXPECT_EQ(tmc::current_priority(), 0);
+      auto v = tmc::resume_on(ex());
+      co_await std::move(v).with_priority(1);
+      EXPECT_EQ(tmc::current_executor(), ex().type_erased());
+      EXPECT_EQ(tmc::current_priority(), 1);
+      auto v2 = tmc::resume_on(ex());
+      co_await std::move(v2).with_priority(0);
+      EXPECT_EQ(tmc::current_priority(), 0);
+    }
   }());
 }
 
 TEST_F(CATEGORY, enter_exit) {
   test_async_main(ex(), []() -> tmc::task<void> {
-    tmc::ex_cpu localEx;
-    localEx.set_thread_count(1).init();
-    EXPECT_EQ(tmc::current_executor(), ex().type_erased());
-    auto scope = co_await tmc::enter(localEx);
-    EXPECT_EQ(tmc::current_executor(), localEx.type_erased());
-    co_await scope.exit();
-    EXPECT_EQ(tmc::current_executor(), ex().type_erased());
+    {
+      tmc::ex_cpu localEx;
+      localEx.set_thread_count(1).init();
+      EXPECT_EQ(tmc::current_executor(), ex().type_erased());
+      auto scope = co_await tmc::enter(localEx);
+      EXPECT_EQ(tmc::current_executor(), localEx.type_erased());
+      co_await scope.exit();
+      EXPECT_EQ(tmc::current_executor(), ex().type_erased());
+    }
+    {
+      tmc::ex_cpu localEx;
+      localEx.set_thread_count(1).init();
+      EXPECT_EQ(tmc::current_executor(), ex().type_erased());
+      auto v = tmc::enter(localEx);
+      auto scope = co_await std::move(v);
+      EXPECT_EQ(tmc::current_executor(), localEx.type_erased());
+      auto e = scope.exit();
+      co_await std::move(e);
+      EXPECT_EQ(tmc::current_executor(), ex().type_erased());
+    }
   }());
 }
 
 TEST_F(CATEGORY, enter_with_priority) {
   test_async_main(ex(), []() -> tmc::task<void> {
-    tmc::ex_cpu localEx;
-    localEx.set_thread_count(1).set_priority_count(2).init();
-    auto scope = co_await tmc::enter(localEx).with_priority(1);
-    EXPECT_EQ(tmc::current_executor(), localEx.type_erased());
-    EXPECT_EQ(tmc::current_priority(), 1);
-    // After exit(), the priority should be restored to 1
-    co_await scope.exit();
-    EXPECT_EQ(tmc::current_executor(), ex().type_erased());
-    EXPECT_EQ(tmc::current_priority(), 0);
+    {
+      tmc::ex_cpu localEx;
+      localEx.set_thread_count(1).set_priority_count(2).init();
+      auto scope = co_await tmc::enter(localEx).with_priority(1);
+      EXPECT_EQ(tmc::current_executor(), localEx.type_erased());
+      EXPECT_EQ(tmc::current_priority(), 1);
+      // After exit(), the priority should be restored to 1
+      co_await scope.exit();
+      EXPECT_EQ(tmc::current_executor(), ex().type_erased());
+      EXPECT_EQ(tmc::current_priority(), 0);
+    }
+    {
+      tmc::ex_cpu localEx;
+      localEx.set_thread_count(1).set_priority_count(2).init();
+      auto v = tmc::enter(localEx);
+      auto scope = co_await std::move(v).with_priority(1);
+      EXPECT_EQ(tmc::current_executor(), localEx.type_erased());
+      EXPECT_EQ(tmc::current_priority(), 1);
+      // After exit(), the priority should be restored to 1
+      co_await scope.exit();
+      EXPECT_EQ(tmc::current_executor(), ex().type_erased());
+      EXPECT_EQ(tmc::current_priority(), 0);
+    }
   }());
 }
 
 TEST_F(CATEGORY, exit_with_priority) {
   test_async_main(ex(), []() -> tmc::task<void> {
-    tmc::ex_cpu localEx;
-    localEx.set_thread_count(1).set_priority_count(2).init();
+    {
+      tmc::ex_cpu localEx;
+      localEx.set_thread_count(1).set_priority_count(2).init();
 
-    EXPECT_EQ(tmc::current_priority(), 0);
-    auto scope = co_await tmc::enter(localEx);
-    EXPECT_EQ(tmc::current_executor(), localEx.type_erased());
-    co_await scope.exit().with_priority(1);
-    EXPECT_EQ(tmc::current_executor(), ex().type_erased());
-    EXPECT_EQ(tmc::current_priority(), 1);
-    co_await tmc::change_priority(0);
-    EXPECT_EQ(tmc::current_executor(), ex().type_erased());
-    EXPECT_EQ(tmc::current_priority(), 0);
+      EXPECT_EQ(tmc::current_priority(), 0);
+      auto scope = co_await tmc::enter(localEx);
+      EXPECT_EQ(tmc::current_executor(), localEx.type_erased());
+      co_await scope.exit().with_priority(1);
+      EXPECT_EQ(tmc::current_executor(), ex().type_erased());
+      EXPECT_EQ(tmc::current_priority(), 1);
+      co_await tmc::change_priority(0);
+      EXPECT_EQ(tmc::current_executor(), ex().type_erased());
+      EXPECT_EQ(tmc::current_priority(), 0);
+    }
+    {
+      tmc::ex_cpu localEx;
+      localEx.set_thread_count(1).set_priority_count(2).init();
+
+      EXPECT_EQ(tmc::current_priority(), 0);
+      auto scope = co_await tmc::enter(localEx);
+      EXPECT_EQ(tmc::current_executor(), localEx.type_erased());
+      co_await scope.exit().with_priority(1);
+      EXPECT_EQ(tmc::current_executor(), ex().type_erased());
+      EXPECT_EQ(tmc::current_priority(), 1);
+      co_await tmc::change_priority(0);
+      EXPECT_EQ(tmc::current_executor(), ex().type_erased());
+      EXPECT_EQ(tmc::current_priority(), 0);
+    }
   }());
 }
 
 TEST_F(CATEGORY, exit_resume_on) {
   test_async_main(ex(), []() -> tmc::task<void> {
-    tmc::ex_cpu localEx;
-    localEx.set_thread_count(2).init();
+    {
+      tmc::ex_cpu localEx;
+      localEx.set_thread_count(2).init();
 
-    tmc::ex_any* originalExec = tmc::detail::this_thread::executor;
-    auto scope = co_await tmc::enter(localEx).with_priority(1);
-    EXPECT_EQ(tmc::detail::this_thread::executor, localEx.type_erased());
-    // Exit but resume on the local executor instead of original
-    co_await scope.exit().resume_on(localEx);
-    EXPECT_EQ(tmc::detail::this_thread::executor, localEx.type_erased());
-    EXPECT_EQ(tmc::current_priority(), 0);
-    co_await tmc::resume_on(originalExec);
-    EXPECT_EQ(tmc::current_executor(), ex().type_erased());
+      tmc::ex_any* originalExec = tmc::detail::this_thread::executor;
+      auto scope = co_await tmc::enter(localEx).with_priority(1);
+      EXPECT_EQ(tmc::detail::this_thread::executor, localEx.type_erased());
+      // Exit but resume on the local executor instead of original
+      co_await scope.exit().resume_on(localEx);
+      EXPECT_EQ(tmc::detail::this_thread::executor, localEx.type_erased());
+      EXPECT_EQ(tmc::current_priority(), 0);
+      co_await tmc::resume_on(originalExec);
+      EXPECT_EQ(tmc::current_executor(), ex().type_erased());
+    }
+    {
+      tmc::ex_cpu localEx;
+      localEx.set_thread_count(2).init();
+
+      tmc::ex_any* originalExec = tmc::detail::this_thread::executor;
+      auto v = tmc::enter(localEx);
+      auto scope = co_await std::move(v).with_priority(1);
+      EXPECT_EQ(tmc::detail::this_thread::executor, localEx.type_erased());
+      // Exit but resume on the local executor instead of original
+      co_await scope.exit().resume_on(localEx);
+      EXPECT_EQ(tmc::detail::this_thread::executor, localEx.type_erased());
+      EXPECT_EQ(tmc::current_priority(), 0);
+      co_await tmc::resume_on(originalExec);
+      EXPECT_EQ(tmc::current_executor(), ex().type_erased());
+    }
   }());
 }
