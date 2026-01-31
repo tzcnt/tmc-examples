@@ -442,6 +442,47 @@ TEST_F(CATEGORY, post_bulk_func_unknown_sized_range) {
   }
 }
 
+TEST_F(CATEGORY, post_bulk_coro_empty_count) {
+  auto ts = tmc::iter_adapter(0, [](int) -> tmc::task<void> { co_return; });
+  tmc::post_bulk(ex(), ts, 0, 0);
+}
+
+TEST_F(CATEGORY, post_bulk_coro_empty_begin_end) {
+  auto ts = std::ranges::views::iota(0, 0) |
+            std::ranges::views::transform([](int) -> tmc::task<void> {
+              co_return;
+            });
+  tmc::post_bulk(ex(), ts.begin(), ts.end(), 0);
+}
+
+TEST_F(CATEGORY, post_bulk_coro_empty_range) {
+  auto ts = std::ranges::views::iota(0, 0) |
+            std::ranges::views::transform([](int) -> tmc::task<void> {
+              co_return;
+            });
+  tmc::post_bulk(ex(), ts, 0);
+}
+
+TEST_F(CATEGORY, post_bulk_func_empty_count) {
+  auto ts =
+    std::ranges::views::iota(0) | std::ranges::views::transform([](int) {
+      return []() {};
+    });
+  tmc::post_bulk(ex(), ts.begin(), 0, 0);
+}
+
+TEST_F(CATEGORY, post_bulk_func_empty_begin_end) {
+  auto ts = std::ranges::views::iota(0, 0) |
+            std::ranges::views::transform([](int) { return []() {}; });
+  tmc::post_bulk(ex(), ts.begin(), ts.end(), 0);
+}
+
+TEST_F(CATEGORY, post_bulk_func_empty_range) {
+  auto ts = std::ranges::views::iota(0, 0) |
+            std::ranges::views::transform([](int) { return []() {}; });
+  tmc::post_bulk(ex(), ts, 0);
+}
+
 TEST_F(CATEGORY, post_bulk_waitable_coro_begin_count) {
   tmc::post_bulk_waitable(
     ex(), tmc::iter_adapter(0, [](int) -> tmc::task<void> { co_return; }), 10, 0
@@ -572,6 +613,19 @@ TEST_F(CATEGORY, post_bulk_waitable_func_unknown_sized_range) {
     EXPECT_EQ(results[0], 0);
     EXPECT_EQ(results[1], 1);
   }
+}
+
+TEST_F(CATEGORY, post_bulk_waitable_coro_empty) {
+  auto ts = tmc::iter_adapter(0, [](int) -> tmc::task<void> { co_return; });
+  tmc::post_bulk_waitable(ex(), ts, 0, 0).wait();
+}
+
+TEST_F(CATEGORY, post_bulk_waitable_func_empty) {
+  auto ts =
+    std::ranges::views::iota(0) | std::ranges::views::transform([](int) {
+      return []() {};
+    });
+  tmc::post_bulk_waitable(ex(), ts.begin(), 0, 0).wait();
 }
 
 TEST_F(CATEGORY, async_main) {
