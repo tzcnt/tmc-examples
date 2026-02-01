@@ -4,10 +4,14 @@
 
 ## tmc-examples Coroutine Backtrace Development Branch
 
+[<img src="https://fleetcode.com/img/backtrace.png">](https://fleetcode.com/img/backtrace.png)
+
 This branch contains the `coro_backtrace_lldb.py` and `coro_backtrace_gdb.py` scripts.
 These scripts enable you to view synthetic async stacks in your debugger.
 
 These scripts are under active development. They are also 100% AI-generated, so no guarantees are made about the accuracy of the output at this point. The AGENTS.md in this branch has been updated to provide context to LLMs about the current state of development, if you want to try hacking on them yourself.
+
+If you find any problems while testing these scripts, please open an issue on this repository (tmc-examples). PRs are also welcome.
 
 ### LLDB Script Status: It works on my machine :man_shrugging:
 Requirements:
