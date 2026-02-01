@@ -73,6 +73,8 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
 
   size_t n = static_cast<size_t>(atoi(argv[1]));
 #endif
+  // Using a single thread to make synthetic async stack frame debugging
+  // produce a consistent output.
   tmc::cpu_executor().set_thread_count(1);
   tmc::async_main([](size_t N) -> tmc::task<int> {
     auto startTime = std::chrono::high_resolution_clock::now();
