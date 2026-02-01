@@ -52,6 +52,12 @@ struct AwaitableAndCallable {
   double operator()() { return 3.14; }
 };
 
+struct UnknownAwaiter {
+  bool await_ready() { return true; }
+  void await_suspend(std::coroutine_handle<>) {}
+  int await_resume() { return 99; }
+};
+
 /************** is_awaitable Concept Tests **************/
 
 TEST_F(CATEGORY, is_awaitable_task_void) {
@@ -76,6 +82,62 @@ TEST_F(CATEGORY, is_awaitable_non_awaitable) {
   static_assert(!tmc::traits::is_awaitable<int>);
   static_assert(!tmc::traits::is_awaitable<void>);
   static_assert(!tmc::traits::is_awaitable<NonAwaitableNonCallable>);
+}
+
+struct UnknownAnyAwaitableSelf {
+  bool await_ready() { return true; }
+  void await_suspend(std::coroutine_handle<>) {}
+  int await_resume() { return 99; }
+};
+
+struct UnknownAnyAwaitable {
+  UnknownAwaiter operator co_await() { return UnknownAwaiter{}; }
+};
+
+TEST_F(CATEGORY, is_awaitable_unknown_any) {
+  static_assert(tmc::traits::is_awaitable<UnknownAnyAwaitable>);
+  static_assert(tmc::traits::is_awaitable<UnknownAnyAwaitable&&>);
+  static_assert(tmc::traits::is_awaitable<UnknownAnyAwaitable&>);
+  static_assert(tmc::traits::is_awaitable<UnknownAnyAwaitable>);
+  static_assert(tmc::traits::is_awaitable<UnknownAnyAwaitable&&>);
+  static_assert(tmc::traits::is_awaitable<UnknownAnyAwaitable&>);
+}
+
+struct UnknownLvalueOnlyAwaitableSelf {
+  bool await_ready() { return true; }
+  void await_suspend(std::coroutine_handle<>) {}
+  int await_resume() & { return 99; }
+};
+
+struct UnknownLvalueOnlyAwaitable {
+  UnknownAwaiter operator co_await() & { return UnknownAwaiter{}; }
+};
+
+TEST_F(CATEGORY, is_awaitable_unknown_lvalue_only) {
+  // An awaitable with lvalue-qualified `operator co_await() &` can be
+  // restricted to only work on lvalue objects.
+  static_assert(!tmc::traits::is_awaitable<UnknownLvalueOnlyAwaitable>);
+  static_assert(!tmc::traits::is_awaitable<UnknownLvalueOnlyAwaitable&&>);
+  static_assert(tmc::traits::is_awaitable<UnknownLvalueOnlyAwaitable&>);
+  // An awaiter that directly exposes await_() machinery is always stored in an
+  // lvalue by the compiler before being awaited. Thus, the value category of
+  // the input doesn't matter.
+  static_assert(tmc::traits::is_awaitable<UnknownLvalueOnlyAwaitableSelf>);
+  static_assert(tmc::traits::is_awaitable<UnknownLvalueOnlyAwaitableSelf&&>);
+  static_assert(tmc::traits::is_awaitable<UnknownLvalueOnlyAwaitableSelf&>);
+}
+
+struct UnknownRvalueOnlyAwaitable {
+  UnknownAwaiter operator co_await() && { return UnknownAwaiter{}; }
+};
+
+TEST_F(CATEGORY, is_awaitable_unknown_rvalue_only) {
+  static_assert(tmc::traits::is_awaitable<UnknownRvalueOnlyAwaitable>);
+  static_assert(tmc::traits::is_awaitable<UnknownRvalueOnlyAwaitable&&>);
+  static_assert(!tmc::traits::is_awaitable<UnknownRvalueOnlyAwaitable&>);
+  // Note that there is no RvalueOnlyAwaitableSelf.
+  // A type which implements `await_resume() &&` could not be awaited,
+  // because the standard states that awaiters are lvalues.
 }
 
 /************** awaitable_result_t Tests **************/
