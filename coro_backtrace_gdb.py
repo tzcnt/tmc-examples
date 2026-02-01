@@ -355,15 +355,17 @@ Decorator for coroutine frames.
 Used by `CoroutineFrameFilter` to add the coroutine frames to the built-in `bt` command.
 """
 class CoroutineFrameDecorator(FrameDecorator):
-    def __init__(self, coro_frame: DevirtualizedCoroFrame, inferior_frame: gdb.Frame):
+    def __init__(self, coro_frame: DevirtualizedCoroFrame, inferior_frame: gdb.Frame, is_fork: bool = False):
         super(CoroutineFrameDecorator, self).__init__(inferior_frame)
         self.coro_frame = coro_frame
+        self.is_fork = is_fork
 
     def function(self):
+        prefix = "[fork] [async] " if self.is_fork else "[async] "
         func_name = self.coro_frame.get_function_name()
         if func_name is not None:
-            return "[async] " + func_name
-        return "[async] coroutine (coro_frame=" + str(self.coro_frame.frame_ptr_raw) + ")"
+            return prefix + func_name
+        return prefix + "coroutine (coro_frame=" + str(self.coro_frame.frame_ptr_raw) + ")"
 
     def address(self):
         # Return the resume function address for MI mode
@@ -392,7 +394,11 @@ class CoroutineFrameDecorator(FrameDecorator):
         return []
 
 
-def _get_continuation(promise: gdb.Value, is_gcc: bool) -> DevirtualizedCoroFrame | None:
+def _get_continuation(promise: gdb.Value, is_gcc: bool) -> tuple[DevirtualizedCoroFrame | None, bool]:
+    """
+    Returns a tuple of (continuation_frame, is_fork).
+    is_fork is True if the continuation is indirected (done_count != 0).
+    """
     try:
         # Dereference if promise is a pointer
         if promise.type.code == gdb.TYPE_CODE_PTR:
@@ -405,23 +411,25 @@ def _get_continuation(promise: gdb.Value, is_gcc: bool) -> DevirtualizedCoroFram
         
         cont_addr = int(continuation)
         if cont_addr == 0:
-            return None
+            return None, False
+        
+        is_fork = int(done_count) != 0
         
         # If done_count is non-null, continuation is indirect (pointer to handle)
-        if int(done_count) != 0:
+        if is_fork:
             cont_addr = int(_load_pointer_at(cont_addr))
             if cont_addr == 0:
-                return None
+                return None, False
         
-        return DevirtualizedCoroFrame(cont_addr)
+        return DevirtualizedCoroFrame(cont_addr), is_fork
     except Exception as e:
-        return None
+        return None, False
 
 
-def _create_coroutine_frames(coro_frame: DevirtualizedCoroFrame, inferior_frame: gdb.Frame, is_gcc: bool):
+def _create_coroutine_frames(coro_frame: DevirtualizedCoroFrame, inferior_frame: gdb.Frame, is_gcc: bool, is_fork: bool = False):
     while coro_frame is not None:
-        yield CoroutineFrameDecorator(coro_frame, inferior_frame)
-        coro_frame = _get_continuation(coro_frame.promise_ptr, is_gcc)
+        yield CoroutineFrameDecorator(coro_frame, inferior_frame, is_fork)
+        coro_frame, is_fork = _get_continuation(coro_frame.promise_ptr, is_gcc)
 
 
 """
@@ -460,9 +468,9 @@ class CppCoroutineFrameFilter():
                         is_gcc = True
                     except Exception:
                         continue
-                parent_coro = _get_continuation(promise_ptr, is_gcc)
+                parent_coro, is_fork = _get_continuation(promise_ptr, is_gcc)
                 if parent_coro is not None:
-                    yield from _create_coroutine_frames(parent_coro, inferior_frame, is_gcc)
+                    yield from _create_coroutine_frames(parent_coro, inferior_frame, is_gcc, is_fork)
                     generated_async_frames = True
             except Exception:
                 continue
