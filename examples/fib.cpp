@@ -12,8 +12,9 @@
 #include <utility>
 
 static tmc::task<size_t> fib(size_t n) {
-  if (n < 2)
+  if (n < 2) {
     co_return n;
+  }
   /* Several different ways to spawn / await 2 child tasks */
 
   /* Execute them one-by-one (serially) */
@@ -61,7 +62,9 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
 #ifndef NDEBUG
   // Hardcode the size in debug mode so we don't have to fuss around with
   // input arguments in the debug config.
-  size_t n = 30;
+  // Using a low number here to make synthetic async stack frame debugging
+  // produce a consistent output.
+  size_t n = 3;
 #else
   if (argc != 2) {
     printf("Usage: fib <n-th fibonacci number requested>\n");
@@ -70,6 +73,7 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
 
   size_t n = static_cast<size_t>(atoi(argv[1]));
 #endif
+  tmc::cpu_executor().set_thread_count(1);
   tmc::async_main([](size_t N) -> tmc::task<int> {
     auto startTime = std::chrono::high_resolution_clock::now();
     for (size_t i = 0; i < NRUNS; ++i) {

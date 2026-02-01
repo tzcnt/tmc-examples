@@ -1,0 +1,59 @@
+{
+  // Use IntelliSense to learn about possible attributes.
+  // Hover to view descriptions of existing attributes.
+  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "lldb-dap",
+      "request": "launch",
+      "name": "(lldb-dap) LLDB launch current CMake target",
+      "program": "${command:cmake.launchTargetPath}",
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "env": [
+        "PATH=$PATH:${command:cmake.launchTargetDirectory}",
+      ],
+      "preRunCommands": [
+        // Requires LLDB 22+
+        "command script import ${workspaceFolder}/coro_backtrace_lldb.py"
+      ]
+    },
+    {
+      "type": "cppdbg",
+      "name": "(cppdbg) GDB launch current CMake target",
+      "request": "launch",
+      "program": "${command:cmake.launchTargetPath}",
+      "args": [],
+      "stopAtEntry": false,
+      "cwd": "${workspaceFolder}",
+      "environment": [
+        {
+          "name": "PATH",
+          "value": "$PATH:${command:cmake.launchTargetDirectory}"
+        }
+      ],
+      "logging": {
+        "trace": true
+      },
+      "externalConsole": false,
+      "MIMode": "gdb",
+      "setupCommands": [
+        {
+          "description": "Enable pretty-printing for gdb",
+          "text": "-enable-pretty-printing",
+          "ignoreFailures": true
+        },
+        // // Note: Async backtrace script doesn't currently work in VS Code because
+        // // synthetic async frames don't have the `level` field. Use `bt` in Debug Console
+        // // instead, or use the LLDB debug configuration for full async stack support.
+        // {
+        //   "description": "Enable frame filters for MI mode",
+        //   "text": "-enable-frame-filters",
+        //   "ignoreFailures": true
+        // }
+      ],
+      // "miDebuggerArgs": "-x ${workspaceFolder}/coro_backtrace_gdb.py",
+    }
+  ]
+}
