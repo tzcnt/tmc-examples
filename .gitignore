@@ -39,10 +39,7 @@ Makefile
 **/CMakeFiles
 .cache
 .vs
-.vscode
 .cursor
 CMakePresets.json
 scratch/
 tools/
-AGENTS.md
-CLAUDE.md
