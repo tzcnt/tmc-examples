@@ -140,6 +140,46 @@ TEST_F(CATEGORY, is_awaitable_unknown_rvalue_only) {
   // because the standard states that awaiters are lvalues.
 }
 
+TEST_F(CATEGORY, awaitable_result_t_unknown_ref_qualified) {
+  // Verify awaitable_result_t works correctly with ref-qualified types
+  static_assert(
+    std::is_same_v<tmc::traits::awaitable_result_t<UnknownAnyAwaitable>, int>
+  );
+  static_assert(
+    std::is_same_v<tmc::traits::awaitable_result_t<UnknownAnyAwaitable&>, int>
+  );
+  static_assert(
+    std::is_same_v<tmc::traits::awaitable_result_t<UnknownAnyAwaitable&&>, int>
+  );
+
+  // Lvalue-only awaitable: result_t works when passed as lvalue ref
+  static_assert(
+    std::is_same_v<
+      tmc::traits::awaitable_result_t<UnknownLvalueOnlyAwaitable&>, int>
+  );
+  // But returns unknown_t for non-lvalue types
+  static_assert(std::is_same_v<
+                tmc::traits::awaitable_result_t<UnknownLvalueOnlyAwaitable>,
+                tmc::traits::unknown_t>);
+  static_assert(std::is_same_v<
+                tmc::traits::awaitable_result_t<UnknownLvalueOnlyAwaitable&&>,
+                tmc::traits::unknown_t>);
+
+  // Rvalue-only awaitable: result_t works for value/rvalue types
+  static_assert(
+    std::is_same_v<
+      tmc::traits::awaitable_result_t<UnknownRvalueOnlyAwaitable>, int>
+  );
+  static_assert(
+    std::is_same_v<
+      tmc::traits::awaitable_result_t<UnknownRvalueOnlyAwaitable&&>, int>
+  );
+  // But returns unknown_t for lvalue ref
+  static_assert(std::is_same_v<
+                tmc::traits::awaitable_result_t<UnknownRvalueOnlyAwaitable&>,
+                tmc::traits::unknown_t>);
+}
+
 /************** awaitable_result_t Tests **************/
 
 TEST_F(CATEGORY, awaitable_result_t_task_void) {
