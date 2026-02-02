@@ -62,6 +62,11 @@ TEST_F(CATEGORY, nested_ex_cpu_st) {
   }());
 }
 
+#ifndef TSAN_ENABLED
+// All the other TMC executors have internal protection against the race
+// condition that occurs here. However we don't have control over the internals
+// of the asio runloop, so it can't be fixed for ex_asio.
+
 TEST_F(CATEGORY, nested_ex_asio) {
   test_async_main(ex(), []() -> tmc::task<void> {
     tmc::ex_asio localEx;
@@ -73,6 +78,8 @@ TEST_F(CATEGORY, nested_ex_asio) {
     EXPECT_EQ(result, 20);
   }());
 }
+
+#endif
 
 TEST_F(CATEGORY, nested_ex_braid) {
   test_async_main(ex(), []() -> tmc::task<void> {
