@@ -301,6 +301,14 @@ make_exe(fib
     examples/fib.cpp
 )
 
+make_exe(oneshot1
+    examples/oneshot1.cpp
+)
+
+make_exe(oneshot2
+    examples/oneshot2.cpp
+)
+
 make_exe(chan_bench
     examples/chan_bench.cpp
 )
