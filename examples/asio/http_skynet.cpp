@@ -158,11 +158,13 @@ int main() {
     auto acceptors = tmc::fork_group();
 
     std::printf("serving low priority on http://localhost::55551/\n");
-    co_await acceptors.fork_clang(accept(55551), tmc::current_executor(), 1);
+    acceptors.fork(accept(55551), tmc::current_executor(), 1);
 
     std::printf("serving high priority on http://localhost::55550/\n");
-    co_await acceptors.fork_clang(accept(55550));
-    co_await std::move(acceptors.resume_on(tmc::asio_executor()));
+    acceptors.fork(accept(55550));
+
+    // Wait for both sockets to close
+    co_await std::move(acceptors);
     co_return 0;
   }());
 }
