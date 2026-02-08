@@ -26,7 +26,7 @@ add_definitions(
     # ## If TMC_USE_HWLOC is enabled, also prints info about thread grouping and thread affinity.
     # "-DTMC_DEBUG_THREAD_CREATION"
     #"-DTMC_WINDOWS_DLL"
-    "-DTMC_USE_IMPL_FILE"
+    # "-DTMC_USE_IMPL_FILE"
 )
 
 # Optional flags can be passed at the command line. Used by GitHub Actions workflow.
@@ -358,5 +358,35 @@ make_exe(hwloc_hybrid_executor
 make_exe(hwloc_topo
     examples/hwloc/topo.cpp
 )
+
+## DLL targets
+# A shared library (DLL) containing the TMC standalone compilation
+add_library(tmc_dll SHARED
+    examples/dll/tmc_dll.cpp
+)
+target_include_directories(tmc_dll PRIVATE
+    ${TMC_INCLUDE_PATH}
+    ${TMC_ASIO_INCLUDE_PATH}
+)
+target_compile_definitions(tmc_dll PRIVATE TMC_WINDOWS_DLL)
+
+if(TMC_USE_HWLOC)
+    target_include_directories(tmc_dll SYSTEM PRIVATE ${HWLOC_INCLUDE_PATH})
+endif()
+
+if(WIN32 AND TMC_USE_HWLOC)
+    add_custom_command(TARGET tmc_dll POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        ${hwloc_SOURCE_DIR}/bin/libhwloc-15.dll
+        ${CMAKE_CURRENT_BINARY_DIR}
+    )
+endif()
+
+# An executable that links against the TMC DLL
+make_exe(fib_dll
+    examples/dll/fib_dll.cpp
+)
+target_compile_definitions(fib_dll PRIVATE TMC_WINDOWS_DLL)
+target_link_libraries(fib_dll PRIVATE tmc_dll)
 
 add_subdirectory(tests)
