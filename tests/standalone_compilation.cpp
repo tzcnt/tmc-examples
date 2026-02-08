@@ -4,3 +4,6 @@
 
 #define TMC_IMPL
 #include "tmc/all_headers.hpp" // IWYU pragma: keep
+
+// If building with TMC_WINDOWS_DLL then this impl must also be provided
+#include "tmc/asio/ex_asio.hpp" // IWYU pragma: keep
