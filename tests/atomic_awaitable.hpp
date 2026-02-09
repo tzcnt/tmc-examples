@@ -4,9 +4,9 @@
 
 #pragma once
 
+#include "tmc/current.hpp"
 #include "tmc/detail/awaitable_customizer.hpp"
 #include "tmc/detail/concepts_awaitable.hpp"
-#include "tmc/detail/thread_locals.hpp"
 #include "tmc/detail/tiny_lock.hpp"
 
 #include <atomic>
@@ -27,7 +27,7 @@ template <typename T> struct atomic_awaitable : private AtomicAwaitableTag {
   tmc::tiny_lock lock;
 
   atomic_awaitable(T Until) : value(0), until(Until) {
-    if (tmc::detail::this_thread::executor == nullptr) {
+    if (tmc::current_executor() == nullptr) {
       customizer.flags = 0;
     }
   }

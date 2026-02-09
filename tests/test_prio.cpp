@@ -43,7 +43,7 @@ constexpr size_t TASK_COUNT = 1000;
 template <typename Exec>
 void check_exec_prio(Exec&& ExpectedExecutor, size_t ExpectedPriority) {
   EXPECT_EQ(
-    tmc::detail::this_thread::executor,
+    tmc::current_executor(),
     tmc::detail::get_executor_traits<Exec>::type_erased(ExpectedExecutor)
   );
 
@@ -57,7 +57,7 @@ static tmc::task<void> jump_around(
 ) {
   co_await tmc::change_priority(ExpectedPriority);
   EXPECT_EQ(
-    tmc::detail::this_thread::executor,
+    tmc::current_executor(),
     tmc::detail::get_executor_traits<tmc::ex_cpu>::type_erased(
       tmc::cpu_executor()
     )
@@ -85,14 +85,14 @@ static tmc::task<void> jump_around(
 
   auto cpuBraidScope = co_await tmc::enter(CpuBraid);
   EXPECT_EQ(
-    tmc::detail::this_thread::executor,
+    tmc::current_executor(),
     tmc::detail::get_executor_traits<tmc::ex_braid>::type_erased(*CpuBraid)
   );
   EXPECT_EQ(tmc::current_priority(), ExpectedPriority);
 
   co_await cpuBraidScope.exit();
   EXPECT_EQ(
-    tmc::detail::this_thread::executor,
+    tmc::current_executor(),
     tmc::detail::get_executor_traits<tmc::ex_cpu>::type_erased(
       tmc::cpu_executor()
     )
@@ -101,7 +101,7 @@ static tmc::task<void> jump_around(
 
   auto asioScope = co_await tmc::enter(tmc::asio_executor());
   EXPECT_EQ(
-    tmc::detail::this_thread::executor,
+    tmc::current_executor(),
     tmc::detail::get_executor_traits<tmc::ex_asio>::type_erased(
       tmc::asio_executor()
     )
@@ -111,7 +111,7 @@ static tmc::task<void> jump_around(
   {
     auto asioBraidScope = co_await tmc::enter(AsioBraid);
     EXPECT_EQ(
-      tmc::detail::this_thread::executor,
+      tmc::current_executor(),
       tmc::detail::get_executor_traits<tmc::ex_braid>::type_erased(*AsioBraid)
     );
     EXPECT_EQ(tmc::current_priority(), ExpectedPriority);

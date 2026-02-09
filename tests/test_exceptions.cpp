@@ -7,6 +7,7 @@
 /// coverage.
 
 #include "tmc/all_headers.hpp" // IWYU pragma: keep
+#include "tmc/current.hpp"
 #include "tmc/detail/compat.hpp"
 #include "tmc/detail/concepts_awaitable.hpp"
 #include "tmc/detail/thread_locals.hpp"
@@ -427,7 +428,7 @@ struct aw_throw_on_other_executor_int : public KnownTag<Known> {
 TEST_F(CATEGORY, throw_does_not_restore_executor_known_void) {
   test_async_main(ex(), []() -> tmc::task<void> {
     tmc::ex_braid other_ex(tmc::cpu_executor());
-    void* original_ex = tmc::detail::this_thread::executor;
+    void* original_ex = tmc::current_executor();
     bool caught = false;
     try {
       co_await aw_throw_on_other_executor_void<true>{other_ex};
@@ -439,15 +440,15 @@ TEST_F(CATEGORY, throw_does_not_restore_executor_known_void) {
     // Known awaitables are NOT wrapped, so executor is NOT restored.
     // In practice this won't happen, as restoring the executor is part of the
     // contract of known awaitables.
-    EXPECT_NE(tmc::detail::this_thread::executor, original_ex);
-    EXPECT_EQ(tmc::detail::this_thread::executor, other_ex.type_erased());
+    EXPECT_NE(tmc::current_executor(), original_ex);
+    EXPECT_EQ(tmc::current_executor(), other_ex.type_erased());
   }());
 }
 
 TEST_F(CATEGORY, throw_restores_executor_unknown_void) {
   test_async_main(ex(), []() -> tmc::task<void> {
     tmc::ex_braid other_ex(tmc::cpu_executor());
-    void* original_ex = tmc::detail::this_thread::executor;
+    void* original_ex = tmc::current_executor();
     bool caught = false;
     try {
       co_await aw_throw_on_other_executor_void<false>{other_ex};
@@ -458,14 +459,14 @@ TEST_F(CATEGORY, throw_restores_executor_unknown_void) {
     EXPECT_TRUE(caught);
     // task_wrapper ensures we restore back to our original executor even if the
     // unknown awaitable throws an exception on another thread.
-    EXPECT_EQ(tmc::detail::this_thread::executor, original_ex);
+    EXPECT_EQ(tmc::current_executor(), original_ex);
   }());
 }
 
 TEST_F(CATEGORY, throw_does_not_restore_executor_known_result) {
   test_async_main(ex(), []() -> tmc::task<void> {
     tmc::ex_braid other_ex(tmc::cpu_executor());
-    void* original_ex = tmc::detail::this_thread::executor;
+    void* original_ex = tmc::current_executor();
     bool caught = false;
     try {
       [[maybe_unused]] auto x =
@@ -478,15 +479,15 @@ TEST_F(CATEGORY, throw_does_not_restore_executor_known_result) {
     // Known awaitables are NOT wrapped, so executor is NOT restored.
     // In practice this won't happen, as restoring the executor is part of the
     // contract of known awaitables.
-    EXPECT_NE(tmc::detail::this_thread::executor, original_ex);
-    EXPECT_EQ(tmc::detail::this_thread::executor, other_ex.type_erased());
+    EXPECT_NE(tmc::current_executor(), original_ex);
+    EXPECT_EQ(tmc::current_executor(), other_ex.type_erased());
   }());
 }
 
 TEST_F(CATEGORY, throw_restores_executor_unknown_result) {
   test_async_main(ex(), []() -> tmc::task<void> {
     tmc::ex_braid other_ex(tmc::cpu_executor());
-    void* original_ex = tmc::detail::this_thread::executor;
+    void* original_ex = tmc::current_executor();
     bool caught = false;
     try {
       [[maybe_unused]] auto x =
@@ -498,7 +499,7 @@ TEST_F(CATEGORY, throw_restores_executor_unknown_result) {
     EXPECT_TRUE(caught);
     // task_wrapper ensures we restore back to our original executor even if the
     // unknown awaitable throws an exception on another thread.
-    EXPECT_EQ(tmc::detail::this_thread::executor, original_ex);
+    EXPECT_EQ(tmc::current_executor(), original_ex);
   }());
 }
 

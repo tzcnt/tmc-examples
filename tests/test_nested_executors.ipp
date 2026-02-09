@@ -3,7 +3,6 @@
 #include "tmc/asio/ex_asio.hpp"
 #include "tmc/current.hpp"
 #include "tmc/detail/concepts_awaitable.hpp"
-#include "tmc/detail/thread_locals.hpp"
 #include "tmc/ex_braid.hpp"
 #include "tmc/ex_cpu.hpp"
 #include "tmc/ex_cpu_st.hpp"
@@ -118,7 +117,7 @@ TEST_F(CATEGORY, construct_braid_on_default_executor) {
   tmc::set_default_executor(ex());
   tmc::ex_braid br;
   test_async_main(br, [](tmc::ex_braid& Br) -> tmc::task<void> {
-    EXPECT_EQ(tmc::detail::this_thread::executor, Br.type_erased());
+    EXPECT_EQ(tmc::current_executor(), Br.type_erased());
     co_return;
   }(br));
   tmc::set_default_executor(static_cast<tmc::ex_any*>(nullptr));
@@ -130,16 +129,16 @@ TEST_F(CATEGORY, test_spawn_run_resume) {
     localEx.set_thread_count(1).init();
 
     co_await tmc::spawn([](tmc::ex_any* Ex) -> tmc::task<void> {
-      EXPECT_EQ(tmc::detail::this_thread::executor, Ex);
+      EXPECT_EQ(tmc::current_executor(), Ex);
       co_return;
     }(localEx.type_erased()))
       .run_on(localEx);
 
-    EXPECT_EQ(tmc::detail::this_thread::executor, ex().type_erased());
+    EXPECT_EQ(tmc::current_executor(), ex().type_erased());
 
     co_await tmc::spawn([]() -> tmc::task<void> { co_return; }())
       .resume_on(localEx);
-    EXPECT_EQ(tmc::detail::this_thread::executor, localEx.type_erased());
+    EXPECT_EQ(tmc::current_executor(), localEx.type_erased());
 
     co_await tmc::resume_on(ex());
   }());
@@ -155,7 +154,7 @@ TEST_F(CATEGORY, test_spawn_fork_run_resume) {
       auto t1 =
         tmc::spawn(
           [](tmc::ex_any* Ex, atomic_awaitable<size_t>& AA) -> tmc::task<void> {
-            EXPECT_EQ(tmc::detail::this_thread::executor, Ex);
+            EXPECT_EQ(tmc::current_executor(), Ex);
             AA.inc();
             co_return;
           }(localEx.type_erased(), aa)
@@ -165,10 +164,10 @@ TEST_F(CATEGORY, test_spawn_fork_run_resume) {
 
       // Ensure that the task completes first
       co_await aa;
-      EXPECT_EQ(tmc::detail::this_thread::executor, ex().type_erased());
+      EXPECT_EQ(tmc::current_executor(), ex().type_erased());
 
       co_await std::move(t1);
-      EXPECT_EQ(tmc::detail::this_thread::executor, ex().type_erased());
+      EXPECT_EQ(tmc::current_executor(), ex().type_erased());
     }
     {
       atomic_awaitable<size_t> aa(1);
@@ -180,10 +179,10 @@ TEST_F(CATEGORY, test_spawn_fork_run_resume) {
                   .fork();
       // Ensure that the task completes first
       co_await aa;
-      EXPECT_EQ(tmc::detail::this_thread::executor, ex().type_erased());
+      EXPECT_EQ(tmc::current_executor(), ex().type_erased());
 
       co_await std::move(t2);
-      EXPECT_EQ(tmc::detail::this_thread::executor, localEx.type_erased());
+      EXPECT_EQ(tmc::current_executor(), localEx.type_erased());
     }
 
     co_await tmc::resume_on(ex());
@@ -196,13 +195,13 @@ TEST_F(CATEGORY, test_spawn_func_run_resume) {
     localEx.set_thread_count(1).init();
 
     co_await tmc::spawn_func([&]() -> void {
-      EXPECT_EQ(tmc::detail::this_thread::executor, localEx.type_erased());
+      EXPECT_EQ(tmc::current_executor(), localEx.type_erased());
     }).run_on(localEx);
 
-    EXPECT_EQ(tmc::detail::this_thread::executor, ex().type_erased());
+    EXPECT_EQ(tmc::current_executor(), ex().type_erased());
 
     co_await tmc::spawn_func([]() -> void {}).resume_on(localEx);
-    EXPECT_EQ(tmc::detail::this_thread::executor, localEx.type_erased());
+    EXPECT_EQ(tmc::current_executor(), localEx.type_erased());
 
     co_await tmc::resume_on(ex());
   }());
@@ -215,21 +214,20 @@ TEST_F(CATEGORY, test_spawn_func_fork_run_resume) {
 
     {
       atomic_awaitable<size_t> aa(1);
-      auto t1 =
-        tmc::spawn_func([&]() -> void {
-          EXPECT_EQ(tmc::detail::this_thread::executor, localEx.type_erased());
-          aa.inc();
-        })
-          .run_on(localEx)
-          .fork();
+      auto t1 = tmc::spawn_func([&]() -> void {
+                  EXPECT_EQ(tmc::current_executor(), localEx.type_erased());
+                  aa.inc();
+                })
+                  .run_on(localEx)
+                  .fork();
 
       // Ensure that the task completes first
       co_await aa;
-      EXPECT_EQ(tmc::detail::this_thread::executor, ex().type_erased());
+      EXPECT_EQ(tmc::current_executor(), ex().type_erased());
 
       co_await std::move(t1);
 
-      EXPECT_EQ(tmc::detail::this_thread::executor, ex().type_erased());
+      EXPECT_EQ(tmc::current_executor(), ex().type_erased());
     }
 
     {
@@ -239,10 +237,10 @@ TEST_F(CATEGORY, test_spawn_func_fork_run_resume) {
 
       // Ensure that the task completes first
       co_await aa;
-      EXPECT_EQ(tmc::detail::this_thread::executor, ex().type_erased());
+      EXPECT_EQ(tmc::current_executor(), ex().type_erased());
 
       co_await std::move(t2);
-      EXPECT_EQ(tmc::detail::this_thread::executor, localEx.type_erased());
+      EXPECT_EQ(tmc::current_executor(), localEx.type_erased());
     }
 
     co_await tmc::resume_on(ex());
@@ -255,16 +253,16 @@ TEST_F(CATEGORY, test_spawn_tuple_run_resume) {
     localEx.set_thread_count(1).init();
 
     co_await tmc::spawn_tuple([](tmc::ex_any* Ex) -> tmc::task<void> {
-      EXPECT_EQ(tmc::detail::this_thread::executor, Ex);
+      EXPECT_EQ(tmc::current_executor(), Ex);
       co_return;
     }(localEx.type_erased()))
       .run_on(localEx);
 
-    EXPECT_EQ(tmc::detail::this_thread::executor, ex().type_erased());
+    EXPECT_EQ(tmc::current_executor(), ex().type_erased());
 
     co_await tmc::spawn_tuple([]() -> tmc::task<void> { co_return; }())
       .resume_on(localEx);
-    EXPECT_EQ(tmc::detail::this_thread::executor, localEx.type_erased());
+    EXPECT_EQ(tmc::current_executor(), localEx.type_erased());
 
     co_await tmc::resume_on(ex());
   }());
@@ -280,7 +278,7 @@ TEST_F(CATEGORY, test_spawn_tuple_fork_run_resume) {
       auto t1 =
         tmc::spawn_tuple(
           [](tmc::ex_any* Ex, atomic_awaitable<size_t>& AA) -> tmc::task<void> {
-            EXPECT_EQ(tmc::detail::this_thread::executor, Ex);
+            EXPECT_EQ(tmc::current_executor(), Ex);
             AA.inc();
             co_return;
           }(localEx.type_erased(), aa)
@@ -290,11 +288,11 @@ TEST_F(CATEGORY, test_spawn_tuple_fork_run_resume) {
 
       // Ensure that the task completes first
       co_await aa;
-      EXPECT_EQ(tmc::detail::this_thread::executor, ex().type_erased());
+      EXPECT_EQ(tmc::current_executor(), ex().type_erased());
 
       co_await std::move(t1);
 
-      EXPECT_EQ(tmc::detail::this_thread::executor, ex().type_erased());
+      EXPECT_EQ(tmc::current_executor(), ex().type_erased());
     }
 
     {
@@ -308,10 +306,10 @@ TEST_F(CATEGORY, test_spawn_tuple_fork_run_resume) {
           .fork();
       // Ensure that the task completes first
       co_await aa;
-      EXPECT_EQ(tmc::detail::this_thread::executor, ex().type_erased());
+      EXPECT_EQ(tmc::current_executor(), ex().type_erased());
 
       co_await std::move(t2);
-      EXPECT_EQ(tmc::detail::this_thread::executor, localEx.type_erased());
+      EXPECT_EQ(tmc::current_executor(), localEx.type_erased());
     }
 
     co_await tmc::resume_on(ex());
@@ -325,17 +323,17 @@ TEST_F(CATEGORY, test_spawn_many_run_resume) {
 
     std::array<tmc::task<void>, 1> tasks;
     tasks[0] = [](tmc::ex_any* Ex) -> tmc::task<void> {
-      EXPECT_EQ(tmc::detail::this_thread::executor, Ex);
+      EXPECT_EQ(tmc::current_executor(), Ex);
       co_return;
     }(localEx.type_erased());
 
     co_await tmc::spawn_many(tasks).run_on(localEx);
 
-    EXPECT_EQ(tmc::detail::this_thread::executor, ex().type_erased());
+    EXPECT_EQ(tmc::current_executor(), ex().type_erased());
 
     tasks[0] = []() -> tmc::task<void> { co_return; }();
     co_await tmc::spawn_many(tasks).resume_on(localEx);
-    EXPECT_EQ(tmc::detail::this_thread::executor, localEx.type_erased());
+    EXPECT_EQ(tmc::current_executor(), localEx.type_erased());
 
     co_await tmc::resume_on(ex());
   }());
@@ -351,7 +349,7 @@ TEST_F(CATEGORY, test_spawn_many_fork_run_resume) {
       atomic_awaitable<size_t> aa(1);
       tasks[0] =
         [](tmc::ex_any* Ex, atomic_awaitable<size_t>& AA) -> tmc::task<void> {
-        EXPECT_EQ(tmc::detail::this_thread::executor, Ex);
+        EXPECT_EQ(tmc::current_executor(), Ex);
         AA.inc();
         co_return;
       }(localEx.type_erased(), aa);
@@ -361,7 +359,7 @@ TEST_F(CATEGORY, test_spawn_many_fork_run_resume) {
       co_await aa;
 
       co_await std::move(t1);
-      EXPECT_EQ(tmc::detail::this_thread::executor, ex().type_erased());
+      EXPECT_EQ(tmc::current_executor(), ex().type_erased());
     }
 
     {
@@ -374,10 +372,10 @@ TEST_F(CATEGORY, test_spawn_many_fork_run_resume) {
       // Ensure that the tasks complete first
 
       co_await aa;
-      EXPECT_EQ(tmc::detail::this_thread::executor, ex().type_erased());
+      EXPECT_EQ(tmc::current_executor(), ex().type_erased());
 
       co_await std::move(t2);
-      EXPECT_EQ(tmc::detail::this_thread::executor, localEx.type_erased());
+      EXPECT_EQ(tmc::current_executor(), localEx.type_erased());
     }
 
     co_await tmc::resume_on(ex());
@@ -395,7 +393,7 @@ TEST_F(CATEGORY, spawn_many_each_run_resume) {
       atomic_awaitable<size_t> aa(1);
       tasks[0] =
         [](tmc::ex_any* Ex, atomic_awaitable<size_t>& AA) -> tmc::task<void> {
-        EXPECT_EQ(tmc::detail::this_thread::executor, Ex);
+        EXPECT_EQ(tmc::current_executor(), Ex);
         AA.inc();
         co_return;
       }(localEx.type_erased(), aa);
@@ -406,11 +404,11 @@ TEST_F(CATEGORY, spawn_many_each_run_resume) {
 
       auto r = co_await t;
       EXPECT_EQ(r, 0);
-      EXPECT_EQ(tmc::detail::this_thread::executor, ex().type_erased());
+      EXPECT_EQ(tmc::current_executor(), ex().type_erased());
 
       r = co_await t;
       EXPECT_EQ(r, t.end());
-      EXPECT_EQ(tmc::detail::this_thread::executor, ex().type_erased());
+      EXPECT_EQ(tmc::current_executor(), ex().type_erased());
     }
 
     // run on current ex, resume on localEx
@@ -423,15 +421,15 @@ TEST_F(CATEGORY, spawn_many_each_run_resume) {
       auto t = tmc::spawn_many(tasks).resume_on(localEx).result_each();
       // Ensure that the tasks complete first
       co_await aa;
-      EXPECT_EQ(tmc::detail::this_thread::executor, ex().type_erased());
+      EXPECT_EQ(tmc::current_executor(), ex().type_erased());
 
       auto r = co_await t;
       EXPECT_EQ(r, 0);
-      EXPECT_EQ(tmc::detail::this_thread::executor, localEx.type_erased());
+      EXPECT_EQ(tmc::current_executor(), localEx.type_erased());
 
       r = co_await t;
       EXPECT_EQ(r, t.end());
-      EXPECT_EQ(tmc::detail::this_thread::executor, localEx.type_erased());
+      EXPECT_EQ(tmc::current_executor(), localEx.type_erased());
     }
 
     co_await tmc::resume_on(ex());
@@ -444,7 +442,7 @@ TEST_F(CATEGORY, post_thread_hint) {
   tmc::post_waitable(
     ex(),
     [](tmc::ex_any* Ex) -> tmc::task<void> {
-      EXPECT_EQ(tmc::detail::this_thread::executor, Ex);
+      EXPECT_EQ(tmc::current_executor(), Ex);
       co_return;
     }(ex().type_erased()),
     0, 0
@@ -460,7 +458,7 @@ TEST_F(CATEGORY, cross_post_thread_hint) {
     tmc::post_waitable(
       localEx,
       [](tmc::ex_any* Ex) -> tmc::task<void> {
-        EXPECT_EQ(tmc::detail::this_thread::executor, Ex);
+        EXPECT_EQ(tmc::current_executor(), Ex);
         co_return;
       }(localEx.type_erased()),
       0, 0
@@ -610,12 +608,12 @@ TEST_F(CATEGORY, exit_resume_on) {
       tmc::ex_cpu localEx;
       localEx.set_thread_count(2).init();
 
-      tmc::ex_any* originalExec = tmc::detail::this_thread::executor;
+      tmc::ex_any* originalExec = tmc::current_executor();
       auto scope = co_await tmc::enter(localEx).with_priority(1);
-      EXPECT_EQ(tmc::detail::this_thread::executor, localEx.type_erased());
+      EXPECT_EQ(tmc::current_executor(), localEx.type_erased());
       // Exit but resume on the local executor instead of original
       co_await scope.exit().resume_on(localEx);
-      EXPECT_EQ(tmc::detail::this_thread::executor, localEx.type_erased());
+      EXPECT_EQ(tmc::current_executor(), localEx.type_erased());
       EXPECT_EQ(tmc::current_priority(), 0);
       co_await tmc::resume_on(originalExec);
       EXPECT_EQ(tmc::current_executor(), ex().type_erased());
@@ -624,13 +622,13 @@ TEST_F(CATEGORY, exit_resume_on) {
       tmc::ex_cpu localEx;
       localEx.set_thread_count(2).init();
 
-      tmc::ex_any* originalExec = tmc::detail::this_thread::executor;
+      tmc::ex_any* originalExec = tmc::current_executor();
       auto v = tmc::enter(localEx);
       auto scope = co_await std::move(v).with_priority(1);
-      EXPECT_EQ(tmc::detail::this_thread::executor, localEx.type_erased());
+      EXPECT_EQ(tmc::current_executor(), localEx.type_erased());
       // Exit but resume on the local executor instead of original
       co_await scope.exit().resume_on(localEx);
-      EXPECT_EQ(tmc::detail::this_thread::executor, localEx.type_erased());
+      EXPECT_EQ(tmc::current_executor(), localEx.type_erased());
       EXPECT_EQ(tmc::current_priority(), 0);
       co_await tmc::resume_on(originalExec);
       EXPECT_EQ(tmc::current_executor(), ex().type_erased());

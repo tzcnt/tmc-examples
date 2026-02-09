@@ -37,7 +37,7 @@ public:
   ) {
     std::thread([this, func = std::forward<Functor>(Func)] {
       // Thread locals must be setup for each new executor thread
-      tmc::detail::this_thread::executor = &type_erased_this; // mandatory
+      tmc::detail::this_thread::executor() = &type_erased_this; // mandatory
       func();
     }).detach();
   }
@@ -51,7 +51,7 @@ public:
     for (size_t i = 0; i < Count; ++i) {
       std::thread([this, func = std::move(*FuncIter)] {
         // Thread locals must be setup for each new executor thread
-        tmc::detail::this_thread::executor = &type_erased_this; // mandatory
+        tmc::detail::this_thread::executor() = &type_erased_this; // mandatory
         func();
       }).detach();
       ++FuncIter;
