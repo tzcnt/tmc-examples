@@ -230,31 +230,30 @@ endif()
 # add_link_options("-fsanitize=thread")
 # add_definitions("-fsanitize=undefined -fno-sanitize-recover")
 # add_link_options("-fsanitize=undefined")
-
 if(WIN32)
-option(TMC_USE_DLL "Link all targets against tmc_dll shared library" OFF)
+    option(TMC_USE_DLL "Link all targets against tmc_dll shared library" OFF)
 
-# A shared library (DLL) containing the TMC standalone compilation
-add_library(tmc_dll SHARED
-    examples/standalone_compilation.cpp
-)
-target_include_directories(tmc_dll PRIVATE
-    ${TMC_INCLUDE_PATH}
-    ${TMC_ASIO_INCLUDE_PATH}
-)
-target_compile_definitions(tmc_dll PRIVATE TMC_WINDOWS_DLL)
-
-if(TMC_USE_HWLOC)
-    target_include_directories(tmc_dll SYSTEM PRIVATE ${HWLOC_INCLUDE_PATH})
-endif()
-
-if(TMC_USE_HWLOC)
-    add_custom_command(TARGET tmc_dll POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        ${hwloc_SOURCE_DIR}/bin/libhwloc-15.dll
-        ${CMAKE_CURRENT_BINARY_DIR}
+    # A shared library (DLL) containing the TMC standalone compilation
+    add_library(tmc_dll SHARED
+        examples/standalone_compilation.cpp
     )
-endif()
+    target_include_directories(tmc_dll PRIVATE
+        ${TMC_INCLUDE_PATH}
+        ${TMC_ASIO_INCLUDE_PATH}
+    )
+    target_compile_definitions(tmc_dll PRIVATE TMC_WINDOWS_DLL)
+
+    if(TMC_USE_HWLOC)
+        target_include_directories(tmc_dll SYSTEM PRIVATE ${HWLOC_INCLUDE_PATH})
+    endif()
+
+    if(TMC_USE_HWLOC)
+        add_custom_command(TARGET tmc_dll POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            ${hwloc_SOURCE_DIR}/bin/libhwloc-15.dll
+            ${CMAKE_CURRENT_BINARY_DIR}
+        )
+    endif()
 endif()
 
 function(make_exe target_name)
