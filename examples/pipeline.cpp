@@ -7,8 +7,6 @@
 // This is just the user application.
 // The generic implementation is in "pipeline.hpp" or "pipeline_fifo.hpp".
 
-#define TMC_IMPL
-
 #include "tmc/channel.hpp"
 #include "tmc/ex_cpu.hpp"
 #include "tmc/fork_group.hpp"

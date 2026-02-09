@@ -5,8 +5,6 @@
 #include <sdkddkver.h>
 #endif
 
-#define TMC_IMPL
-
 #include "../util/thread_name.hpp"
 #include "asio_thread_name.hpp"
 

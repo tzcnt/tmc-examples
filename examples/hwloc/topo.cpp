@@ -2,8 +2,6 @@
 // This topology is based on the hwloc topology, but removes all unnecessary
 // data, and creates groups based on shared caches and CPU kinds.
 
-#define TMC_IMPL
-
 #include "tmc/topology.hpp"
 #include <cstdio>
 

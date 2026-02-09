@@ -2,8 +2,6 @@
 // coroutines. This external coroutine type has no knowledge of executors and
 // only works by symmetric transfer.
 
-#define TMC_IMPL
-
 #include "external_coro.hpp"
 
 #include "tmc/ex_cpu.hpp"

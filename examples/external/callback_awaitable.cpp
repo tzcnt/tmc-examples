@@ -1,8 +1,6 @@
 // Usage example of transforming a C-style callback API into a TMC awaitable.
 // Generic implementation is in callback_awaitable.hpp.
 
-#define TMC_IMPL
-
 #include "tmc/all_headers.hpp"
 
 #include "callback_awaitable.hpp"

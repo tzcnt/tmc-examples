@@ -7,8 +7,6 @@
 //
 // NOTE: HALO only works with Clang 20+ in Release builds.
 
-#define TMC_IMPL
-
 #include "test_common.hpp"
 #include "tmc/current.hpp"
 #include "tmc/ex_cpu_st.hpp"

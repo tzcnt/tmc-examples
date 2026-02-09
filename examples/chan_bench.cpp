@@ -1,8 +1,6 @@
 // A benchmark for the throughput of tmc::chan.
 // Sweeps from 1 to 10 producers and 1 to 10 consumers.
 
-#define TMC_IMPL
-
 #include "tmc/all_headers.hpp"
 
 #include <cassert>

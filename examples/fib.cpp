@@ -2,8 +2,6 @@
 // This is not intended to be an efficient fibonacci calculator,
 // but a test of the runtime's fork/join efficiency.
 
-#define TMC_IMPL
-
 #include "tmc/all_headers.hpp"
 
 #include <chrono>

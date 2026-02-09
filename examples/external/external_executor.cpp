@@ -3,8 +3,6 @@
 // For another example, see
 // https://github.com/tzcnt/tmc-asio/blob/main/include/tmc/asio/ex_asio.hpp
 
-#define TMC_IMPL
-
 #include "../util/thread_name.hpp"
 #include "tmc/detail/compat.hpp"
 #include "tmc/detail/concepts_awaitable.hpp"

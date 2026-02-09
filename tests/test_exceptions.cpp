@@ -1,5 +1,3 @@
-#define TMC_IMPL
-
 /// This is the test for exceptions. It is a separate executable from the main
 /// tests because it tests the behavior of exception handling with unknown
 /// awaitables. The main tests binary has defined TMC_NO_UNKNOWN_AWAITABLES, as

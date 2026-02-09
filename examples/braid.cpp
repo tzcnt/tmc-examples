@@ -2,8 +2,6 @@
 // It is both a serializing executor, and an async mutex
 // Similar to asio::strand
 
-#define TMC_IMPL
-
 #include "tmc/aw_resume_on.hpp"
 #include "tmc/ex_braid.hpp"
 #include "tmc/ex_cpu.hpp"

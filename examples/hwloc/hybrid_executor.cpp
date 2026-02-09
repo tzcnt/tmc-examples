@@ -2,9 +2,7 @@
 // E-cores on a hybrid machine based on priority.
 // On a homogeneous machine, it sends all work to the same executor.
 
-#define TMC_IMPL
 #include "tmc/all_headers.hpp"
-#include "tmc/utils.hpp"
 
 #include <cstdio>
 #include <ranges>

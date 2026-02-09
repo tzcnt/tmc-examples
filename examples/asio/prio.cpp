@@ -5,8 +5,6 @@
 #include <sdkddkver.h>
 #endif
 
-#define TMC_IMPL
-
 #include "tmc/asio/ex_asio.hpp"
 #include "tmc/aw_resume_on.hpp"
 #include "tmc/current.hpp"
