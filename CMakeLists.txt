@@ -26,7 +26,7 @@ add_definitions(
     # ## If TMC_USE_HWLOC is enabled, also prints info about thread grouping and thread affinity.
     # "-DTMC_DEBUG_THREAD_CREATION"
     #"-DTMC_WINDOWS_DLL"
-    #"-DTMC_USE_IMPL_FILE"
+    #"-DTMC_STANDALONE_COMPILATION"
 )
 
 # Optional flags can be passed at the command line. Used by GitHub Actions workflow.
@@ -238,7 +238,7 @@ option(TMC_USE_DLL "Link all targets against tmc_dll shared library" ON)
 
 # A shared library (DLL) containing the TMC standalone compilation
 add_library(tmc_dll SHARED
-    examples/dll/tmc_dll.cpp
+    examples/standalone_compilation.cpp
 )
 target_include_directories(tmc_dll PRIVATE
     ${TMC_INCLUDE_PATH}
