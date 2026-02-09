@@ -67,22 +67,24 @@ endfunction()
 # Split compilation of the TMC implementations into its own unit.
 # Only this unit and some specific tests need to include <hwloc.h>.
 # Regression test for https://github.com/tzcnt/TooManyCooks/issues/126
+if(WIN32)
+  # This doesn't include the TMC definitions - those come from tmc_build.dll
+  add_library(tests_tmc_build_dll STATIC
+    fixtures/topo_13600k.cpp
+    test_hwloc.cpp
+    test_hwloc_synthetic.cpp
+  )
+  target_compile_definitions(tests_tmc_build_dll PRIVATE TMC_WINDOWS_DLL)
+  target_link_libraries(tests_tmc_build_dll PRIVATE tmc_dll)
+  target_link_libraries(tests_tmc_build_dll PRIVATE GTest::gtest_main)
+  target_compile_definitions(tests_tmc_build_dll PRIVATE TMC_NO_UNKNOWN_AWAITABLES)
+  target_include_directories(tests_tmc_build_dll PRIVATE
+    ${TMC_INCLUDE_PATH}
+    ${TMC_ASIO_INCLUDE_PATH})
 
-# This doesn't include the TMC definitions - those come from tmc_build.dll
-add_library(tests_tmc_build_dll STATIC
-  fixtures/topo_13600k.cpp
-  test_hwloc.cpp
-  test_hwloc_synthetic.cpp
-)
-target_compile_definitions(tests_tmc_build_dll PRIVATE TMC_WINDOWS_DLL)
-target_link_libraries(tests_tmc_build_dll PRIVATE tmc_dll)
-target_link_libraries(tests_tmc_build_dll PRIVATE GTest::gtest_main)
-target_compile_definitions(tests_tmc_build_dll PRIVATE TMC_NO_UNKNOWN_AWAITABLES)
-target_include_directories(tests_tmc_build_dll PRIVATE
-  ${TMC_INCLUDE_PATH}
-  ${TMC_ASIO_INCLUDE_PATH})
-if(TMC_USE_HWLOC)
-  target_include_directories(tests_tmc_build_dll SYSTEM PUBLIC ${HWLOC_INCLUDE_PATH})
+  if(TMC_USE_HWLOC)
+    target_include_directories(tests_tmc_build_dll SYSTEM PUBLIC ${HWLOC_INCLUDE_PATH})
+  endif()
 endif()
 
 # This includes the TMC definitions.
@@ -98,6 +100,7 @@ target_compile_definitions(tests_tmc_build_lib PRIVATE TMC_NO_UNKNOWN_AWAITABLES
 target_include_directories(tests_tmc_build_lib PRIVATE
   ${TMC_INCLUDE_PATH}
   ${TMC_ASIO_INCLUDE_PATH})
+
 if(TMC_USE_HWLOC)
   target_include_directories(tests_tmc_build_lib SYSTEM PUBLIC ${HWLOC_INCLUDE_PATH})
 endif()
