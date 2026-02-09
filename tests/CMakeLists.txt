@@ -53,6 +53,17 @@ function(make_exe_base target_name)
     ${CMAKE_SOURCE_DIR}/build
   )
 
+  if(TMC_USE_DLL)
+    target_compile_definitions(${target_name} PRIVATE TMC_WINDOWS_DLL)
+    target_link_libraries(${target_name} PRIVATE tmc_dll)
+
+    add_custom_command(TARGET ${target_name} POST_BUILD
+      COMMAND ${CMAKE_COMMAND} -E copy_if_different
+      $<TARGET_FILE:tmc_dll>
+      ${CMAKE_CURRENT_BINARY_DIR}
+    )
+  endif()
+
   if(WIN32 AND TMC_USE_HWLOC)
     add_custom_command(TARGET ${target_name} POST_BUILD
       COMMAND ${CMAKE_COMMAND} -E copy_if_different
@@ -65,17 +76,28 @@ endfunction()
 # Split compilation of the TMC implementations into its own unit.
 # Only this unit and some specific tests need to include <hwloc.h>.
 # Regression test for https://github.com/tzcnt/TooManyCooks/issues/126
-add_library(tests_tmc_build SHARED
-  standalone_compilation.cpp
+set(TESTS_TMC_BUILD_SOURCES
   fixtures/topo_13600k.cpp
   test_hwloc.cpp
   test_hwloc_synthetic.cpp
+)
+# This unit may or may not include the definitions, depending on whether TMC_USE_DLL is defined.
+if(NOT TMC_USE_DLL)
+  list(APPEND TESTS_TMC_BUILD_SOURCES standalone_compilation.cpp)
+endif()
+
+add_library(tests_tmc_build SHARED
+  ${TESTS_TMC_BUILD_SOURCES}
 )
 target_link_libraries(tests_tmc_build PRIVATE GTest::gtest_main)
 target_compile_definitions(tests_tmc_build PRIVATE TMC_WINDOWS_DLL TMC_NO_UNKNOWN_AWAITABLES)
 target_include_directories(tests_tmc_build PRIVATE
   ${TMC_INCLUDE_PATH}
   ${TMC_ASIO_INCLUDE_PATH})
+
+if(TMC_USE_DLL)
+  target_link_libraries(tests_tmc_build PRIVATE tmc_dll)
+endif()
 
 if(TMC_USE_HWLOC)
   target_include_directories(tests_tmc_build SYSTEM PRIVATE ${HWLOC_INCLUDE_PATH})
@@ -121,7 +143,7 @@ make_exe_base(
   test_traits.cpp
 )
 target_link_libraries(tests PRIVATE tests_tmc_build)
-target_compile_definitions(tests PRIVATE TMC_WINDOWS_DLL TMC_NO_UNKNOWN_AWAITABLES)
+target_compile_definitions(tests PRIVATE TMC_NO_UNKNOWN_AWAITABLES)
 
 # Standalone test executables can include hwloc directly
 function(make_exe target_name)
@@ -143,9 +165,11 @@ make_exe(
 )
 target_compile_definitions(test_fuzz_chan PRIVATE TMC_NO_UNKNOWN_AWAITABLES)
 
-make_exe(test_container
-  standalone_compilation.cpp
-  test_container.cpp)
+if (TMC_USE_DLL)
+make_exe(test_container test_container.cpp)
+else()
+make_exe(test_container test_container.cpp standalone_compilation.cpp)
+endif()
 target_compile_definitions(test_container PRIVATE TMC_NO_UNKNOWN_AWAITABLES)
 
 if(TMC_USE_HWLOC AND LIBHWLOC_FOUND)
