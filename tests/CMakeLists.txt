@@ -65,13 +65,14 @@ endfunction()
 # Split compilation of the TMC implementations into its own unit.
 # Only this unit and some specific tests need to include <hwloc.h>.
 # Regression test for https://github.com/tzcnt/TooManyCooks/issues/126
-add_library(tests_tmc_build OBJECT
+add_library(tests_tmc_build SHARED
   standalone_compilation.cpp
+  fixtures/topo_13600k.cpp
   test_hwloc.cpp
   test_hwloc_synthetic.cpp
 )
 target_link_libraries(tests_tmc_build PRIVATE GTest::gtest_main)
-target_compile_definitions(tests_tmc_build PRIVATE TMC_NO_UNKNOWN_AWAITABLES)
+target_compile_definitions(tests_tmc_build PRIVATE TMC_WINDOWS_DLL TMC_NO_UNKNOWN_AWAITABLES)
 target_include_directories(tests_tmc_build PRIVATE
   ${TMC_INCLUDE_PATH}
   ${TMC_ASIO_INCLUDE_PATH})
@@ -83,7 +84,6 @@ endif()
 make_exe_base(
   tests
   main.cpp
-  fixtures/topo_13600k.cpp
   assert_ex_cpu.cpp
   assert_coro.cpp
   assert_spawn.cpp
@@ -121,7 +121,7 @@ make_exe_base(
   test_traits.cpp
 )
 target_link_libraries(tests PRIVATE tests_tmc_build)
-target_compile_definitions(tests PRIVATE TMC_NO_UNKNOWN_AWAITABLES)
+target_compile_definitions(tests PRIVATE TMC_WINDOWS_DLL TMC_NO_UNKNOWN_AWAITABLES)
 
 # Standalone test executables can include hwloc directly
 function(make_exe target_name)
