@@ -2,8 +2,8 @@
 // (nothing defined): everything is "inline" and the library is header-only.
 // This file is not required.
 //
-// TMC_STANDALONE_COMPILATION is defined: The portions of TMC that require
-// standalone compilation will be compiled in this translation unit due to the
+// TMC_STANDALONE_COMPILATION is defined: The portions of TMC that can be
+// compiled separately will be included in this translation unit due to the
 // presence of the TMC_IMPL macro. Other translation units should also define
 // TMC_STANDALONE_COMPILATION, but should not define TMC_IMPL.
 //
