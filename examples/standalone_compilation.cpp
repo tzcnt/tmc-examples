@@ -18,9 +18,9 @@
 #define TMC_IMPL
 #include "tmc/all_headers.hpp" // IWYU pragma: keep
 
-// If building with TMC_WINDOWS_DLL, and you want to use Asio, then this impl
-// must also be provided. If you don't need Asio, or you are just using
-// TMC_STANDALONE_COMPILATION, then this is not required.
+// If building with TMC_WINDOWS_DLL, and you want to use the global
+// `tmc::asio_executor()` provided by tmc-asio, then this impl must also be
+// provided.
 #ifdef TMC_WINDOWS_DLL
 #include "tmc/asio/ex_asio.hpp" // IWYU pragma: keep
 #endif
