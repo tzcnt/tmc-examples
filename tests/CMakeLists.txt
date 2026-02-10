@@ -36,6 +36,8 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL 
 endif()
 
 function(make_exe_base target_name)
+  # Tests use standalone compilation to speedup the build + test the hwloc.h isolation
+  add_compile_definitions(TMC_STANDALONE_COMPILATION)
   add_executable(${target_name} ${ARGN})
   target_link_libraries(${target_name} PRIVATE GTest::gtest_main)
 
@@ -65,25 +67,47 @@ endfunction()
 # Split compilation of the TMC implementations into its own unit.
 # Only this unit and some specific tests need to include <hwloc.h>.
 # Regression test for https://github.com/tzcnt/TooManyCooks/issues/126
-add_library(tests_tmc_build OBJECT
-  standalone_compilation.cpp
+if(WIN32)
+  # This doesn't include the TMC definitions - those come from tmc_build.dll
+  add_library(tests_tmc_build_dll STATIC
+    fixtures/topo_13600k.cpp
+    test_hwloc.cpp
+    test_hwloc_synthetic.cpp
+  )
+  target_compile_definitions(tests_tmc_build_dll PRIVATE TMC_WINDOWS_DLL)
+  target_link_libraries(tests_tmc_build_dll PRIVATE tmc_dll)
+  target_link_libraries(tests_tmc_build_dll PRIVATE GTest::gtest_main)
+  target_compile_definitions(tests_tmc_build_dll PRIVATE TMC_NO_UNKNOWN_AWAITABLES)
+  target_include_directories(tests_tmc_build_dll PRIVATE
+    ${TMC_INCLUDE_PATH}
+    ${TMC_ASIO_INCLUDE_PATH})
+
+  if(TMC_USE_HWLOC)
+    target_include_directories(tests_tmc_build_dll SYSTEM PUBLIC ${HWLOC_INCLUDE_PATH})
+  endif()
+endif()
+
+# This includes the TMC definitions.
+# Whether this or the DLL target is linked to tests depends on whether TMC_WINDOWS_DLL is defined.
+add_library(tests_tmc_build_lib OBJECT
+  fixtures/topo_13600k.cpp
   test_hwloc.cpp
   test_hwloc_synthetic.cpp
+  standalone_compilation.cpp
 )
-target_link_libraries(tests_tmc_build PRIVATE GTest::gtest_main)
-target_compile_definitions(tests_tmc_build PRIVATE TMC_NO_UNKNOWN_AWAITABLES)
-target_include_directories(tests_tmc_build PRIVATE
+target_link_libraries(tests_tmc_build_lib PRIVATE GTest::gtest_main)
+target_compile_definitions(tests_tmc_build_lib PRIVATE TMC_NO_UNKNOWN_AWAITABLES)
+target_include_directories(tests_tmc_build_lib PRIVATE
   ${TMC_INCLUDE_PATH}
   ${TMC_ASIO_INCLUDE_PATH})
 
 if(TMC_USE_HWLOC)
-  target_include_directories(tests_tmc_build SYSTEM PRIVATE ${HWLOC_INCLUDE_PATH})
+  target_include_directories(tests_tmc_build_lib SYSTEM PUBLIC ${HWLOC_INCLUDE_PATH})
 endif()
 
 make_exe_base(
   tests
   main.cpp
-  fixtures/topo_13600k.cpp
   assert_ex_cpu.cpp
   assert_coro.cpp
   assert_spawn.cpp
@@ -120,12 +144,26 @@ make_exe_base(
   test_container.cpp
   test_traits.cpp
 )
-target_link_libraries(tests PRIVATE tests_tmc_build)
 target_compile_definitions(tests PRIVATE TMC_NO_UNKNOWN_AWAITABLES)
+
+if(TMC_USE_DLL)
+  target_compile_definitions(tests PRIVATE TMC_WINDOWS_DLL)
+  target_link_libraries(tests PRIVATE tmc_dll)
+  target_link_libraries(tests PUBLIC tests_tmc_build_dll)
+
+  add_custom_command(TARGET tests POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    $<TARGET_FILE:tmc_dll>
+    ${CMAKE_CURRENT_BINARY_DIR}
+  )
+else()
+  target_link_libraries(tests PRIVATE tests_tmc_build_lib)
+endif()
 
 # Standalone test executables can include hwloc directly
 function(make_exe target_name)
   make_exe_base(${target_name} ${ARGN})
+  target_sources(${target_name} PRIVATE standalone_compilation.cpp)
 
   if(TMC_USE_HWLOC)
     target_include_directories(${target_name} SYSTEM PRIVATE ${HWLOC_INCLUDE_PATH})
@@ -137,15 +175,10 @@ make_exe(test_exceptions test_exceptions.cpp)
 make_exe(test_halo test_halo.cpp)
 target_compile_definitions(test_halo PRIVATE TMC_DEBUG_TASK_ALLOC_COUNT TMC_NO_UNKNOWN_AWAITABLES)
 
-make_exe(
-  test_fuzz_chan
-  test_fuzz_chan.cpp
-)
+make_exe(test_fuzz_chan test_fuzz_chan.cpp)
 target_compile_definitions(test_fuzz_chan PRIVATE TMC_NO_UNKNOWN_AWAITABLES)
 
-make_exe(test_container
-  standalone_compilation.cpp
-  test_container.cpp)
+make_exe(test_container test_container.cpp)
 target_compile_definitions(test_container PRIVATE TMC_NO_UNKNOWN_AWAITABLES)
 
 if(TMC_USE_HWLOC AND LIBHWLOC_FOUND)

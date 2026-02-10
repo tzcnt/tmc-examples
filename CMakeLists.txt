@@ -53,13 +53,13 @@ else()
     CPMAddPackage(
         NAME TooManyCooks
         GIT_REPOSITORY https://github.com/tzcnt/TooManyCooks.git
-        GIT_TAG v1.4
+        GIT_TAG main
         DOWNLOAD_ONLY)
 
     CPMAddPackage(
         NAME tmc_asio
         GIT_REPOSITORY https://github.com/tzcnt/tmc-asio.git
-        GIT_TAG v1.4
+        GIT_TAG main
         DOWNLOAD_ONLY)
 
     set(TMC_INCLUDE_PATH ${TooManyCooks_SOURCE_DIR}/include CACHE STRING "" FORCE)
@@ -230,6 +230,32 @@ endif()
 # add_link_options("-fsanitize=thread")
 # add_definitions("-fsanitize=undefined -fno-sanitize-recover")
 # add_link_options("-fsanitize=undefined")
+if(WIN32)
+    option(TMC_USE_DLL "Link all targets against tmc_dll shared library" OFF)
+
+    # A shared library (DLL) containing the TMC standalone compilation
+    add_library(tmc_dll SHARED
+        examples/standalone_compilation.cpp
+    )
+    target_include_directories(tmc_dll PRIVATE
+        ${TMC_INCLUDE_PATH}
+        ${TMC_ASIO_INCLUDE_PATH}
+    )
+    target_compile_definitions(tmc_dll PRIVATE TMC_WINDOWS_DLL)
+
+    if(TMC_USE_HWLOC)
+        target_include_directories(tmc_dll SYSTEM PRIVATE ${HWLOC_INCLUDE_PATH})
+    endif()
+
+    if(TMC_USE_HWLOC)
+        add_custom_command(TARGET tmc_dll POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            ${hwloc_SOURCE_DIR}/bin/libhwloc-15.dll
+            ${CMAKE_CURRENT_BINARY_DIR}
+        )
+    endif()
+endif()
+
 function(make_exe target_name)
     add_executable(${target_name} ${ARGN})
 
@@ -249,6 +275,11 @@ function(make_exe target_name)
         ${CMAKE_BINARY_DIR}/compile_commands.json
         ${CMAKE_CURRENT_LIST_DIR}/build
     )
+
+    if(TMC_USE_DLL)
+        target_compile_definitions(${target_name} PRIVATE TMC_WINDOWS_DLL)
+        target_link_libraries(${target_name} PRIVATE tmc_dll)
+    endif()
 
     if(WIN32 AND TMC_USE_HWLOC)
         add_custom_command(TARGET ${target_name} POST_BUILD

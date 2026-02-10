@@ -20,8 +20,6 @@
 #include <sdkddkver.h>
 #endif
 
-#define TMC_IMPL
-
 #include "tmc/asio/aw_asio.hpp"
 #include "tmc/asio/ex_asio.hpp"
 #include "tmc/ex_cpu.hpp"

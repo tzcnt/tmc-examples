@@ -65,7 +65,7 @@ template <> struct external_coro_promise<void> {
 
 template <typename Result> class aw_external_coro {
   external_coro<Result> handle;
-  Result result;
+  Result result{};
 
   friend struct external_coro<Result>;
   inline aw_external_coro(const external_coro<Result>& Handle)

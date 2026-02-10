@@ -3,8 +3,6 @@
 // single threaded executor, and then awaited. Sweeps from 1 to N producers,
 // where N is the number of cores on the machine.
 
-#define TMC_IMPL
-
 #include "tmc/all_headers.hpp"
 #include "tmc/asio/ex_asio.hpp"
 

@@ -3,8 +3,6 @@
 // supports several kinds of iterator pairs: begin() / end(), begin() / count,
 // or C-style pointer / count
 
-#define TMC_IMPL
-
 #include "tmc/ex_cpu.hpp"
 #include "tmc/spawn_many.hpp"
 #include "tmc/task.hpp"

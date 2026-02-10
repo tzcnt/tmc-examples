@@ -1,8 +1,6 @@
 // An implementation of the skynet benchmark as described here:
 // https://github.com/atemerev/skynet
 
-#define TMC_IMPL
-
 #include "tmc/ex_cpu.hpp"
 #include "tmc/spawn_group.hpp"
 #include "tmc/spawn_many.hpp"

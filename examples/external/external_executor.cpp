@@ -3,8 +3,6 @@
 // For another example, see
 // https://github.com/tzcnt/tmc-asio/blob/main/include/tmc/asio/ex_asio.hpp
 
-#define TMC_IMPL
-
 #include "../util/thread_name.hpp"
 #include "tmc/detail/compat.hpp"
 #include "tmc/detail/concepts_awaitable.hpp"
@@ -37,7 +35,7 @@ public:
   ) {
     std::thread([this, func = std::forward<Functor>(Func)] {
       // Thread locals must be setup for each new executor thread
-      tmc::detail::this_thread::executor = &type_erased_this; // mandatory
+      tmc::detail::this_thread::executor() = &type_erased_this; // mandatory
       func();
     }).detach();
   }
@@ -51,7 +49,7 @@ public:
     for (size_t i = 0; i < Count; ++i) {
       std::thread([this, func = std::move(*FuncIter)] {
         // Thread locals must be setup for each new executor thread
-        tmc::detail::this_thread::executor = &type_erased_this; // mandatory
+        tmc::detail::this_thread::executor() = &type_erased_this; // mandatory
         func();
       }).detach();
       ++FuncIter;

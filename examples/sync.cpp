@@ -1,8 +1,6 @@
 // Demonstrates all the ways you can block synchronously on tasks from external
 // code
 
-#define TMC_IMPL
-
 #include "tmc/sync.hpp"
 #include "tmc/ex_cpu.hpp"
 #include "tmc/task.hpp"

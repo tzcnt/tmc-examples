@@ -1,7 +1,5 @@
 // Fuzz tester for tmc::channel
 
-#define TMC_IMPL
-
 #include "tmc/all_headers.hpp"
 
 #include <gtest/gtest.h>

@@ -11,8 +11,6 @@
 // https://github.com/tzcnt/tmc-asio/blob/main/include/tmc/asio/aw_asio.hpp
 // as well as the specializations of tmc::detail::awaitable_traits in this repo.
 
-#define TMC_IMPL
-
 #include "../util/thread_name.hpp"
 
 #include "tmc/current.hpp"

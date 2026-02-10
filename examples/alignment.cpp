@@ -10,8 +10,6 @@
 // https://gcc.gnu.org/bugzilla/show_bug.cgi?id=104177
 // This test repros in Debug or Release
 
-#define TMC_IMPL
-
 #include "tmc/aw_yield.hpp"
 #include "tmc/detail/compat.hpp"
 #include "tmc/ex_cpu.hpp"
