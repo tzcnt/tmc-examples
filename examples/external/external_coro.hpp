@@ -72,7 +72,7 @@ template <typename Result> class aw_external_coro {
       : handle(Handle) {}
 
 public:
-  inline bool await_ready() const noexcept { return handle.done(); }
+  inline bool await_ready() const noexcept { return false; }
   inline std::coroutine_handle<>
   await_suspend(std::coroutine_handle<> Outer) noexcept {
     auto& p = handle.promise();
@@ -96,7 +96,7 @@ template <> class aw_external_coro<void> {
   inline aw_external_coro(const external_coro<void>& Handle) : handle(Handle) {}
 
 public:
-  bool await_ready() const noexcept { return handle.done(); }
+  bool await_ready() const noexcept { return false; }
   std::coroutine_handle<>
   await_suspend(std::coroutine_handle<> Outer) const noexcept {
     auto& p = handle.promise();
