@@ -3,13 +3,12 @@
 ![AddressSanitizer](https://github.com/tzcnt/tmc-examples/actions/workflows/x64-linux-clang-asan.yml/badge.svg) ![ThreadSanitizer](https://github.com/tzcnt/tmc-examples/actions/workflows/x64-linux-clang-tsan.yml/badge.svg) ![UndefinedBehaviorSanitizer](https://github.com/tzcnt/tmc-examples/actions/workflows/x64-linux-clang-ubsan.yml/badge.svg)
 
 ## tmc-examples
-This repository contains examples of how to use the TooManyCooks asynchronous runtime. The main TMC project repository can be found at:
+This repository contains examples of how to use the TooManyCooks asynchronous runtime. The main library project repository can be found at:
 https://github.com/tzcnt/TooManyCooks/
 
-Some of the examples also use other libraries in the TMC ecosystem:
-https://github.com/tzcnt/tmc-asio/
+Some of the examples also make use of the optional [Asio integration](https://github.com/tzcnt/TooManyCooks/tree/main/include/tmc/asio).
 
-This repository uses CMake to download and configure the TMC libraries, either as CPM packages (by default), or as git submodules (optionally). It provides a `CMakePresets.json` with configurations for Linux/Windows/MacOS and Clang/GCC/MSVC.
+This repository uses CMake to download and configure TooManyCooks, either as a CPM package (by default), or as git submodules (optionally). It provides a `CMakePresets.json` with configurations for Linux/Windows/MacOS and Clang/GCC/MSVC.
 
 ### Building
 Choose a value for `PRESET` from `CMakePresets.json` that is appropriate for your system.

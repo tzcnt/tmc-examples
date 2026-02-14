@@ -1,7 +1,7 @@
 // Create an external executor that exposes all TMC compatibilities
 // by providing a specialization of tmc::detail::executor_traits.
 // For another example, see
-// https://github.com/tzcnt/tmc-asio/blob/main/include/tmc/asio/ex_asio.hpp
+// https://github.com/tzcnt/TooManyCooks/blob/main/include/tmc/asio/ex_asio.hpp
 
 #include "../util/thread_name.hpp"
 #include "tmc/detail/compat.hpp"
