@@ -2,7 +2,3 @@
 	path = submodules/TooManyCooks
 	url = https://github.com/tzcnt/TooManyCooks.git
 	branch = main
-[submodule "submodules/tmc-asio"]
-	path = submodules/tmc-asio
-	url = https://github.com/tzcnt/tmc-asio.git
-	branch = main
