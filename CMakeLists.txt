@@ -48,7 +48,6 @@ option(TMC_AS_SUBMODULE "Download TMC repos as Git submodules" OFF)
 
 if(TMC_AS_SUBMODULE)
     set(TMC_INCLUDE_PATH ${tmc_examples_SOURCE_DIR}/submodules/TooManyCooks/include CACHE STRING "" FORCE)
-    set(TMC_ASIO_INCLUDE_PATH ${tmc_examples_SOURCE_DIR}/submodules/tmc-asio/include CACHE STRING "" FORCE)
 else()
     CPMAddPackage(
         NAME TooManyCooks
@@ -56,14 +55,7 @@ else()
         GIT_TAG main
         DOWNLOAD_ONLY)
 
-    CPMAddPackage(
-        NAME tmc_asio
-        GIT_REPOSITORY https://github.com/tzcnt/tmc-asio.git
-        GIT_TAG main
-        DOWNLOAD_ONLY)
-
     set(TMC_INCLUDE_PATH ${TooManyCooks_SOURCE_DIR}/include CACHE STRING "" FORCE)
-    set(TMC_ASIO_INCLUDE_PATH ${tmc_asio_SOURCE_DIR}/include CACHE STRING "" FORCE)
 endif()
 
 # TMC HWLOC support
@@ -237,10 +229,7 @@ if(WIN32)
     add_library(tmc_dll SHARED
         examples/standalone_compilation.cpp
     )
-    target_include_directories(tmc_dll PRIVATE
-        ${TMC_INCLUDE_PATH}
-        ${TMC_ASIO_INCLUDE_PATH}
-    )
+    target_include_directories(tmc_dll PRIVATE ${TMC_INCLUDE_PATH})
     target_compile_definitions(tmc_dll PRIVATE TMC_WINDOWS_DLL)
 
     if(TMC_USE_HWLOC)
@@ -259,10 +248,7 @@ endif()
 function(make_exe target_name)
     add_executable(${target_name} ${ARGN})
 
-    target_include_directories(${target_name} PRIVATE
-        ${TMC_INCLUDE_PATH}
-        ${TMC_ASIO_INCLUDE_PATH}
-    )
+    target_include_directories(${target_name} PRIVATE ${TMC_INCLUDE_PATH})
 
     if(TMC_USE_HWLOC)
         target_include_directories(${target_name} SYSTEM PRIVATE ${HWLOC_INCLUDE_PATH})

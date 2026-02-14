@@ -42,10 +42,7 @@ function(make_exe_base target_name)
   target_link_libraries(${target_name} PRIVATE GTest::gtest_main)
 
   # Variables created by parent project
-  target_include_directories(${target_name} PRIVATE
-    ${TMC_INCLUDE_PATH}
-    ${TMC_ASIO_INCLUDE_PATH}
-  )
+  target_include_directories(${target_name} PRIVATE ${TMC_INCLUDE_PATH})
 
   # copy compile_commands.json to the build directory after build so clangd can find it
   # clangd won't look in the /build/{config} directory, only in the top-level /build directory
@@ -78,9 +75,7 @@ if(WIN32)
   target_link_libraries(tests_tmc_build_dll PRIVATE tmc_dll)
   target_link_libraries(tests_tmc_build_dll PRIVATE GTest::gtest_main)
   target_compile_definitions(tests_tmc_build_dll PRIVATE TMC_NO_UNKNOWN_AWAITABLES)
-  target_include_directories(tests_tmc_build_dll PRIVATE
-    ${TMC_INCLUDE_PATH}
-    ${TMC_ASIO_INCLUDE_PATH})
+  target_include_directories(tests_tmc_build_dll PRIVATE ${TMC_INCLUDE_PATH})
 
   if(TMC_USE_HWLOC)
     target_include_directories(tests_tmc_build_dll SYSTEM PUBLIC ${HWLOC_INCLUDE_PATH})
@@ -97,9 +92,7 @@ add_library(tests_tmc_build_lib OBJECT
 )
 target_link_libraries(tests_tmc_build_lib PRIVATE GTest::gtest_main)
 target_compile_definitions(tests_tmc_build_lib PRIVATE TMC_NO_UNKNOWN_AWAITABLES)
-target_include_directories(tests_tmc_build_lib PRIVATE
-  ${TMC_INCLUDE_PATH}
-  ${TMC_ASIO_INCLUDE_PATH})
+target_include_directories(tests_tmc_build_lib PRIVATE ${TMC_INCLUDE_PATH})
 
 if(TMC_USE_HWLOC)
   target_include_directories(tests_tmc_build_lib SYSTEM PUBLIC ${HWLOC_INCLUDE_PATH})

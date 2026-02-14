@@ -8,7 +8,7 @@
 // and restore awaiting tasks back to their original executors automatically (so
 // that this wrapper is not needed), see the implementation of
 // tmc::aw_asio_base::callback::operator() in
-// https://github.com/tzcnt/tmc-asio/blob/main/include/tmc/asio/aw_asio.hpp
+// https://github.com/tzcnt/TooManyCooks/blob/main/include/tmc/asio/aw_asio.hpp
 // as well as the specializations of tmc::detail::awaitable_traits in this repo.
 
 #include "../util/thread_name.hpp"
