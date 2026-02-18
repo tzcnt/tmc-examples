@@ -1,4 +1,9 @@
-// Demonstrate how to use tmc::spawn_tuple().result_each() to await
+// Demonstrate how to create a custom cancellation timeout for non-Asio
+// operations. For an Asio operation, it's simpler to use the builtin
+// timeout operations, e.g. to cancel a socket operation:
+// `co_await sock.async_read_some(buf, asio::cancel_after(1s, tmc::aw_asio));`
+
+// Uses tmc::spawn_tuple().result_each() to await
 // heterogeneous operations that complete at different times. By submitting a
 // long-running operation and a short running timer, timeout-based cancellation
 // can be achieved.
@@ -11,11 +16,11 @@
 // reference to the long-running operation and cancel it directly after the
 // timer expires.
 
-// Note: Asio already exposes timeout functions for some operations which are
-// probably easier/more performant when available. Alternatively, you could
-// cancel the main operation directly from within the timeout operation. This
-// example serves to also demonstrate how to use the result_each() function when
-// you need the awaiting thread involved in the process.
+// Alternatively, you could cancel the main operation directly from within the
+// timeout operation. This example serves to also demonstrate how to use the
+// result_each() function when you need the awaiting thread involved in the
+// process.
+
 #ifdef _WIN32
 #include <sdkddkver.h>
 #endif
