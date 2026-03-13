@@ -9,24 +9,6 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS "1")
 
 set(CMAKE_CXX_STANDARD 20)
 
-add_definitions(
-
-    # #### Performance tuning options #####
-    # "-DTMC_WORK_ITEM=CORO" # one of: CORO, FUNC, FUNCORO
-    # "-DTMC_TRIVIAL_TASK" # enabled in this repo for Release builds via CMakePresets.json
-    # "-DTMC_PRIORITY_COUNT=1" # unsigned integer between 1 and 63
-    # "-DTMC_MORE_THREADS" # allows more than 64 threads
-
-    # #### Debug / diagnostics options #####
-    # ## Tracks the number of tmc::task allocations, which lets you determine
-    # ## how effectively Heap Allocation Elision (HALO) is being applied by the compiler.
-    # "-DTMC_DEBUG_TASK_ALLOC_COUNT"
-
-    # ## Prints information about work stealing matrixes.
-    # ## If TMC_USE_HWLOC is enabled, also prints info about thread grouping and thread affinity.
-    # "-DTMC_DEBUG_THREAD_CREATION"
-)
-
 # Optional flags can be passed at the command line. Used by GitHub Actions workflow.
 if(CMD_COMPILE_FLAGS)
     message(STATUS "CMD_COMPILE_FLAGS: ${CMD_COMPILE_FLAGS}")
@@ -46,53 +28,36 @@ include(cmake/CPM.cmake)
 # This option exists to simplify my development across repositories.
 option(TMC_AS_SUBMODULE "Download TMC repos as Git submodules" OFF)
 
+# On Windows, download hwloc binaries before adding TooManyCooks
+# so that its CMakeLists.txt can find them.
+if(WIN32 AND TMC_USE_HWLOC)
+    if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+        set(PLATFORM_BITS 64)
+    else()
+        set(PLATFORM_BITS 32)
+    endif()
+
+    CPMAddPackage(
+        NAME hwloc
+        URL "https://download.open-mpi.org/release/hwloc/v2.12/hwloc-win${PLATFORM_BITS}-build-2.12.2.zip"
+        VERSION 2.12.2
+        DOWNLOAD_ONLY
+    )
+
+    add_library(hwloc::hwloc UNKNOWN IMPORTED)
+    set_target_properties(hwloc::hwloc PROPERTIES
+        IMPORTED_LOCATION "${hwloc_SOURCE_DIR}/lib/libhwloc.lib"
+        INTERFACE_INCLUDE_DIRECTORIES "${hwloc_SOURCE_DIR}/include"
+    )
+endif()
+
 if(TMC_AS_SUBMODULE)
-    set(TMC_INCLUDE_PATH ${tmc_examples_SOURCE_DIR}/submodules/TooManyCooks/include CACHE STRING "" FORCE)
+    add_subdirectory(submodules/TooManyCooks)
 else()
     CPMAddPackage(
         NAME TooManyCooks
         GIT_REPOSITORY https://github.com/tzcnt/TooManyCooks.git
-        GIT_TAG main
-        DOWNLOAD_ONLY)
-
-    set(TMC_INCLUDE_PATH ${TooManyCooks_SOURCE_DIR}/include CACHE STRING "" FORCE)
-endif()
-
-# TMC HWLOC support
-option(TMC_USE_HWLOC "libhwloc" ON)
-
-if(TMC_USE_HWLOC)
-    if(WIN32)
-        if(CMAKE_SIZEOF_VOID_P EQUAL 8)
-            set(PLATFORM_BITS 64)
-        else()
-            set(PLATFORM_BITS 32)
-        endif()
-
-        # Finding user-provided libraries on Windows is a hassle. For this example, just get the built .lib and .dll directly.
-        CPMAddPackage(
-            NAME hwloc
-            URL "https://download.open-mpi.org/release/hwloc/v2.12/hwloc-win${PLATFORM_BITS}-build-2.12.2.zip"
-            VERSION 2.12.2
-            DOWNLOAD_ONLY
-        )
-        link_libraries(${hwloc_SOURCE_DIR}/lib/libhwloc.lib)
-        set(HWLOC_INCLUDE_PATH ${hwloc_SOURCE_DIR}/include CACHE STRING "" FORCE)
-        add_compile_definitions(TMC_USE_HWLOC)
-    else()
-        message(STATUS "TMC_USE_HWLOC: running find_package(libhwloc)...")
-        find_package(libhwloc)
-
-        if(NOT LIBHWLOC_FOUND)
-            message(STATUS "WARNING: Package libhwloc not found. hwloc integration will be disabled.")
-        else()
-            message(STATUS "TMC_USE_HWLOC: found library ${LIBHWLOC_LIBRARY}")
-            message(STATUS "TMC_USE_HWLOC: found include ${LIBHWLOC_INCLUDE_DIR}/hwloc.h")
-            link_libraries(${LIBHWLOC_LIBRARY})
-            set(HWLOC_INCLUDE_PATH ${LIBHWLOC_INCLUDE_DIR} CACHE STRING "" FORCE)
-            add_compile_definitions(TMC_USE_HWLOC)
-        endif()
-    endif()
+        GIT_TAG main)
 endif()
 
 # Since each new coroutine requires an allocation,
@@ -126,17 +91,11 @@ endif()
 link_libraries(${MALLOC_LIB})
 
 # Standalone asio or boost::asio support
-option(TMC_USE_BOOST_ASIO "Use boost::asio instead of standalone asio" OFF)
-
 if(TMC_USE_BOOST_ASIO)
-    add_compile_definitions(TMC_USE_BOOST_ASIO)
-
     # Tell cmake to use the target Boost cmake file instead of the built-in
     cmake_policy(SET CMP0167 NEW)
     set(Boost_USE_STATIC_LIBS ON)
     set(Boost_USE_RELEASE_LIBS ON)
-
-    # set(ENV{BOOST_CMAKE_ROOT} "/home/tzcnt/pkg-src/boost-1.88-src/boost_1_88_0/stage/lib/cmake/")
 
     # By default this will will look for your system boost.
     # If this fails you can install boost manually and set the system environment variable
@@ -229,12 +188,7 @@ if(WIN32)
     add_library(tmc_dll SHARED
         examples/standalone_compilation.cpp
     )
-    target_include_directories(tmc_dll PRIVATE ${TMC_INCLUDE_PATH})
-    target_compile_definitions(tmc_dll PRIVATE TMC_WINDOWS_DLL)
-
-    if(TMC_USE_HWLOC)
-        target_include_directories(tmc_dll SYSTEM PRIVATE ${HWLOC_INCLUDE_PATH})
-    endif()
+    target_link_libraries(tmc_dll PRIVATE tmc::tmc)
 
     if(TMC_USE_HWLOC)
         add_custom_command(TARGET tmc_dll POST_BUILD
@@ -248,11 +202,7 @@ endif()
 function(make_exe target_name)
     add_executable(${target_name} ${ARGN})
 
-    target_include_directories(${target_name} PRIVATE ${TMC_INCLUDE_PATH})
-
-    if(TMC_USE_HWLOC)
-        target_include_directories(${target_name} SYSTEM PRIVATE ${HWLOC_INCLUDE_PATH})
-    endif()
+    target_link_libraries(${target_name} PRIVATE tmc::tmc)
 
     # copy compile_commands.json to the build directory after build so clangd can find it
     # clangd won't look in the /build/{PRESET} directory, only in the top-level /build directory
@@ -263,7 +213,6 @@ function(make_exe target_name)
     )
 
     if(TMC_USE_DLL)
-        target_compile_definitions(${target_name} PRIVATE TMC_WINDOWS_DLL)
         target_link_libraries(${target_name} PRIVATE tmc_dll)
     endif()
 
