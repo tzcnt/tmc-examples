@@ -146,16 +146,6 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
         "-Wno-exit-time-destructors"
     )
 
-    if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL "21.0")
-        add_definitions(
-
-            # This is a real problem, however it only occurs in a specific scenario.
-            # It prevents TMC being used in multiple DLLs within the same program, on Windows only.
-            # This problem does not occur when using static linking.
-            "-Wno-unique-object-duplication"
-        )
-    endif()
-
     if(CMAKE_CXX_COMPILER_ID MATCHES "AppleClang")
         add_definitions(
 
