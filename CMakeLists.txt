@@ -91,6 +91,9 @@ endif()
 link_libraries(${MALLOC_LIB})
 
 # Standalone asio or boost::asio support
+# The tmc::tmc target propagates the TMC_USE_BOOST_ASIO define, but does not
+# provide the asio or boost::asio headers. The consumer must make them available
+# (e.g. via find_package, CPM, or system install) before including tmc-asio headers.
 if(TMC_USE_BOOST_ASIO)
     # Tell cmake to use the target Boost cmake file instead of the built-in
     cmake_policy(SET CMP0167 NEW)
@@ -179,6 +182,7 @@ if(WIN32)
         examples/standalone_compilation.cpp
     )
     target_link_libraries(tmc_dll PRIVATE tmc::tmc)
+    target_compile_definitions(tmc_dll PRIVATE TMC_WINDOWS_DLL)
 
     if(TMC_USE_HWLOC)
         add_custom_command(TARGET tmc_dll POST_BUILD
