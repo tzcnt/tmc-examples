@@ -610,6 +610,65 @@ TEST_F(CATEGORY, pull_zc_closed) {
   }());
 }
 
+TEST_F(CATEGORY, start_pull_zc_ready) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    auto chan = tmc::make_channel<move_counter, chan_config<0>>();
+    std::atomic<size_t> moves{0};
+
+    chan.post(42, &moves);
+
+    auto started = chan.start_pull_zc();
+    EXPECT_TRUE(static_cast<bool>(started));
+
+    auto scope = co_await chan.pull_zc(std::move(started));
+    EXPECT_TRUE(scope.has_value());
+    EXPECT_EQ(scope->get().value, 42);
+    EXPECT_EQ(moves.load(), 0);
+  }());
+}
+
+TEST_F(CATEGORY, start_pull_zc_suspend_then_resume) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    auto chan = tmc::make_channel<size_t, chan_config<0>>();
+    auto prodChan = chan.new_token();
+
+    auto started = chan.start_pull_zc();
+    EXPECT_FALSE(static_cast<bool>(started));
+
+    size_t work = 0;
+    for (size_t i = 1; i <= 10; ++i) {
+      work += i;
+    }
+
+    auto prod = tmc::spawn([](auto Chan) -> tmc::task<void> {
+                  co_await tmc::reschedule();
+                  bool ok = Chan.post(42u);
+                  EXPECT_TRUE(ok);
+                }(std::move(prodChan)))
+                  .fork();
+
+    auto scope = co_await chan.pull_zc(std::move(started));
+    EXPECT_TRUE(scope.has_value());
+    EXPECT_EQ(scope->get(), 42u);
+    EXPECT_EQ(work, 55u);
+
+    co_await std::move(prod);
+  }());
+}
+
+TEST_F(CATEGORY, start_pull_zc_closed_empty) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    auto chan = tmc::make_channel<size_t, chan_config<0>>();
+    chan.close();
+
+    auto started = chan.start_pull_zc();
+    EXPECT_TRUE(static_cast<bool>(started));
+
+    auto scope = co_await chan.pull_zc(std::move(started));
+    EXPECT_FALSE(scope.has_value());
+  }());
+}
+
 // Test EmbedFirstBlock config option
 template <size_t Pack> struct chan_config_embed : tmc::chan_default_config {
   static inline constexpr size_t BlockSize = 2;
