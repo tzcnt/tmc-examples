@@ -44,6 +44,15 @@ static tmc::task<void> mutex_producer(tmc::mutex& mut, size_t count) {
   }
 }
 
+static tmc::task<void>
+one_shot_mutex_producer(tmc::one_shot_mutex& mut, size_t count) {
+  // Single task ping-pong latency
+  for (size_t i = 0; i < count; ++i) {
+    co_await mut;
+    co_await consumer(static_cast<int>(i));
+  }
+}
+
 static std::string formatWithCommas(size_t n) {
   auto s = std::to_string(n);
   int i = static_cast<int>(s.length()) - 3;
@@ -54,7 +63,7 @@ static std::string formatWithCommas(size_t n) {
   return s;
 }
 
-template <typename Exec, bool Mutex = false>
+template <typename Exec, bool Mutex = false, bool OneShotMutex = false>
 tmc::task<size_t> run_bench(Exec& ex, size_t prodCount) {
   size_t per_task = NELEMS / prodCount;
   size_t rem = NELEMS % prodCount;
@@ -63,6 +72,8 @@ tmc::task<size_t> run_bench(Exec& ex, size_t prodCount) {
     size_t count = i < rem ? per_task + 1 : per_task;
     if constexpr (Mutex) {
       prod[i] = mutex_producer(ex, count);
+    } else if constexpr (OneShotMutex) {
+      prod[i] = one_shot_mutex_producer(ex, count);
     } else {
       prod[i] = producer(ex, count);
     }
@@ -95,11 +106,11 @@ int main() {
     );
     std::printf(
       "| prods  \t| ex_cpu(1)\t| ex_cpu_st\t| ex_braid\t| ex_asio\t| "
-      "tmc::mutex\t|"
+      "tmc::mutex\t| tmc::one_shot_mutex\t|"
     );
     std::printf(
       "\n| ------------- | ------------- | ------------- | ------------- | "
-      "------------- | ------------- |"
+      "------------- | ------------- | ------------- |"
     );
 
     tmc::ex_cpu exc;
@@ -114,8 +125,9 @@ int main() {
     exasio.init();
 
     tmc::mutex mut;
+    tmc::one_shot_mutex osmut;
 
-    std::array<size_t, 5> totals{};
+    std::array<size_t, 6> totals{};
 
     for (size_t prodCount = 1; prodCount <= threadCount; ++prodCount) {
       std::printf("\n| %zu prod\t|", prodCount);
@@ -124,6 +136,8 @@ int main() {
       totals[2] += co_await run_bench(exbr, prodCount);
       totals[3] += co_await run_bench(exasio, prodCount);
       totals[4] += co_await run_bench<tmc::mutex, true>(mut, prodCount);
+      totals[5] +=
+        co_await run_bench<tmc::one_shot_mutex, false, true>(osmut, prodCount);
     }
     std::printf("\n\ntotals:\n");
     for (size_t i = 0; i < totals.size(); ++i) {
