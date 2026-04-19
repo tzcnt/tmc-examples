@@ -306,6 +306,24 @@ make_exe(exec_st_roundtrip_bench
     examples/exec_st_roundtrip_bench.cpp
 )
 
+make_exe(mutex_bench
+    examples/mutex_bench.cpp
+)
+
+target_compile_definitions(mutex_bench PRIVATE "MUTEX_IMPL=0")
+
+make_exe(mutex_co_unlock_bench
+    examples/mutex_bench.cpp
+)
+
+target_compile_definitions(mutex_co_unlock_bench PRIVATE "MUTEX_IMPL=2")
+
+make_exe(one_shot_mutex_bench
+    examples/mutex_bench.cpp
+)
+
+target_compile_definitions(one_shot_mutex_bench PRIVATE "MUTEX_IMPL=1")
+
 make_exe(braid
     examples/braid.cpp
 )
