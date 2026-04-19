@@ -39,12 +39,7 @@ static tmc::task<result> consumer(token chan) {
 
   // start_pull_zc() / pull_zc(started) implementation
   while (true) {
-    auto started = chan.start_pull_zc();
-    if (!started) {
-      co_await tmc::reschedule();
-    }
-
-    auto data = co_await chan.pull_zc(std::move(started));
+    auto data = co_await chan.pull_zc(chan.start_pull_zc());
     if (!data) {
       break;
     }
