@@ -21,6 +21,21 @@ protected:
   static tmc::ex_cpu& ex() { return tmc::cpu_executor(); }
 };
 
+static tmc::task<void> one_shot_mutex_waiter(
+  tmc::one_shot_mutex& Mut, atomic_awaitable<int>& WaiterRan,
+  tmc::ex_any* ExpectedExecutor
+) {
+  auto* waiterExecutor = tmc::current_executor();
+  auto waiterPriority = tmc::current_priority();
+  EXPECT_EQ(waiterExecutor, ExpectedExecutor);
+  EXPECT_EQ(waiterPriority, 1);
+
+  co_await Mut;
+
+  WaiterRan.inc();
+  EXPECT_EQ(tmc::current_priority(), waiterPriority);
+}
+
 TEST_F(CATEGORY, nonblocking_and_co_unlock) {
   test_async_main(ex(), []() -> tmc::task<void> {
     tmc::one_shot_mutex mut;
@@ -110,19 +125,7 @@ TEST_F(CATEGORY, suspension_releases_and_restores_context) {
     EXPECT_EQ(tmc::current_priority(), 0);
 
     auto waiter =
-      tmc::spawn(
-        [&](tmc::one_shot_mutex& Mut) -> tmc::task<void> {
-          auto* waiterExecutor = tmc::current_executor();
-          auto waiterPriority = tmc::current_priority();
-          EXPECT_EQ(waiterExecutor, ex().type_erased());
-          EXPECT_EQ(waiterPriority, 1);
-
-          co_await Mut;
-
-          waiterRan.inc();
-          EXPECT_EQ(tmc::current_priority(), waiterPriority);
-        }(mut)
-      )
+      tmc::spawn(one_shot_mutex_waiter(mut, waiterRan, ex().type_erased()))
         .with_priority(1)
         .fork();
 
@@ -137,6 +140,16 @@ TEST_F(CATEGORY, suspension_releases_and_restores_context) {
     co_await tmc::yield();
     EXPECT_EQ(mut.is_locked(), false);
     releaser.join();
+  }());
+}
+
+TEST_F(CATEGORY, destroy_local_mutex_while_runner_unwinds) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    co_await []() -> tmc::task<void> {
+      tmc::one_shot_mutex mut;
+      co_await mut;
+    }();
+    co_await tmc::yield();
   }());
 }
 
