@@ -620,10 +620,31 @@ TEST_F(CATEGORY, start_pull_zc_ready) {
     auto started = chan.start_pull_zc();
     EXPECT_TRUE(static_cast<bool>(started));
 
-    auto scope = co_await chan.pull_zc(std::move(started));
+    auto scope = co_await std::move(started).pull_zc();
     EXPECT_TRUE(scope.has_value());
     EXPECT_EQ(scope->get().value, 42);
     EXPECT_EQ(moves.load(), 0);
+  }());
+}
+
+TEST_F(CATEGORY, start_pull_zc_refresh_ready_after_post) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    auto chan = tmc::make_channel<size_t, chan_config<0>>();
+    auto prodChan = chan.new_token();
+
+    auto started = chan.start_pull_zc();
+    EXPECT_FALSE(static_cast<bool>(started));
+    EXPECT_FALSE(started.refresh_ready());
+
+    bool ok = prodChan.post(42u);
+    EXPECT_TRUE(ok);
+
+    EXPECT_TRUE(started.refresh_ready());
+    EXPECT_TRUE(static_cast<bool>(started));
+
+    auto scope = co_await std::move(started).pull_zc();
+    EXPECT_TRUE(scope.has_value());
+    EXPECT_EQ(scope->get(), 42u);
   }());
 }
 
@@ -647,12 +668,30 @@ TEST_F(CATEGORY, start_pull_zc_suspend_then_resume) {
                 }(std::move(prodChan)))
                   .fork();
 
-    auto scope = co_await chan.pull_zc(std::move(started));
+    auto scope = co_await std::move(started).pull_zc();
     EXPECT_TRUE(scope.has_value());
     EXPECT_EQ(scope->get(), 42u);
     EXPECT_EQ(work, 55u);
 
     co_await std::move(prod);
+  }());
+}
+
+TEST_F(CATEGORY, start_pull_zc_refresh_ready_after_close) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    auto chan = tmc::make_channel<size_t, chan_config<0>>();
+    auto closeChan = chan.new_token();
+
+    auto started = chan.start_pull_zc();
+    EXPECT_FALSE(static_cast<bool>(started));
+
+    closeChan.close();
+
+    EXPECT_TRUE(started.refresh_ready());
+    EXPECT_TRUE(static_cast<bool>(started));
+
+    auto scope = co_await std::move(started).pull_zc();
+    EXPECT_FALSE(scope.has_value());
   }());
 }
 
@@ -664,7 +703,7 @@ TEST_F(CATEGORY, start_pull_zc_closed_empty) {
     auto started = chan.start_pull_zc();
     EXPECT_TRUE(static_cast<bool>(started));
 
-    auto scope = co_await chan.pull_zc(std::move(started));
+    auto scope = co_await std::move(started).pull_zc();
     EXPECT_FALSE(scope.has_value());
   }());
 }
