@@ -37,10 +37,16 @@ static tmc::task<result> consumer(token chan) {
   size_t count = 0;
   size_t sum = 0;
 
-  // pull() implementation
-  while (auto data = co_await chan.pull()) {
+  // start_pull_zc() / started.pull_zc() implementation
+  while (true) {
+    auto started = chan.start_pull_zc();
+    auto data = co_await std::move(started).pull_zc();
+    if (!data) {
+      break;
+    }
+
     ++count;
-    sum += *data;
+    sum += **data;
   }
   co_return result{count, sum};
 
