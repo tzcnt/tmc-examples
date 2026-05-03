@@ -322,6 +322,10 @@ make_exe(chan_bench
     examples/chan_bench.cpp
 )
 
+make_exe(bounded_queue_bench
+    examples/bounded_queue_bench.cpp
+)
+
 make_exe(sync
     examples/sync.cpp
 )
