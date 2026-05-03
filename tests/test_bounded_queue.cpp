@@ -6,6 +6,7 @@
 #include <chrono>
 #include <cstddef>
 #include <gtest/gtest.h>
+#include <optional>
 #include <thread>
 
 #define CATEGORY test_bounded_queue
@@ -19,8 +20,9 @@ protected:
   static tmc::ex_cpu& ex() { return tmc::cpu_executor(); }
 };
 
-template <size_t Pack> struct queue_config : tmc::bounded_queue_default_config {
-  static inline constexpr size_t Capacity = 1;
+template <size_t Pack, size_t Cap = 1>
+struct queue_config : tmc::bounded_queue_default_config {
+  static inline constexpr size_t Capacity = Cap;
   static inline constexpr size_t PackingLevel = Pack;
 };
 
@@ -91,7 +93,7 @@ void do_queue_test(Executor& Exec) {
     auto results = co_await tmc::spawn_tuple(
       [&queue]() -> tmc::task<size_t> {
         for (size_t i = 0; i < NITEMS; ++i) {
-          co_await queue.push(i);
+          EXPECT_TRUE(co_await queue.push(i));
         }
         co_return NITEMS;
       }(),
@@ -100,8 +102,12 @@ void do_queue_test(Executor& Exec) {
         size_t sum = 0;
         for (size_t i = 0; i < NITEMS; ++i) {
           auto value = co_await queue.pull();
-          EXPECT_EQ(value, i);
-          sum += value;
+          EXPECT_TRUE(value.has_value());
+          if (!value.has_value()) {
+            co_return result{count, sum};
+          }
+          EXPECT_EQ(value.value(), i);
+          sum += value.value();
           ++count;
         }
         co_return result{count, sum};
@@ -136,16 +142,20 @@ TEST_F(CATEGORY, pull_zc_and_start_pull_zc) {
     EXPECT_FALSE(static_cast<bool>(started));
     EXPECT_FALSE(started.refresh_ready());
 
-    co_await queue.push(42, &moves);
+    EXPECT_TRUE(co_await queue.push(42, &moves));
 
     EXPECT_TRUE(started.refresh_ready());
     EXPECT_TRUE(static_cast<bool>(started));
 
     {
       auto scope = co_await std::move(started).pull_zc();
-      EXPECT_EQ(scope.get().value, 42);
-      EXPECT_EQ((*scope).value, 42);
-      EXPECT_EQ(scope->value, 42);
+      EXPECT_TRUE(scope.has_value());
+      if (!scope.has_value()) {
+        co_return;
+      }
+      EXPECT_EQ(scope->get().value, 42);
+      EXPECT_EQ((*scope)->value, 42);
+      EXPECT_EQ(scope.value().operator->()->value, 42);
       EXPECT_EQ(moves.load(), 0u);
     }
   }());
@@ -158,17 +168,88 @@ TEST_F(CATEGORY, pull_zc_immovable) {
     std::array<std::atomic<size_t>, 8> destroys{};
 
     for (size_t i = 0; i < destroys.size(); ++i) {
-      co_await queue.push(i, &destroys[i]);
+      EXPECT_TRUE(co_await queue.push(i, &destroys[i]));
     }
 
     for (size_t i = 0; i < destroys.size(); ++i) {
       auto scope = co_await queue.pull_zc();
-      EXPECT_EQ(scope.get().value, i);
+      EXPECT_TRUE(scope.has_value());
+      if (!scope.has_value()) {
+        co_return;
+      }
+      EXPECT_EQ(scope->get().value, i);
     }
 
     for (auto& destroy : destroys) {
       EXPECT_EQ(destroy.load(), 1u);
     }
+  }());
+}
+
+TEST_F(CATEGORY, close_rejects_pushes_and_ends_reads) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    auto queue = tmc::bounded_queue<size_t, queue_config<0>>{};
+
+    EXPECT_TRUE(co_await queue.push(5u));
+    queue.close();
+
+    EXPECT_FALSE(co_await queue.push(6u));
+
+    auto first = co_await queue.pull();
+    EXPECT_TRUE(first.has_value());
+    if (!first.has_value()) {
+      co_return;
+    }
+    EXPECT_EQ(first.value(), 5u);
+
+    auto second = co_await queue.pull();
+    EXPECT_FALSE(second.has_value());
+
+    auto started = queue.start_pull_zc();
+    EXPECT_TRUE(started.refresh_ready());
+    auto scope = co_await std::move(started).pull_zc();
+    EXPECT_FALSE(scope.has_value());
+  }());
+}
+
+TEST_F(CATEGORY, pull_zc_closed) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    auto queue = tmc::bounded_queue<size_t, queue_config<0, 2>>{};
+
+    EXPECT_TRUE(co_await queue.push(1u));
+    EXPECT_TRUE(co_await queue.push(2u));
+    queue.close();
+
+    auto first = co_await queue.pull_zc();
+    EXPECT_TRUE(first.has_value());
+    if (!first.has_value()) {
+      co_return;
+    }
+    EXPECT_EQ(first->get(), 1u);
+    first.reset();
+
+    auto second = co_await queue.pull_zc();
+    EXPECT_TRUE(second.has_value());
+    if (!second.has_value()) {
+      co_return;
+    }
+    EXPECT_EQ(second->get(), 2u);
+    second.reset();
+
+    auto third = co_await queue.pull_zc();
+    EXPECT_FALSE(third.has_value());
+  }());
+}
+
+TEST_F(CATEGORY, drain_empty_queue) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    auto queue = tmc::bounded_queue<size_t, queue_config<0>>{};
+
+    co_await queue.drain();
+    EXPECT_FALSE(co_await queue.push(1u));
+
+    auto value = co_await queue.pull();
+    EXPECT_FALSE(value.has_value());
   }());
 }
 
