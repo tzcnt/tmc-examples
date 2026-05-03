@@ -124,6 +124,7 @@ make_exe_base(
   test_bit_manip.cpp
   test_prio.cpp
   test_atomic_condvar.cpp
+  test_bounded_queue.cpp
   test_channel.cpp
   test_yield.cpp
   test_misc.cpp
