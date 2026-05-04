@@ -23,8 +23,7 @@ using queue_type = tmc::bounded_queue<size_t, queue_config>;
 
 static tmc::task<void> producer(queue_type& queue, size_t count, size_t base) {
   for (size_t i = 0; i < count; ++i) {
-    [[maybe_unused]] bool ok = co_await queue.push(base + i);
-    assert(ok);
+    co_await queue.push(base + i);
   }
 }
 
@@ -33,14 +32,15 @@ struct result {
   size_t sum;
 };
 
-static tmc::task<result> consumer(queue_type& queue) {
+static tmc::task<result> consumer(queue_type& queue, size_t expected) {
   size_t count = 0;
   size_t sum = 0;
 
-  while (auto data = co_await queue.pull()) {
-    ++count;
-    sum += *data;
+  for (; count < expected; ++count) {
+    auto data = co_await queue.pull();
+    sum += data;
   }
+
   co_return result{count, sum};
 }
 
@@ -63,71 +63,72 @@ int main() {
   return tmc::async_main([]() -> tmc::task<int> {
     auto overallStart = std::chrono::high_resolution_clock::now();
 
-    for (size_t consCount = 1; consCount <= 10; ++consCount) {
-      for (size_t prodCount = 1; prodCount <= 10; ++prodCount) {
-        auto queue = queue_type{};
-        size_t per_task = NELEMS / prodCount;
-        size_t rem = NELEMS % prodCount;
-        std::vector<tmc::task<void>> prod(prodCount);
-        size_t base = 0;
-        for (size_t i = 0; i < prodCount; ++i) {
-          size_t count = i < rem ? per_task + 1 : per_task;
-          prod[i] = producer(queue, count, base);
-          base += count;
-        }
-        std::vector<tmc::task<result>> cons(consCount);
-        for (size_t i = 0; i < consCount; ++i) {
-          cons[i] = consumer(queue);
-        }
-        auto startTime = std::chrono::high_resolution_clock::now();
-        auto c = tmc::spawn_many(cons).fork();
-        co_await tmc::spawn_many(prod);
+    for (size_t iter = 0; iter < 10; ++iter)
+      for (size_t consCount = 1; consCount <= 1; ++consCount) {
+        for (size_t prodCount = 1; prodCount <= 1; ++prodCount) {
+          auto queue = queue_type{};
+          size_t per_task = NELEMS / prodCount;
+          size_t rem = NELEMS % prodCount;
+          std::vector<tmc::task<void>> prod(prodCount);
+          size_t base = 0;
+          for (size_t i = 0; i < prodCount; ++i) {
+            size_t count = i < rem ? per_task + 1 : per_task;
+            prod[i] = producer(queue, count, base);
+            base += count;
+          }
+          std::vector<tmc::task<result>> cons(consCount);
+          for (size_t i = 0; i < consCount; ++i) {
+            cons[i] = consumer(queue, NELEMS);
+          }
+          auto startTime = std::chrono::high_resolution_clock::now();
+          auto c = tmc::spawn_many(cons).fork();
+          co_await tmc::spawn_many(prod);
 
-        queue.close();
-        co_await queue.drain();
-        auto consResults = co_await std::move(c);
+          // queue.close();
+          // co_await queue.drain();
+          auto consResults = co_await std::move(c);
 
-        auto endTime = std::chrono::high_resolution_clock::now();
+          auto endTime = std::chrono::high_resolution_clock::now();
 
-        size_t count = 0;
-        size_t sum = 0;
-        for (size_t i = 0; i < consResults.size(); ++i) {
-          count += consResults[i].count;
-          sum += consResults[i].sum;
-        }
-        if (count != NELEMS) {
+          size_t count = 0;
+          size_t sum = 0;
+          for (size_t i = 0; i < consResults.size(); ++i) {
+            count += consResults[i].count;
+            sum += consResults[i].sum;
+          }
+          if (count != NELEMS) {
+            std::printf(
+              "FAIL: Expected %zu elements but consumed %zu elements\n",
+              static_cast<size_t>(NELEMS), count
+            );
+          }
+
+          size_t expectedSum = 0;
+          for (size_t i = 0; i < NELEMS; ++i) {
+            expectedSum += i;
+          }
+          if (sum != expectedSum) {
+            std::printf(
+              "FAIL: Expected %zu sum but got %zu sum\n", expectedSum, sum
+            );
+          }
+
+          size_t execDur = static_cast<size_t>(
+            std::chrono::duration_cast<std::chrono::microseconds>(
+              endTime - startTime
+            )
+              .count()
+          );
+
+          double durMs = static_cast<double>(execDur) / 1000.0;
+          size_t elementsPerSec =
+            static_cast<size_t>(static_cast<double>(NELEMS) * 1000.0 / durMs);
           std::printf(
-            "FAIL: Expected %zu elements but consumed %zu elements\n",
-            static_cast<size_t>(NELEMS), count
+            "%zu prod\t%zu cons\t %.2f ms\t%s elements/sec\n", prodCount,
+            consCount, durMs, formatWithCommas(elementsPerSec).c_str()
           );
         }
-
-        size_t expectedSum = 0;
-        for (size_t i = 0; i < NELEMS; ++i) {
-          expectedSum += i;
-        }
-        if (sum != expectedSum) {
-          std::printf(
-            "FAIL: Expected %zu sum but got %zu sum\n", expectedSum, sum
-          );
-        }
-
-        size_t execDur = static_cast<size_t>(
-          std::chrono::duration_cast<std::chrono::microseconds>(
-            endTime - startTime
-          )
-            .count()
-        );
-
-        double durMs = static_cast<double>(execDur) / 1000.0;
-        size_t elementsPerSec =
-          static_cast<size_t>(static_cast<double>(NELEMS) * 1000.0 / durMs);
-        std::printf(
-          "%zu prod\t%zu cons\t %.2f ms\t%s elements/sec\n", prodCount,
-          consCount, durMs, formatWithCommas(elementsPerSec).c_str()
-        );
       }
-    }
 
     auto overallEnd = std::chrono::high_resolution_clock::now();
     size_t overallDur =
