@@ -667,6 +667,80 @@ TEST_F(CATEGORY, drain_wait) {
   producer.join();
 }
 
+TEST_F(CATEGORY, close_and_drain_idempotent) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    auto chan = tmc::make_channel<size_t, chan_config<0>>();
+    auto consumer = tmc::spawn([](auto Chan) -> tmc::task<size_t> {
+                      size_t count = 0;
+                      while (co_await Chan.pull()) {
+                        ++count;
+                      }
+                      co_return count;
+                    }(chan.new_token()))
+                      .fork();
+
+    EXPECT_TRUE(chan.post(1u));
+    EXPECT_TRUE(chan.post(2u));
+
+    chan.close();
+    chan.close();
+
+    co_await chan.drain();
+    co_await chan.drain();
+
+    EXPECT_EQ(co_await std::move(consumer), 2u);
+
+    auto v = co_await chan.pull();
+    EXPECT_FALSE(v.has_value());
+  }());
+}
+
+TEST_F(CATEGORY, close_and_drain_wait_idempotent) {
+  auto chan = tmc::make_channel<size_t, chan_config<0>>();
+  auto drainer = chan.new_token();
+
+  EXPECT_TRUE(chan.post(1u));
+  EXPECT_TRUE(chan.post(2u));
+  EXPECT_TRUE(chan.post(3u));
+
+  std::thread closer([drainer]() mutable {
+    drainer.close();
+    drainer.close();
+    drainer.drain_wait();
+    drainer.drain_wait();
+  });
+
+  test_async_main(ex(), [consumer = chan.new_token()]() mutable -> tmc::task<void> {
+    size_t count = 0;
+    while (co_await consumer.pull()) {
+      ++count;
+    }
+    EXPECT_EQ(count, 3u);
+  }());
+
+  closer.join();
+}
+
+TEST_F(CATEGORY, close_wakes_waiting_consumers) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    auto chan = tmc::make_channel<size_t, chan_config<0>>();
+    std::array<tmc::task<void>, 5> consumers;
+    for (auto& consumer : consumers) {
+      consumer = [](auto Chan) -> tmc::task<void> {
+        auto v = co_await Chan.pull();
+        EXPECT_FALSE(v.has_value());
+      }(chan.new_token());
+    }
+
+    auto waiting = tmc::spawn_many<5>(consumers.data()).fork();
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+
+    chan.close();
+
+    co_await std::move(waiting);
+  }());
+}
+
 // Test new_token() explicit token creation
 TEST_F(CATEGORY, new_token) {
   test_async_main(ex(), []() -> tmc::task<void> {
