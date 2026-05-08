@@ -215,13 +215,24 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
 endif()
 
 # Sanitizers
+set(TMC_SANITIZER "address" CACHE STRING "Sanitizer to enable: address, thread, undefined, or none")
+set_property(CACHE TMC_SANITIZER PROPERTY STRINGS address thread undefined none)
 
-# add_definitions("-fsanitize=address")
-# add_link_options("-fsanitize=address")
-# add_definitions("-fsanitize=thread")
-# add_link_options("-fsanitize=thread")
-# add_definitions("-fsanitize=undefined -fno-sanitize-recover")
-# add_link_options("-fsanitize=undefined")
+if(TMC_SANITIZER STREQUAL "address")
+    add_definitions("-fsanitize=address")
+    add_link_options("-fsanitize=address")
+elseif(TMC_SANITIZER STREQUAL "thread")
+    add_definitions("-fsanitize=thread")
+    add_link_options("-fsanitize=thread")
+elseif(TMC_SANITIZER STREQUAL "undefined")
+    add_definitions("-fsanitize=undefined" "-fno-sanitize-recover")
+    add_link_options("-fsanitize=undefined")
+elseif(NOT TMC_SANITIZER STREQUAL "none")
+    message(FATAL_ERROR "Unsupported TMC_SANITIZER value: ${TMC_SANITIZER}")
+endif()
+
+message(STATUS "TMC_SANITIZER: ${TMC_SANITIZER}")
+
 if(WIN32)
     option(TMC_USE_DLL "Link all targets against tmc_dll shared library" OFF)
 
