@@ -67,9 +67,7 @@ void do_chan_test(Executor& Exec) {
         [](auto& Chan) -> tmc::task<size_t> {
           size_t i = 0;
           for (; i < NITEMS; ++i) {
-            auto handle = Chan.get_hazard_ptr();
-            Chan.post(&handle.value, i);
-            handle.release();
+            Chan.post(i);
           }
           co_return i;
         }(chan),
@@ -115,11 +113,7 @@ void do_chan_test(Executor& Exec) {
             if (j > NITEMS) {
               j = NITEMS;
             }
-            auto handle = Chan.get_hazard_ptr();
-            Chan.post_bulk(
-              &handle.value, std::ranges::views::iota(i).begin(), j - i
-            );
-            handle.release();
+            Chan.post_bulk(std::ranges::views::iota(i).begin(), j - i);
           }
           co_return i;
         }(chan),
@@ -154,9 +148,7 @@ void do_chan_test(Executor& Exec) {
         auto chan = tmc::detail::qu_mpsc<
           mpsc_destructor_counter, chan_config<PackingLevel>>{};
         for (size_t i = 0; i < 12; ++i) {
-          auto handle = chan.get_hazard_ptr();
-          chan.post(&handle.value, mpsc_destructor_counter{&count});
-          handle.release();
+          chan.post(mpsc_destructor_counter{&count});
         }
 
         for (size_t i = 0; i < 7; ++i) {
@@ -186,18 +178,16 @@ TEST_F(CATEGORY, post_bulk_none) {
     auto chan = tmc::detail::qu_mpsc<size_t, chan_config<0>>{};
     size_t i = 0;
     bool ok;
-    auto handle = chan.get_hazard_ptr();
     for (; i < 4; ++i) {
-      chan.post_bulk(&handle.value, &i, 0);
-      chan.post_bulk(&handle.value, std::ranges::views::iota(i).begin(), 0);
-      chan.post(&handle.value, i);
+      chan.post_bulk(&i, 0);
+      chan.post_bulk(std::ranges::views::iota(i).begin(), 0);
+      chan.post(i);
     }
     for (; i < 8; ++i) {
-      chan.post_bulk(&handle.value, std::ranges::views::iota(i).begin(), 0);
-      chan.post_bulk(&handle.value, std::ranges::views::iota(i).begin(), 0);
-      chan.post_bulk(&handle.value, std::ranges::views::iota(i).begin(), 1);
+      chan.post_bulk(std::ranges::views::iota(i).begin(), 0);
+      chan.post_bulk(std::ranges::views::iota(i).begin(), 0);
+      chan.post_bulk(std::ranges::views::iota(i).begin(), 1);
     }
-    handle.release();
     size_t count = 0;
     size_t sum = 0;
     for (size_t j = 0; j < i; ++j) {
