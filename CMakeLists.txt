@@ -10,7 +10,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS "1")
 set(CMAKE_CXX_STANDARD 20)
 
 add_definitions(
-
+	"-DTMC_UNSAFE_EXECUTOR_LIFETIMES"
     # #### Performance tuning options #####
     # "-DTMC_WORK_ITEM=CORO" # one of: CORO, FUNC, FUNCORO
     # "-DTMC_TRIVIAL_TASK" # enabled in this repo for Release builds via CMakePresets.json

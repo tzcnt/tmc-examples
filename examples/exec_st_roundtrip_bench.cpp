@@ -4,9 +4,7 @@
 // where N is the number of cores on the machine.
 
 #include "tmc/all_headers.hpp"
-#include "tmc/asio/ex_asio.hpp"
 
-#include <array>
 #include <chrono>
 #include <cstdio>
 #include <string>
@@ -34,16 +32,6 @@ static tmc::task<void> producer(Exec& ex, size_t count) {
   // co_await std::move(fg);
 }
 
-// A mutex is faster than the serializing executors - perhaps because mutex is
-// LIFO/unfair and the others are FIFO/fair
-static tmc::task<void> mutex_producer(tmc::mutex& mut, size_t count) {
-  // Single task ping-pong latency
-  for (size_t i = 0; i < count; ++i) {
-    auto scope = co_await mut.lock_scope();
-    co_await consumer(static_cast<int>(i));
-  }
-}
-
 static std::string formatWithCommas(size_t n) {
   auto s = std::to_string(n);
   int i = static_cast<int>(s.length()) - 3;
@@ -54,18 +42,14 @@ static std::string formatWithCommas(size_t n) {
   return s;
 }
 
-template <typename Exec, bool Mutex = false>
+template <typename Exec>
 tmc::task<size_t> run_bench(Exec& ex, size_t prodCount) {
   size_t per_task = NELEMS / prodCount;
   size_t rem = NELEMS % prodCount;
   std::vector<tmc::task<void>> prod(prodCount);
   for (size_t i = 0; i < prodCount; ++i) {
     size_t count = i < rem ? per_task + 1 : per_task;
-    if constexpr (Mutex) {
-      prod[i] = mutex_producer(ex, count);
-    } else {
-      prod[i] = producer(ex, count);
-    }
+    prod[i] = producer(ex, count);
   }
 
   auto startTime = std::chrono::high_resolution_clock::now();
@@ -85,7 +69,7 @@ tmc::task<size_t> run_bench(Exec& ex, size_t prodCount) {
 }
 
 int main() {
-  tmc::cpu_executor().init();
+  tmc::cpu_executor().set_spins(100).init();
   return tmc::async_main([]() -> tmc::task<int> {
     size_t threadCount = tmc::cpu_executor().thread_count();
     std::printf(
@@ -94,42 +78,24 @@ int main() {
       threadCount, formatWithCommas(NELEMS).c_str()
     );
     std::printf(
-      "| prods  \t| ex_cpu(1)\t| ex_cpu_st\t| ex_braid\t| ex_asio\t| "
-      "tmc::mutex\t|"
+      "| prods  \t| ex_cpu_st\t|"
     );
     std::printf(
-      "\n| ------------- | ------------- | ------------- | ------------- | "
-      "------------- | ------------- |"
+      "\n| ------------- | ------------- |"
     );
 
-    tmc::ex_cpu exc;
-    exc.set_thread_count(1).init();
-
     tmc::ex_cpu_st excst;
-    excst.init();
+    excst.set_spins(100).init();
 
-    tmc::ex_braid exbr;
-
-    tmc::ex_asio exasio;
-    exasio.init();
-
-    tmc::mutex mut;
-
-    std::array<size_t, 5> totals{};
+    size_t total = 0;
 
     for (size_t prodCount = 1; prodCount <= threadCount; ++prodCount) {
       std::printf("\n| %zu prod\t|", prodCount);
-      totals[0] += co_await run_bench(exc, prodCount);
-      totals[1] += co_await run_bench(excst, prodCount);
-      totals[2] += co_await run_bench(exbr, prodCount);
-      totals[3] += co_await run_bench(exasio, prodCount);
-      totals[4] += co_await run_bench<tmc::mutex, true>(mut, prodCount);
+      total += co_await run_bench(excst, prodCount);
     }
     std::printf("\n\ntotals:\n");
-    for (size_t i = 0; i < totals.size(); ++i) {
-      double overallSec = static_cast<double>(totals[i]) / 1000.0;
-      std::printf(" %.2f sec  ", overallSec);
-    }
+    double overallSec = static_cast<double>(total) / 1000.0;
+    std::printf(" %.2f sec  ", overallSec);
     std::printf("\n");
     co_return 0;
   }());
