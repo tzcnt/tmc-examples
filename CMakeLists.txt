@@ -28,6 +28,9 @@ include(cmake/CPM.cmake)
 # This option exists to simplify my development across repositories.
 option(TMC_AS_SUBMODULE "Download TMC repos as Git submodules" OFF)
 
+# Mirror TooManyCooks' default before adding it so Windows can provide hwloc::hwloc.
+option(TMC_USE_HWLOC "Enable hwloc topology-aware thread placement" ON)
+
 # On Windows, download hwloc binaries before adding TooManyCooks
 # so that its CMakeLists.txt can find them.
 if(WIN32 AND TMC_USE_HWLOC)
@@ -175,7 +178,11 @@ endif()
 # add_definitions("-fsanitize=undefined -fno-sanitize-recover")
 # add_link_options("-fsanitize=undefined")
 if(WIN32)
-    option(TMC_USE_DLL "Link all targets against tmc_dll shared library" OFF)
+    option(TMC_USE_DLL "Link all targets against tmc_dll shared library. Requires TMC_WINDOWS_DLL=ON" OFF)
+
+    if(TMC_USE_DLL AND NOT TMC_WINDOWS_DLL)
+        message(FATAL_ERROR "TMC_USE_DLL requires TMC_WINDOWS_DLL=ON")
+    endif()
 
     # A shared library (DLL) containing the TMC standalone compilation
     add_library(tmc_dll SHARED
