@@ -38,7 +38,7 @@ endif()
 function(make_exe_base target_name)
   add_executable(${target_name} ${ARGN})
   target_link_libraries(${target_name} PRIVATE GTest::gtest_main)
-  target_link_libraries(${target_name} PRIVATE tmc::tmc)
+  target_link_libraries(${target_name} PRIVATE TooManyCooks::TooManyCooks)
 
   # Tests use standalone compilation to speedup the build + test the hwloc.h isolation
   target_compile_definitions(${target_name} PRIVATE TMC_STANDALONE_COMPILATION)
@@ -73,7 +73,7 @@ if(WIN32)
   target_compile_definitions(tests_tmc_build_dll PRIVATE TMC_WINDOWS_DLL)
   target_link_libraries(tests_tmc_build_dll PRIVATE tmc_dll)
   target_link_libraries(tests_tmc_build_dll PRIVATE GTest::gtest_main)
-  target_link_libraries(tests_tmc_build_dll PRIVATE tmc::tmc)
+  target_link_libraries(tests_tmc_build_dll PRIVATE TooManyCooks::TooManyCooks)
   target_compile_definitions(tests_tmc_build_dll PRIVATE TMC_STANDALONE_COMPILATION TMC_NO_UNKNOWN_AWAITABLES)
 endif()
 
@@ -86,7 +86,7 @@ add_library(tests_tmc_build_lib OBJECT
   standalone_compilation.cpp
 )
 target_link_libraries(tests_tmc_build_lib PRIVATE GTest::gtest_main)
-target_link_libraries(tests_tmc_build_lib PRIVATE tmc::tmc)
+target_link_libraries(tests_tmc_build_lib PRIVATE TooManyCooks::TooManyCooks)
 target_compile_definitions(tests_tmc_build_lib PRIVATE TMC_STANDALONE_COMPILATION TMC_NO_UNKNOWN_AWAITABLES)
 
 make_exe_base(

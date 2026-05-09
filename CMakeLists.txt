@@ -91,7 +91,7 @@ endif()
 link_libraries(${MALLOC_LIB})
 
 # Standalone asio or boost::asio support
-# The tmc::tmc target propagates the TMC_USE_BOOST_ASIO define, but does not
+# The TooManyCooks::TooManyCooks target propagates the TMC_USE_BOOST_ASIO define, but does not
 # provide the asio or boost::asio headers. The consumer must make them available
 # (e.g. via find_package, CPM, or system install) before including tmc-asio headers.
 if(TMC_USE_BOOST_ASIO)
@@ -181,7 +181,7 @@ if(WIN32)
     add_library(tmc_dll SHARED
         examples/standalone_compilation.cpp
     )
-    target_link_libraries(tmc_dll PRIVATE tmc::tmc)
+    target_link_libraries(tmc_dll PRIVATE TooManyCooks::TooManyCooks)
     target_compile_definitions(tmc_dll PRIVATE TMC_WINDOWS_DLL)
 
     if(TMC_USE_HWLOC)
@@ -196,7 +196,7 @@ endif()
 function(make_exe target_name)
     add_executable(${target_name} ${ARGN})
 
-    target_link_libraries(${target_name} PRIVATE tmc::tmc)
+    target_link_libraries(${target_name} PRIVATE TooManyCooks::TooManyCooks)
 
     # copy compile_commands.json to the build directory after build so clangd can find it
     # clangd won't look in the /build/{PRESET} directory, only in the top-level /build directory
