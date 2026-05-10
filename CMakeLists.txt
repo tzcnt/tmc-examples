@@ -22,14 +22,29 @@ endif()
 
 include(cmake/CPM.cmake)
 
-# By default, download the TMC repos as CPM packages.
-# If this option is enabled, CMake will expect them to be in git submodules.
-# You must run `submodule update --init --recursive` before turning this on.
-# This option exists to simplify my development across repositories.
-option(TMC_AS_SUBMODULE "Download TMC repos as Git submodules" OFF)
-
-# Mirror TooManyCooks' default before adding it so Windows can provide hwloc::hwloc.
+# TooManyCooks options. Set these before add_subdirectory()/CPMAddPackage()
+# so they are applied to the TooManyCooks::TooManyCooks interface target.
+# Defaults are specified below.
 option(TMC_USE_HWLOC "Enable hwloc topology-aware thread placement" ON)
+option(TMC_USE_BOOST_ASIO "Use boost::asio instead of standalone asio" OFF)
+
+set(TMC_WORK_ITEM "CORO" CACHE STRING "Work item type: CORO or FUNCORO")
+set_property(CACHE TMC_WORK_ITEM PROPERTY STRINGS "CORO" "FUNCORO")
+
+option(TMC_TRIVIAL_TASK "Enable trivial task optimization" OFF)
+option(TMC_NODISCARD_AWAIT "Enable [[nodiscard]] on co_await" OFF)
+
+set(TMC_PRIORITY_COUNT "" CACHE STRING "Number of priority levels (1-16, empty for runtime-configurable)")
+
+option(TMC_MORE_THREADS "Allow more than 64 threads" OFF)
+option(TMC_DEBUG_TASK_ALLOC_COUNT "Track task allocation count for HALO analysis" OFF)
+option(TMC_DEBUG_THREAD_CREATION "Print thread creation and work stealing info" OFF)
+
+option(TMC_STANDALONE_COMPILATION "Disable header-only mode. Library will be built into the file that defines TMC_IMPL" OFF)
+
+if(WIN32)
+    option(TMC_WINDOWS_DLL "Enable Windows DLL mode" OFF)
+endif()
 
 # On Windows, download hwloc binaries before adding TooManyCooks
 # so that its CMakeLists.txt can find them.
@@ -53,6 +68,12 @@ if(WIN32 AND TMC_USE_HWLOC)
         INTERFACE_INCLUDE_DIRECTORIES "${hwloc_SOURCE_DIR}/include"
     )
 endif()
+
+# By default, download the TMC repos as CPM packages.
+# If this option is enabled, CMake will expect them to be in git submodules.
+# You must run `submodule update --init --recursive` before turning this on.
+# This option exists to simplify my development across repositories.
+option(TMC_AS_SUBMODULE "Download TMC repos as Git submodules" OFF)
 
 if(TMC_AS_SUBMODULE)
     add_subdirectory(submodules/TooManyCooks)
