@@ -18,6 +18,8 @@ jobs:
         PRESET: [clang-linux-debug]
         WORK_ITEM: [CORO]
     steps:
+    - name: install-hwloc
+      run: sudo apt-get update && sudo apt-get install -y hwloc libhwloc-dev
     - uses: actions/checkout@v4
     - name: submodule-clone
       run: >
