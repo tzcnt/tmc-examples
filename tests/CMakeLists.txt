@@ -35,14 +35,27 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL 
   )
 endif()
 
-function(make_exe_base target_name)
-  # Tests use standalone compilation to speedup the build + test the hwloc.h isolation
-  add_compile_definitions(TMC_STANDALONE_COMPILATION)
-  add_executable(${target_name} ${ARGN})
-  target_link_libraries(${target_name} PRIVATE GTest::gtest_main)
+add_library(tmc_test_common INTERFACE)
+target_link_libraries(tmc_test_common INTERFACE
+  GTest::gtest_main
+  TooManyCooks::TooManyCooks
+)
 
-  # Variables created by parent project
-  target_include_directories(${target_name} PRIVATE ${TMC_INCLUDE_PATH})
+# Most tests use standalone compilation to speed up the build + test the hwloc.h isolation.
+target_compile_definitions(tmc_test_common INTERFACE TMC_STANDALONE_COMPILATION)
+
+add_library(tmc_test_no_unknown_awaitables INTERFACE)
+target_compile_definitions(tmc_test_no_unknown_awaitables INTERFACE TMC_NO_UNKNOWN_AWAITABLES)
+
+set(TMC_HWLOC_TEST_SOURCES
+  fixtures/topo_13600k.cpp
+  test_hwloc.cpp
+  test_hwloc_synthetic.cpp
+)
+
+function(make_exe_base target_name)
+  add_executable(${target_name} ${ARGN})
+  target_link_libraries(${target_name} PRIVATE tmc_test_common)
 
   # copy compile_commands.json to the build directory after build so clangd can find it
   # clangd won't look in the /build/{config} directory, only in the top-level /build directory
@@ -67,36 +80,22 @@ endfunction()
 if(WIN32)
   # This doesn't include the TMC definitions - those come from tmc_build.dll
   add_library(tests_tmc_build_dll STATIC
-    fixtures/topo_13600k.cpp
-    test_hwloc.cpp
-    test_hwloc_synthetic.cpp
+    ${TMC_HWLOC_TEST_SOURCES}
   )
   target_compile_definitions(tests_tmc_build_dll PRIVATE TMC_WINDOWS_DLL)
   target_link_libraries(tests_tmc_build_dll PRIVATE tmc_dll)
-  target_link_libraries(tests_tmc_build_dll PRIVATE GTest::gtest_main)
-  target_compile_definitions(tests_tmc_build_dll PRIVATE TMC_NO_UNKNOWN_AWAITABLES)
-  target_include_directories(tests_tmc_build_dll PRIVATE ${TMC_INCLUDE_PATH})
-
-  if(TMC_USE_HWLOC)
-    target_include_directories(tests_tmc_build_dll SYSTEM PUBLIC ${HWLOC_INCLUDE_PATH})
-  endif()
+  target_link_libraries(tests_tmc_build_dll PRIVATE tmc_test_common)
+  target_link_libraries(tests_tmc_build_dll PRIVATE tmc_test_no_unknown_awaitables)
 endif()
 
 # This includes the TMC definitions.
 # Whether this or the DLL target is linked to tests depends on whether TMC_WINDOWS_DLL is defined.
 add_library(tests_tmc_build_lib OBJECT
-  fixtures/topo_13600k.cpp
-  test_hwloc.cpp
-  test_hwloc_synthetic.cpp
+  ${TMC_HWLOC_TEST_SOURCES}
   standalone_compilation.cpp
 )
-target_link_libraries(tests_tmc_build_lib PRIVATE GTest::gtest_main)
-target_compile_definitions(tests_tmc_build_lib PRIVATE TMC_NO_UNKNOWN_AWAITABLES)
-target_include_directories(tests_tmc_build_lib PRIVATE ${TMC_INCLUDE_PATH})
-
-if(TMC_USE_HWLOC)
-  target_include_directories(tests_tmc_build_lib SYSTEM PUBLIC ${HWLOC_INCLUDE_PATH})
-endif()
+target_link_libraries(tests_tmc_build_lib PRIVATE tmc_test_common)
+target_link_libraries(tests_tmc_build_lib PRIVATE tmc_test_no_unknown_awaitables)
 
 make_exe_base(
   tests
@@ -137,7 +136,7 @@ make_exe_base(
   test_container.cpp
   test_traits.cpp
 )
-target_compile_definitions(tests PRIVATE TMC_NO_UNKNOWN_AWAITABLES)
+target_link_libraries(tests PRIVATE tmc_test_no_unknown_awaitables)
 
 if(TMC_USE_DLL)
   target_compile_definitions(tests PRIVATE TMC_WINDOWS_DLL)
@@ -157,29 +156,18 @@ endif()
 function(make_exe target_name)
   make_exe_base(${target_name} ${ARGN})
   target_sources(${target_name} PRIVATE standalone_compilation.cpp)
-
-  if(TMC_USE_HWLOC)
-    target_include_directories(${target_name} SYSTEM PRIVATE ${HWLOC_INCLUDE_PATH})
-  endif()
 endfunction()
 
 make_exe(test_exceptions test_exceptions.cpp)
 
 make_exe(test_halo test_halo.cpp)
-target_compile_definitions(test_halo PRIVATE TMC_DEBUG_TASK_ALLOC_COUNT TMC_NO_UNKNOWN_AWAITABLES)
+target_compile_definitions(test_halo PRIVATE TMC_DEBUG_TASK_ALLOC_COUNT)
+target_link_libraries(test_halo PRIVATE tmc_test_no_unknown_awaitables)
 
 make_exe(test_fuzz_chan test_fuzz_chan.cpp)
-target_compile_definitions(test_fuzz_chan PRIVATE TMC_NO_UNKNOWN_AWAITABLES)
+target_link_libraries(test_fuzz_chan PRIVATE tmc_test_no_unknown_awaitables)
 
 make_exe(test_container test_container.cpp)
-target_compile_definitions(test_container PRIVATE TMC_NO_UNKNOWN_AWAITABLES)
-
-if(TMC_USE_HWLOC AND LIBHWLOC_FOUND)
-  target_link_libraries(tests PRIVATE ${LIBHWLOC_LIBRARY})
-  target_link_libraries(test_exceptions PRIVATE ${LIBHWLOC_LIBRARY})
-  target_link_libraries(test_halo PRIVATE ${LIBHWLOC_LIBRARY})
-  target_link_libraries(test_fuzz_chan PRIVATE ${LIBHWLOC_LIBRARY})
-  target_link_libraries(test_container PRIVATE ${LIBHWLOC_LIBRARY})
-endif()
+target_link_libraries(test_container PRIVATE tmc_test_no_unknown_awaitables)
 
 gtest_discover_tests(tests)
