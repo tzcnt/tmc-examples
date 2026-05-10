@@ -198,6 +198,8 @@ endif()
 # add_link_options("-fsanitize=thread")
 # add_definitions("-fsanitize=undefined -fno-sanitize-recover")
 # add_link_options("-fsanitize=undefined")
+
+# Demonstrating how to link TMC into a DLL
 if(WIN32)
     option(TMC_USE_DLL "Link all targets against tmc_dll shared library. Requires TMC_WINDOWS_DLL=ON" OFF)
 
@@ -221,10 +223,21 @@ if(WIN32)
     endif()
 endif()
 
+if(TMC_STANDALONE_COMPILATION AND NOT TMC_USE_DLL)
+    add_library(tmc_standalone_compilation OBJECT
+        examples/standalone_compilation.cpp
+    )
+    target_link_libraries(tmc_standalone_compilation PRIVATE TooManyCooks::TooManyCooks)
+endif()
+
 function(make_exe target_name)
     add_executable(${target_name} ${ARGN})
 
     target_link_libraries(${target_name} PRIVATE TooManyCooks::TooManyCooks)
+
+    if(TMC_STANDALONE_COMPILATION AND NOT TMC_USE_DLL)
+        target_link_libraries(${target_name} PRIVATE tmc_standalone_compilation)
+    endif()
 
     # copy compile_commands.json to the build directory after build so clangd can find it
     # clangd won't look in the /build/{PRESET} directory, only in the top-level /build directory
