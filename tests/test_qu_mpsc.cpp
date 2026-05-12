@@ -17,10 +17,13 @@ protected:
   static tmc::ex_cpu& ex() { return tmc::cpu_executor(); }
 };
 
-template <size_t Pack> struct chan_config : tmc::chan_default_config {
+static constexpr size_t MPSC_TEST_SENTINEL = static_cast<size_t>(-1);
+
+template <size_t Pack> struct chan_config : tmc::detail::qu_mpsc_default_config {
   // Use a small block size to ensure that alloc / reclaim is triggered.
   static inline constexpr size_t BlockSize = 2;
   static inline constexpr size_t PackingLevel = Pack;
+  static inline constexpr bool ConsumerCanSuspend = true;
 };
 
 // This version has to be default constructible
@@ -69,20 +72,20 @@ void do_chan_test(Executor& Exec) {
           for (; i < NITEMS; ++i) {
             Chan.post(i);
           }
+          Chan.post(MPSC_TEST_SENTINEL);
           co_return i;
         }(chan),
         [](auto& Chan) -> tmc::task<result> {
           size_t count = 0;
           size_t sum = 0;
-          for (size_t i = 0; i < NITEMS; ++i) {
-            size_t v;
-            while (!Chan.try_pull(v)) {
-              TMC_CPU_PAUSE();
+          while (true) {
+            size_t v = co_await Chan.pull();
+            if (v == MPSC_TEST_SENTINEL) {
+              co_return result{count, sum};
             }
             ++count;
             sum += v;
           }
-          co_return result{count, sum};
         }(chan)
       );
       auto& prod = std::get<0>(results);
