@@ -19,10 +19,11 @@ protected:
 
 static constexpr size_t MPSC_TEST_SENTINEL = static_cast<size_t>(-1);
 
-template <size_t Pack> struct chan_config : tmc::chan_default_config {
+template <size_t Pack> struct chan_config : tmc::detail::qu_mpsc_default_config {
   // Use a small block size to ensure that alloc / reclaim is triggered.
   static inline constexpr size_t BlockSize = 2;
   static inline constexpr size_t PackingLevel = Pack;
+  static inline constexpr bool ConsumerCanSuspend = true;
 };
 
 // This version has to be default constructible
