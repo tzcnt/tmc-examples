@@ -99,7 +99,8 @@ int main() {
   // Spin to keep executors alive long enough for the ping-pong. If we don't do
   // this, executors with faster queues are punished, because they go to sleep
   // more quickly after completing their work.
-  producer_ex.set_spins(50).init();
+  producer_ex.set_spins(50);
+  producer_ex.init();
   tmc::post_waitable(
     producer_ex,
     [&]() -> tmc::task<int> {
@@ -120,17 +121,25 @@ int main() {
       );
 
       tmc::ex_cpu exc;
+#ifdef TMC_USE_HWLOC
       exc.add_partition(group0);
-      exc.set_spins(50).set_thread_count(1).init();
+#endif
+      exc.set_spins(50);
+      exc.set_thread_count(1).init();
 
       tmc::ex_cpu_st excst;
+#ifdef TMC_USE_HWLOC
       excst.add_partition(group0);
-      excst.set_spins(50).init();
+#endif
+      excst.set_spins(50);
+      excst.init();
 
       tmc::ex_braid exbr;
 
       tmc::ex_asio exasio;
+#ifdef TMC_USE_HWLOC
       exasio.add_partition(group0);
+#endif
       exasio.init();
 
       tmc::mutex mut;
