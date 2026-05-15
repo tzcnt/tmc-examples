@@ -5,6 +5,7 @@
 
 #include "tmc/all_headers.hpp"
 #include "tmc/asio/ex_asio.hpp"
+#include "tmc/topology.hpp"
 
 #include <array>
 #include <chrono>
@@ -85,52 +86,73 @@ tmc::task<size_t> run_bench(Exec& ex, size_t prodCount) {
 }
 
 int main() {
-  tmc::cpu_executor().init();
-  return tmc::async_main([]() -> tmc::task<int> {
-    size_t threadCount = tmc::cpu_executor().thread_count();
-    std::printf(
-      "ex_st_roundtrip_bench: sweep 1 to %zu producers | %s elements | output "
-      "units: tasks/sec\n",
-      threadCount, formatWithCommas(NELEMS).c_str()
-    );
-    std::printf(
-      "| prods  \t| ex_cpu(1)\t| ex_cpu_st\t| ex_braid\t| ex_asio\t| "
-      "tmc::mutex\t|"
-    );
-    std::printf(
-      "\n| ------------- | ------------- | ------------- | ------------- | "
-      "------------- | ------------- |"
-    );
+  // Run the producer-side using the most efficient executor (single-threaded)
+  // so we are mostly benchmarking the consumer-side round trip.
+  tmc::ex_cpu_st producer_ex;
+#ifdef TMC_USE_HWLOC
+  // If possible, bind all of the executors to the same L3 cache for consistent
+  // latency.
+  tmc::topology::topology_filter group0;
+  group0.set_group_indexes({0});
+  producer_ex.add_partition(group0);
+#endif
+  // Spin to keep executors alive long enough for the ping-pong. If we don't do
+  // this, executors with faster queues are punished, because they go to sleep
+  // more quickly after completing their work.
+  producer_ex.set_spins(50).init();
+  tmc::post_waitable(
+    producer_ex,
+    [&]() -> tmc::task<int> {
+      size_t maxProducers = 64;
+      std::printf(
+        "ex_st_roundtrip_bench: sweep 1 to %zu producers | %s elements | "
+        "output "
+        "units: tasks/sec\n",
+        maxProducers, formatWithCommas(NELEMS).c_str()
+      );
+      std::printf(
+        "| prods  \t| ex_cpu(1)\t| ex_cpu_st\t| ex_braid\t| ex_asio\t| "
+        "tmc::mutex\t|"
+      );
+      std::printf(
+        "\n| ------------- | ------------- | ------------- | ------------- | "
+        "------------- | ------------- |"
+      );
 
-    tmc::ex_cpu exc;
-    exc.set_thread_count(1).init();
+      tmc::ex_cpu exc;
+      exc.add_partition(group0);
+      exc.set_spins(50).set_thread_count(1).init();
 
-    tmc::ex_cpu_st excst;
-    excst.init();
+      tmc::ex_cpu_st excst;
+      excst.add_partition(group0);
+      excst.set_spins(50).init();
 
-    tmc::ex_braid exbr;
+      tmc::ex_braid exbr;
 
-    tmc::ex_asio exasio;
-    exasio.init();
+      tmc::ex_asio exasio;
+      exasio.add_partition(group0);
+      exasio.init();
 
-    tmc::mutex mut;
+      tmc::mutex mut;
 
-    std::array<size_t, 5> totals{};
+      std::array<size_t, 5> totals{};
 
-    for (size_t prodCount = 1; prodCount <= threadCount; ++prodCount) {
-      std::printf("\n| %zu prod\t|", prodCount);
-      totals[0] += co_await run_bench(exc, prodCount);
-      totals[1] += co_await run_bench(excst, prodCount);
-      totals[2] += co_await run_bench(exbr, prodCount);
-      totals[3] += co_await run_bench(exasio, prodCount);
-      totals[4] += co_await run_bench<tmc::mutex, true>(mut, prodCount);
-    }
-    std::printf("\n\ntotals:\n");
-    for (size_t i = 0; i < totals.size(); ++i) {
-      double overallSec = static_cast<double>(totals[i]) / 1000.0;
-      std::printf(" %.2f sec  ", overallSec);
-    }
-    std::printf("\n");
-    co_return 0;
-  }());
+      for (size_t prodCount = 1; prodCount <= maxProducers; ++prodCount) {
+        std::printf("\n| %zu prod\t|", prodCount);
+        totals[0] += co_await run_bench(exc, prodCount);
+        totals[1] += co_await run_bench(excst, prodCount);
+        totals[2] += co_await run_bench(exbr, prodCount);
+        totals[3] += co_await run_bench(exasio, prodCount);
+        totals[4] += co_await run_bench<tmc::mutex, true>(mut, prodCount);
+      }
+      std::printf("\n\ntotals:\n");
+      for (size_t i = 0; i < totals.size(); ++i) {
+        double overallSec = static_cast<double>(totals[i]) / 1000.0;
+        std::printf(" %.2f sec  ", overallSec);
+      }
+      std::printf("\n");
+      co_return 0;
+    }()
+  )
+    .wait();
 }
