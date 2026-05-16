@@ -241,11 +241,17 @@ function(make_exe target_name)
 
     # copy compile_commands.json to the build directory after build so clangd can find it
     # clangd won't look in the /build/{PRESET} directory, only in the top-level /build directory
-    add_custom_command(TARGET ${target_name} POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        ${CMAKE_BINARY_DIR}/compile_commands.json
-        ${CMAKE_CURRENT_LIST_DIR}/build
-    )
+
+    # this often fails on GitHub Actions for some reason, so disable it there
+    option(TMC_COPY_COMPILE_COMMANDS "Copy compile_commands.json to the top-level build directory after each target builds" ON)
+
+    if(TMC_COPY_COMPILE_COMMANDS)
+        add_custom_command(TARGET ${target_name} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            ${CMAKE_BINARY_DIR}/compile_commands.json
+            ${CMAKE_CURRENT_LIST_DIR}/build
+        )
+    endif()
 
     if(TMC_USE_DLL)
         target_link_libraries(${target_name} PRIVATE tmc_dll)
