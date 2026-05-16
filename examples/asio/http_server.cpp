@@ -92,6 +92,13 @@ int main() {
   tmc::topology::topology_filter f;
   f.set_group_indexes({0});
   tmc::asio_executor().add_partition(f);
+  auto topo = tmc::topology::query();
+
+  // Optionally, also pin the CPU executor to the same cache group and leave 1
+  // core free for the I/O executor.
+  tmc::cpu_executor().add_partition(f).set_thread_count(
+    topo.groups[0].core_indexes.size() - 1
+  );
 #endif
 
   tmc::asio_executor().init();
@@ -105,6 +112,8 @@ int main() {
     // overall throughput since the Asio executor doesn't need to
     // process any continuations inline. Additionally, it eliminates
     // any risk of accidentally blocking the I/O thread.
+    // On my server, with the core-pinning behavior above (7 CPU threads +
+    // 1 Asio thread), this can serve 800k RPS.
     acceptors.fork(accept(55550));
 
     // This customization runs both the I/O calls and the continuations
@@ -112,6 +121,7 @@ int main() {
     // improve latency in low load scenarios, but will have worse
     // bandwidth under high load. Additionally, care must be taken to
     // manually offload CPU-bound work to the cpu executor.
+    // On my server, this can serve 340k RPS.
     acceptors.fork(accept(55551), tmc::asio_executor());
 
     co_await std::move(acceptors);
