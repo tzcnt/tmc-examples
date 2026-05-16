@@ -111,6 +111,7 @@ make_exe_base(
   test_auto_reset_event.cpp
   test_manual_reset_event.cpp
   test_mutex.cpp
+  test_mutex_queue.cpp
   test_semaphore.cpp
   test_ex_any.cpp
   test_ex_cpu.cpp
