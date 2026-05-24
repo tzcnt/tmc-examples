@@ -13,14 +13,14 @@
 #include <vector>
 
 #define NELEMS 10000000
-static constexpr size_t PRODUCER_COUNT = 2;
+static constexpr size_t PRODUCER_COUNT = 1;
 static constexpr size_t CONSUMER_COUNT = 1;
 
 struct queue_config : tmc::qu_unbounded_mpsc_default_config {
-  static inline constexpr bool ConsumerCanSuspend = true;
-  // static inline constexpr size_t BlockSize = 4096;
-  // static inline constexpr size_t PackingLevel = 0;
-  // static inline constexpr bool EmbedFirstBlock = false;
+  // static inline constexpr bool ConsumerCanSuspend = true;
+  //  static inline constexpr size_t BlockSize = 4096;
+  //  static inline constexpr size_t PackingLevel = 0;
+  //  static inline constexpr bool EmbedFirstBlock = false;
 };
 using queue_t = tmc::qu_unbounded_mpsc<size_t, queue_config>;
 
@@ -35,9 +35,9 @@ producer(queue_t& queue, size_t count, size_t base) {
   // but for this benchmark we test pushing 1 at a time.
   for (size_t i = 0; i < count; ++i) {
     queue.post(base + i);
-    // if (i % 16384 == 0) {
-    //   co_await tmc::reschedule();
-    // }
+    if (i % 16384 == 0) {
+      co_await tmc::reschedule();
+    }
   }
   auto endTime = std::chrono::high_resolution_clock::now();
   co_return producer_result{static_cast<size_t>(
@@ -118,7 +118,7 @@ int main() {
     }
     auto startTime = std::chrono::high_resolution_clock::now();
     std::vector<tmc::task<result>> cons(CONSUMER_COUNT);
-    cons[0] = consumer(queue, NELEMS);
+    cons[0] = consumer_try_pull(queue, NELEMS);
     auto c = tmc::spawn_many(cons).fork();
     auto prodResults = co_await tmc::spawn_many(prod);
     auto consResults = co_await std::move(c);

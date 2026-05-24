@@ -387,9 +387,9 @@ TEST_F(CATEGORY, close_concurrent_producer) {
   }());
 }
 
-// close_inline() behaves like close() for post(): subsequent posts fail and
-// pre-close posts still drain.
-TEST_F(CATEGORY, close_inline_basic_try_pull) {
+// close_resume_inline() behaves like close() for post(): subsequent posts fail
+// and pre-close posts still drain.
+TEST_F(CATEGORY, close_resume_inline_basic_try_pull) {
   test_async_main(ex(), []() -> tmc::task<void> {
     using qerr = tmc::qu_unbounded_mpsc_err;
     auto q = tmc::qu_unbounded_mpsc<size_t, q_config<0>>{};
@@ -398,9 +398,9 @@ TEST_F(CATEGORY, close_inline_basic_try_pull) {
       EXPECT_TRUE(q.post(i));
     }
 
-    q.close_inline();
+    q.close_resume_inline();
 
-    // post() after close_inline should fail.
+    // post() after close_resume_inline should fail.
     EXPECT_FALSE(q.post(static_cast<size_t>(99)));
 
     // Drain the queue.
@@ -414,7 +414,7 @@ TEST_F(CATEGORY, close_inline_basic_try_pull) {
       } else if (v.status() == qerr::CLOSED) {
         break;
       } else {
-        ADD_FAILURE() << "Unexpected EMPTY after close_inline";
+        ADD_FAILURE() << "Unexpected EMPTY after close_resume_inline";
         break;
       }
     }
@@ -429,12 +429,13 @@ TEST_F(CATEGORY, close_inline_basic_try_pull) {
   }());
 }
 
-// close_inline() with no values posted: try_pull immediately returns CLOSED.
-TEST_F(CATEGORY, close_inline_empty_try_pull) {
+// close_resume_inline() with no values posted: try_pull immediately returns
+// CLOSED.
+TEST_F(CATEGORY, close_resume_inline_empty_try_pull) {
   test_async_main(ex(), []() -> tmc::task<void> {
     using qerr = tmc::qu_unbounded_mpsc_err;
     auto q = tmc::qu_unbounded_mpsc<size_t, q_config<0>>{};
-    q.close_inline();
+    q.close_resume_inline();
 
     auto v = q.try_pull();
     EXPECT_EQ(qerr::CLOSED, v.status());
@@ -443,14 +444,14 @@ TEST_F(CATEGORY, close_inline_empty_try_pull) {
   }());
 }
 
-// close_inline() is idempotent and may be intermixed with close().
-TEST_F(CATEGORY, close_inline_idempotent) {
+// close_resume_inline() is idempotent and may be intermixed with close().
+TEST_F(CATEGORY, close_resume_inline_idempotent) {
   test_async_main(ex(), []() -> tmc::task<void> {
     auto q = tmc::qu_unbounded_mpsc<size_t, q_config<0>>{};
-    q.close_inline();
-    q.close_inline();
+    q.close_resume_inline();
+    q.close_resume_inline();
     q.close();
-    q.close_inline();
+    q.close_resume_inline();
     EXPECT_FALSE(q.post(static_cast<size_t>(1)));
     co_return;
   }());
@@ -458,14 +459,14 @@ TEST_F(CATEGORY, close_inline_idempotent) {
 
 // pull() resumes with an empty scope when the queue is closed_inline and
 // drained.
-TEST_F(CATEGORY, close_inline_pull_drains_then_returns_empty) {
+TEST_F(CATEGORY, close_resume_inline_pull_drains_then_returns_empty) {
   test_async_main(ex(), []() -> tmc::task<void> {
     auto q = tmc::qu_unbounded_mpsc<size_t, q_config<0>>{};
 
     for (size_t i = 0; i < 3; ++i) {
       EXPECT_TRUE(q.post(i));
     }
-    q.close_inline();
+    q.close_resume_inline();
 
     // Drain via pull().
     size_t count = 0;
@@ -484,11 +485,11 @@ TEST_F(CATEGORY, close_inline_pull_drains_then_returns_empty) {
   }());
 }
 
-// close_inline() wakes a consumer suspended on an empty slot, just like
+// close_resume_inline() wakes a consumer suspended on an empty slot, just like
 // close() does. The consumer is parked at slot 0 (no producer has posted),
-// then close_inline() races in and publishes the CLOSED sentinel at slot 0,
-// which wakes the consumer with an empty scope.
-TEST_F(CATEGORY, close_inline_wakes_suspended_consumer) {
+// then close_resume_inline() races in and publishes the CLOSED sentinel at slot
+// 0, which wakes the consumer with an empty scope.
+TEST_F(CATEGORY, close_resume_inline_wakes_suspended_consumer) {
   test_async_main(ex(), []() -> tmc::task<void> {
     auto q = tmc::qu_unbounded_mpsc<size_t, q_config<0>>{};
 
@@ -502,13 +503,15 @@ TEST_F(CATEGORY, close_inline_wakes_suspended_consumer) {
         for (size_t i = 0; i < 10; ++i) {
           co_await tmc::reschedule();
         }
-        Q.close_inline();
+        Q.close_resume_inline();
         co_return;
       }(q)
     );
 
     bool got_value = std::get<0>(results);
-    EXPECT_FALSE(got_value); // consumer was woken by close_inline with empty
+    EXPECT_FALSE(
+      got_value
+    ); // consumer was woken by close_resume_inline with empty
     co_return;
   }());
 }
