@@ -19,8 +19,7 @@ protected:
 
 static constexpr size_t MPSC_TEST_SENTINEL = static_cast<size_t>(-1);
 
-template <size_t Pack>
-struct chan_config : tmc::qu_unbounded_mpsc_default_config {
+template <size_t Pack> struct q_config : tmc::qu_unbounded_mpsc_default_config {
   // Use a small block size to ensure that alloc / reclaim is triggered.
   static inline constexpr size_t BlockSize = 2;
   static inline constexpr size_t PackingLevel = Pack;
@@ -55,7 +54,7 @@ struct mpsc_destructor_counter {
 
 // multiple tests in one to leverage the configuration options in one place
 template <size_t PackingLevel, typename Executor>
-void do_chan_test(Executor& Exec) {
+void do_q_test(Executor& Exec) {
   test_async_main(Exec, []() -> tmc::task<void> {
     {
       // general test - single push
@@ -65,29 +64,29 @@ void do_chan_test(Executor& Exec) {
         size_t sum;
       };
 
-      auto chan = tmc::qu_unbounded_mpsc<size_t, chan_config<PackingLevel>>{};
+      auto q = tmc::qu_unbounded_mpsc<size_t, q_config<PackingLevel>>{};
 
       auto results = co_await tmc::spawn_tuple(
-        [](auto& Chan) -> tmc::task<size_t> {
+        [](auto& Q) -> tmc::task<size_t> {
           size_t i = 0;
           for (; i < NITEMS; ++i) {
-            Chan.post(i);
+            Q.post(i);
           }
-          Chan.post(MPSC_TEST_SENTINEL);
+          Q.post(MPSC_TEST_SENTINEL);
           co_return i;
-        }(chan),
-        [](auto& Chan) -> tmc::task<result> {
+        }(q),
+        [](auto& Q) -> tmc::task<result> {
           size_t count = 0;
           size_t sum = 0;
           while (true) {
-            auto v = co_await Chan.pull();
+            auto v = co_await Q.pull();
             if (*v == MPSC_TEST_SENTINEL) {
               co_return result{count, sum};
             }
             ++count;
             sum += *v;
           }
-        }(chan)
+        }(q)
       );
       auto& prod = std::get<0>(results);
       auto& cons = std::get<1>(results);
@@ -107,34 +106,34 @@ void do_chan_test(Executor& Exec) {
         size_t sum;
       };
 
-      auto chan = tmc::qu_unbounded_mpsc<size_t, chan_config<PackingLevel>>{};
+      auto q = tmc::qu_unbounded_mpsc<size_t, q_config<PackingLevel>>{};
 
       auto results = co_await tmc::spawn_tuple(
-        [](auto& Chan) -> tmc::task<size_t> {
+        [](auto& Q) -> tmc::task<size_t> {
           size_t i = 0;
           for (; i < NITEMS; i += (NITEMS / 10)) {
             size_t j = i + (NITEMS / 10);
             if (j > NITEMS) {
               j = NITEMS;
             }
-            Chan.post_bulk(std::ranges::views::iota(i).begin(), j - i);
+            Q.post_bulk(std::ranges::views::iota(i).begin(), j - i);
           }
           co_return i;
-        }(chan),
-        [](auto& Chan) -> tmc::task<result> {
+        }(q),
+        [](auto& Q) -> tmc::task<result> {
           size_t count = 0;
           size_t sum = 0;
           for (size_t i = 0; i < NITEMS; ++i) {
-            auto v = Chan.try_pull();
+            auto v = Q.try_pull();
             while (!v) {
               TMC_CPU_PAUSE();
-              v = Chan.try_pull();
+              v = Q.try_pull();
             }
             ++count;
             sum += *v;
           }
           co_return result{count, sum};
-        }(chan)
+        }(q)
       );
       auto& prod = std::get<0>(results);
       auto& cons = std::get<1>(results);
@@ -147,31 +146,31 @@ void do_chan_test(Executor& Exec) {
       EXPECT_EQ(expectedSum, cons.sum);
     }
     {
-      // destroy chan with data remaining inside
+      // destroy q with data remaining inside
       std::atomic<size_t> count;
       {
-        auto chan = tmc::qu_unbounded_mpsc<
-          mpsc_destructor_counter, chan_config<PackingLevel>>{};
+        auto q = tmc::qu_unbounded_mpsc<
+          mpsc_destructor_counter, q_config<PackingLevel>>{};
         for (size_t i = 0; i < 12; ++i) {
-          chan.post(mpsc_destructor_counter{&count});
+          q.post(mpsc_destructor_counter{&count});
         }
 
         for (size_t i = 0; i < 7; ++i) {
-          auto ok = chan.try_pull();
+          auto ok = q.try_pull();
           EXPECT_TRUE(static_cast<bool>(ok));
         }
 
         EXPECT_EQ(count.load(), 7);
       }
-      // Now chan goes out of scope; remaining data's destructors are called
+      // Now q goes out of scope; remaining data's destructors are called
       EXPECT_EQ(count.load(), 12);
     }
   }());
 }
 
 TEST_F(CATEGORY, config_sweep) {
-  do_chan_test<0>(ex());
-  do_chan_test<1>(ex());
+  do_q_test<0>(ex());
+  do_q_test<1>(ex());
 }
 
 // Test post_bulk of 0 items
@@ -179,22 +178,22 @@ TEST_F(CATEGORY, post_bulk_none) {
   tmc::ex_cpu ex;
   ex.set_thread_count(1).init();
   test_async_main(ex, []() -> tmc::task<void> {
-    auto chan = tmc::qu_unbounded_mpsc<size_t, chan_config<0>>{};
+    auto q = tmc::qu_unbounded_mpsc<size_t, q_config<0>>{};
     size_t i = 0;
     for (; i < 4; ++i) {
-      chan.post_bulk(&i, 0);
-      chan.post_bulk(std::ranges::views::iota(i).begin(), 0);
-      chan.post(i);
+      q.post_bulk(&i, 0);
+      q.post_bulk(std::ranges::views::iota(i).begin(), 0);
+      q.post(i);
     }
     for (; i < 8; ++i) {
-      chan.post_bulk(std::ranges::views::iota(i).begin(), 0);
-      chan.post_bulk(std::ranges::views::iota(i).begin(), 0);
-      chan.post_bulk(std::ranges::views::iota(i).begin(), 1);
+      q.post_bulk(std::ranges::views::iota(i).begin(), 0);
+      q.post_bulk(std::ranges::views::iota(i).begin(), 0);
+      q.post_bulk(std::ranges::views::iota(i).begin(), 1);
     }
     size_t count = 0;
     size_t sum = 0;
     for (size_t j = 0; j < i; ++j) {
-      auto v = chan.try_pull();
+      auto v = q.try_pull();
       EXPECT_TRUE(static_cast<bool>(v));
       sum += *v;
       ++count;
@@ -202,7 +201,7 @@ TEST_F(CATEGORY, post_bulk_none) {
     EXPECT_EQ(28, sum);
     EXPECT_EQ(8, count);
 
-    auto v = chan.try_pull();
+    auto v = q.try_pull();
     EXPECT_FALSE(static_cast<bool>(v));
     co_return;
   }());
@@ -212,22 +211,22 @@ TEST_F(CATEGORY, post_bulk_none) {
 TEST_F(CATEGORY, close_basic_try_pull) {
   test_async_main(ex(), []() -> tmc::task<void> {
     using qerr = tmc::qu_unbounded_mpsc_err;
-    auto chan = tmc::qu_unbounded_mpsc<size_t, chan_config<0>>{};
+    auto q = tmc::qu_unbounded_mpsc<size_t, q_config<0>>{};
 
     for (size_t i = 0; i < 5; ++i) {
-      EXPECT_TRUE(chan.post(i));
+      EXPECT_TRUE(q.post(i));
     }
 
-    chan.close();
+    q.close();
 
     // post() after close should fail.
-    EXPECT_FALSE(chan.post(static_cast<size_t>(99)));
+    EXPECT_FALSE(q.post(static_cast<size_t>(99)));
 
     // Drain the queue.
     size_t sum = 0;
     size_t count = 0;
     while (true) {
-      auto v = chan.try_pull();
+      auto v = q.try_pull();
       if (v.status() == qerr::OK) {
         sum += *v;
         ++count;
@@ -243,7 +242,7 @@ TEST_F(CATEGORY, close_basic_try_pull) {
     EXPECT_EQ(0u + 1u + 2u + 3u + 4u, sum);
 
     // Further try_pull stays CLOSED.
-    auto v = chan.try_pull();
+    auto v = q.try_pull();
     EXPECT_EQ(qerr::CLOSED, v.status());
     EXPECT_FALSE(static_cast<bool>(v));
     co_return;
@@ -254,10 +253,10 @@ TEST_F(CATEGORY, close_basic_try_pull) {
 TEST_F(CATEGORY, close_empty_try_pull) {
   test_async_main(ex(), []() -> tmc::task<void> {
     using qerr = tmc::qu_unbounded_mpsc_err;
-    auto chan = tmc::qu_unbounded_mpsc<size_t, chan_config<0>>{};
-    chan.close();
+    auto q = tmc::qu_unbounded_mpsc<size_t, q_config<0>>{};
+    q.close();
 
-    auto v = chan.try_pull();
+    auto v = q.try_pull();
     EXPECT_EQ(qerr::CLOSED, v.status());
     EXPECT_FALSE(static_cast<bool>(v));
     co_return;
@@ -267,11 +266,11 @@ TEST_F(CATEGORY, close_empty_try_pull) {
 // close() is idempotent.
 TEST_F(CATEGORY, close_idempotent) {
   test_async_main(ex(), []() -> tmc::task<void> {
-    auto chan = tmc::qu_unbounded_mpsc<size_t, chan_config<0>>{};
-    chan.close();
-    chan.close();
-    chan.close();
-    EXPECT_FALSE(chan.post(static_cast<size_t>(1)));
+    auto q = tmc::qu_unbounded_mpsc<size_t, q_config<0>>{};
+    q.close();
+    q.close();
+    q.close();
+    EXPECT_FALSE(q.post(static_cast<size_t>(1)));
     co_return;
   }());
 }
@@ -279,18 +278,18 @@ TEST_F(CATEGORY, close_idempotent) {
 // pull() resumes with an empty scope when the queue is closed and drained.
 TEST_F(CATEGORY, close_pull_drains_then_returns_empty) {
   test_async_main(ex(), []() -> tmc::task<void> {
-    auto chan = tmc::qu_unbounded_mpsc<size_t, chan_config<0>>{};
+    auto q = tmc::qu_unbounded_mpsc<size_t, q_config<0>>{};
 
     for (size_t i = 0; i < 3; ++i) {
-      EXPECT_TRUE(chan.post(i));
+      EXPECT_TRUE(q.post(i));
     }
-    chan.close();
+    q.close();
 
     // Drain via pull().
     size_t count = 0;
     size_t sum = 0;
     while (true) {
-      auto v = co_await chan.pull();
+      auto v = co_await q.pull();
       if (!v) {
         break; // closed and drained
       }
@@ -308,21 +307,21 @@ TEST_F(CATEGORY, close_pull_drains_then_returns_empty) {
 // CLOSED sentinel at slot 0, which wakes the consumer with an empty scope.
 TEST_F(CATEGORY, close_wakes_suspended_consumer) {
   test_async_main(ex(), []() -> tmc::task<void> {
-    auto chan = tmc::qu_unbounded_mpsc<size_t, chan_config<0>>{};
+    auto q = tmc::qu_unbounded_mpsc<size_t, q_config<0>>{};
 
     auto results = co_await tmc::spawn_tuple(
-      [](auto& Chan) -> tmc::task<bool> {
-        auto v = co_await Chan.pull();
+      [](auto& Q) -> tmc::task<bool> {
+        auto v = co_await Q.pull();
         co_return static_cast<bool>(v);
-      }(chan),
-      [](auto& Chan) -> tmc::task<void> {
-        // Yield to give the consumer a chance to suspend.
+      }(q),
+      [](auto& Q) -> tmc::task<void> {
+        // Yield to give the consumer a qce to suspend.
         for (size_t i = 0; i < 10; ++i) {
           co_await tmc::reschedule();
         }
-        Chan.close();
+        Q.close();
         co_return;
-      }(chan)
+      }(q)
     );
 
     bool got_value = std::get<0>(results);
@@ -334,11 +333,11 @@ TEST_F(CATEGORY, close_wakes_suspended_consumer) {
 // post_bulk() returns false when called after close.
 TEST_F(CATEGORY, close_post_bulk_returns_false) {
   test_async_main(ex(), []() -> tmc::task<void> {
-    auto chan = tmc::qu_unbounded_mpsc<size_t, chan_config<0>>{};
-    chan.close();
+    auto q = tmc::qu_unbounded_mpsc<size_t, q_config<0>>{};
+    q.close();
 
     size_t vals[3] = {10, 11, 12};
-    EXPECT_FALSE(chan.post_bulk(&vals[0], 3));
+    EXPECT_FALSE(q.post_bulk(&vals[0], 3));
     co_return;
   }());
 }
@@ -348,13 +347,13 @@ TEST_F(CATEGORY, close_post_bulk_returns_false) {
 TEST_F(CATEGORY, close_concurrent_producer) {
   test_async_main(ex(), []() -> tmc::task<void> {
     static constexpr size_t NITEMS = 2000;
-    auto chan = tmc::qu_unbounded_mpsc<size_t, chan_config<0>>{};
+    auto q = tmc::qu_unbounded_mpsc<size_t, q_config<0>>{};
     std::atomic<size_t> posted_ok{0};
 
     auto results = co_await tmc::spawn_tuple(
-      [&](auto& Chan) -> tmc::task<void> {
+      [&](auto& Q) -> tmc::task<void> {
         for (size_t i = 0; i < NITEMS; ++i) {
-          if (Chan.post(static_cast<size_t>(1))) {
+          if (Q.post(static_cast<size_t>(1))) {
             posted_ok.fetch_add(1, std::memory_order_relaxed);
           }
           // Yield occasionally to allow other tasks to run.
@@ -364,21 +363,21 @@ TEST_F(CATEGORY, close_concurrent_producer) {
         }
         // After this producer is done, close the queue. There are no other
         // producers, so all posts() that succeeded are pre-close.
-        Chan.close();
+        Q.close();
         // Subsequent posts must fail.
-        EXPECT_FALSE(Chan.post(static_cast<size_t>(999)));
+        EXPECT_FALSE(Q.post(static_cast<size_t>(999)));
         co_return;
-      }(chan),
-      [](auto& Chan) -> tmc::task<size_t> {
+      }(q),
+      [](auto& Q) -> tmc::task<size_t> {
         size_t pulled = 0;
         while (true) {
-          auto v = co_await Chan.pull();
+          auto v = co_await Q.pull();
           if (!v) {
             co_return pulled;
           }
           pulled += *v;
         }
-      }(chan)
+      }(q)
     );
 
     size_t pulled = std::get<1>(results);
@@ -393,22 +392,22 @@ TEST_F(CATEGORY, close_concurrent_producer) {
 TEST_F(CATEGORY, close_inline_basic_try_pull) {
   test_async_main(ex(), []() -> tmc::task<void> {
     using qerr = tmc::qu_unbounded_mpsc_err;
-    auto chan = tmc::qu_unbounded_mpsc<size_t, chan_config<0>>{};
+    auto q = tmc::qu_unbounded_mpsc<size_t, q_config<0>>{};
 
     for (size_t i = 0; i < 5; ++i) {
-      EXPECT_TRUE(chan.post(i));
+      EXPECT_TRUE(q.post(i));
     }
 
-    chan.close_inline();
+    q.close_inline();
 
     // post() after close_inline should fail.
-    EXPECT_FALSE(chan.post(static_cast<size_t>(99)));
+    EXPECT_FALSE(q.post(static_cast<size_t>(99)));
 
     // Drain the queue.
     size_t sum = 0;
     size_t count = 0;
     while (true) {
-      auto v = chan.try_pull();
+      auto v = q.try_pull();
       if (v.status() == qerr::OK) {
         sum += *v;
         ++count;
@@ -423,7 +422,7 @@ TEST_F(CATEGORY, close_inline_basic_try_pull) {
     EXPECT_EQ(0u + 1u + 2u + 3u + 4u, sum);
 
     // Further try_pull stays CLOSED.
-    auto v = chan.try_pull();
+    auto v = q.try_pull();
     EXPECT_EQ(qerr::CLOSED, v.status());
     EXPECT_FALSE(static_cast<bool>(v));
     co_return;
@@ -434,10 +433,10 @@ TEST_F(CATEGORY, close_inline_basic_try_pull) {
 TEST_F(CATEGORY, close_inline_empty_try_pull) {
   test_async_main(ex(), []() -> tmc::task<void> {
     using qerr = tmc::qu_unbounded_mpsc_err;
-    auto chan = tmc::qu_unbounded_mpsc<size_t, chan_config<0>>{};
-    chan.close_inline();
+    auto q = tmc::qu_unbounded_mpsc<size_t, q_config<0>>{};
+    q.close_inline();
 
-    auto v = chan.try_pull();
+    auto v = q.try_pull();
     EXPECT_EQ(qerr::CLOSED, v.status());
     EXPECT_FALSE(static_cast<bool>(v));
     co_return;
@@ -447,12 +446,12 @@ TEST_F(CATEGORY, close_inline_empty_try_pull) {
 // close_inline() is idempotent and may be intermixed with close().
 TEST_F(CATEGORY, close_inline_idempotent) {
   test_async_main(ex(), []() -> tmc::task<void> {
-    auto chan = tmc::qu_unbounded_mpsc<size_t, chan_config<0>>{};
-    chan.close_inline();
-    chan.close_inline();
-    chan.close();
-    chan.close_inline();
-    EXPECT_FALSE(chan.post(static_cast<size_t>(1)));
+    auto q = tmc::qu_unbounded_mpsc<size_t, q_config<0>>{};
+    q.close_inline();
+    q.close_inline();
+    q.close();
+    q.close_inline();
+    EXPECT_FALSE(q.post(static_cast<size_t>(1)));
     co_return;
   }());
 }
@@ -461,18 +460,18 @@ TEST_F(CATEGORY, close_inline_idempotent) {
 // drained.
 TEST_F(CATEGORY, close_inline_pull_drains_then_returns_empty) {
   test_async_main(ex(), []() -> tmc::task<void> {
-    auto chan = tmc::qu_unbounded_mpsc<size_t, chan_config<0>>{};
+    auto q = tmc::qu_unbounded_mpsc<size_t, q_config<0>>{};
 
     for (size_t i = 0; i < 3; ++i) {
-      EXPECT_TRUE(chan.post(i));
+      EXPECT_TRUE(q.post(i));
     }
-    chan.close_inline();
+    q.close_inline();
 
     // Drain via pull().
     size_t count = 0;
     size_t sum = 0;
     while (true) {
-      auto v = co_await chan.pull();
+      auto v = co_await q.pull();
       if (!v) {
         break; // closed and drained
       }
@@ -491,21 +490,21 @@ TEST_F(CATEGORY, close_inline_pull_drains_then_returns_empty) {
 // which wakes the consumer with an empty scope.
 TEST_F(CATEGORY, close_inline_wakes_suspended_consumer) {
   test_async_main(ex(), []() -> tmc::task<void> {
-    auto chan = tmc::qu_unbounded_mpsc<size_t, chan_config<0>>{};
+    auto q = tmc::qu_unbounded_mpsc<size_t, q_config<0>>{};
 
     auto results = co_await tmc::spawn_tuple(
-      [](auto& Chan) -> tmc::task<bool> {
-        auto v = co_await Chan.pull();
+      [](auto& Q) -> tmc::task<bool> {
+        auto v = co_await Q.pull();
         co_return static_cast<bool>(v);
-      }(chan),
-      [](auto& Chan) -> tmc::task<void> {
-        // Yield to give the consumer a chance to suspend.
+      }(q),
+      [](auto& Q) -> tmc::task<void> {
+        // Yield to give the consumer a qce to suspend.
         for (size_t i = 0; i < 10; ++i) {
           co_await tmc::reschedule();
         }
-        Chan.close_inline();
+        Q.close_inline();
         co_return;
-      }(chan)
+      }(q)
     );
 
     bool got_value = std::get<0>(results);
@@ -516,8 +515,8 @@ TEST_F(CATEGORY, close_inline_wakes_suspended_consumer) {
 
 // Config that uses the default ConsumerCanSuspend = false. This exercises
 // the non-suspending code path in write_element (set_data_ready()), which
-// chan_config<> overrides to true and which is otherwise never tested.
-struct chan_config_no_suspend : tmc::qu_unbounded_mpsc_default_config {
+// q_config<> overrides to true and which is otherwise never tested.
+struct q_config_no_suspend : tmc::qu_unbounded_mpsc_default_config {
   static inline constexpr size_t BlockSize = 2;
   // ConsumerCanSuspend defaults to false
 };
@@ -525,24 +524,24 @@ struct chan_config_no_suspend : tmc::qu_unbounded_mpsc_default_config {
 TEST_F(CATEGORY, no_suspend_try_pull_only) {
   test_async_main(ex(), []() -> tmc::task<void> {
     using qerr = tmc::qu_unbounded_mpsc_err;
-    auto chan = tmc::qu_unbounded_mpsc<size_t, chan_config_no_suspend>{};
+    auto q = tmc::qu_unbounded_mpsc<size_t, q_config_no_suspend>{};
 
     // No data available yet: try_pull returns EMPTY.
     {
-      auto v = chan.try_pull();
+      auto v = q.try_pull();
       EXPECT_EQ(qerr::EMPTY, v.status());
       EXPECT_FALSE(static_cast<bool>(v));
     }
 
     static constexpr size_t NITEMS = 100;
     for (size_t i = 0; i < NITEMS; ++i) {
-      EXPECT_TRUE(chan.post(i));
+      EXPECT_TRUE(q.post(i));
     }
 
     size_t sum = 0;
     size_t count = 0;
     for (size_t i = 0; i < NITEMS; ++i) {
-      auto v = chan.try_pull();
+      auto v = q.try_pull();
       EXPECT_EQ(qerr::OK, v.status());
       EXPECT_TRUE(static_cast<bool>(v));
       sum += *v;
@@ -556,13 +555,13 @@ TEST_F(CATEGORY, no_suspend_try_pull_only) {
     EXPECT_EQ(expected, sum);
 
     // After draining: EMPTY again.
-    auto v = chan.try_pull();
+    auto v = q.try_pull();
     EXPECT_EQ(qerr::EMPTY, v.status());
     EXPECT_FALSE(static_cast<bool>(v));
 
     // Close and verify CLOSED status.
-    chan.close();
-    auto v2 = chan.try_pull();
+    q.close();
+    auto v2 = q.try_pull();
     EXPECT_EQ(qerr::CLOSED, v2.status());
     co_return;
   }());
@@ -571,7 +570,7 @@ TEST_F(CATEGORY, no_suspend_try_pull_only) {
 // EmbedFirstBlock = true: first block is embedded in the qu_mpsc object.
 // Push and reclaim past the embedded block to ensure the destructor handles
 // the embedded-vs-heap distinction correctly.
-struct chan_config_embed : tmc::qu_unbounded_mpsc_default_config {
+struct q_config_embed : tmc::qu_unbounded_mpsc_default_config {
   static inline constexpr size_t BlockSize = 2;
   static inline constexpr bool EmbedFirstBlock = true;
   static inline constexpr bool ConsumerCanSuspend = true;
@@ -579,12 +578,12 @@ struct chan_config_embed : tmc::qu_unbounded_mpsc_default_config {
 
 TEST_F(CATEGORY, embed_first_block) {
   test_async_main(ex(), []() -> tmc::task<void> {
-    auto chan = tmc::qu_unbounded_mpsc<size_t, chan_config_embed>{};
+    auto q = tmc::qu_unbounded_mpsc<size_t, q_config_embed>{};
     static constexpr size_t NITEMS = 50; // many block transitions
     size_t sum = 0;
     for (size_t i = 0; i < NITEMS; ++i) {
-      EXPECT_TRUE(chan.post(i));
-      auto v = chan.try_pull();
+      EXPECT_TRUE(q.post(i));
+      auto v = q.try_pull();
       EXPECT_TRUE(static_cast<bool>(v));
       sum += *v;
     }
@@ -601,12 +600,12 @@ TEST_F(CATEGORY, embed_first_block) {
   {
     std::atomic<size_t> count{0};
     {
-      auto chan =
-        tmc::qu_unbounded_mpsc<mpsc_destructor_counter, chan_config_embed>{};
+      auto q =
+        tmc::qu_unbounded_mpsc<mpsc_destructor_counter, q_config_embed>{};
       // 2 items fit in the embedded block (BlockSize=2). Add more to also
       // exercise heap blocks alongside the embedded block.
       for (size_t i = 0; i < 5; ++i) {
-        chan.post(mpsc_destructor_counter{&count});
+        q.post(mpsc_destructor_counter{&count});
       }
     }
     EXPECT_EQ(count.load(), 5);
@@ -621,10 +620,10 @@ TEST_F(CATEGORY, multi_producer) {
     static constexpr size_t PER_PRODUCER = 500;
     static constexpr size_t TOTAL = NPRODUCERS * PER_PRODUCER;
 
-    auto chan = tmc::qu_unbounded_mpsc<size_t, chan_config<0>>{};
+    auto q = tmc::qu_unbounded_mpsc<size_t, q_config<0>>{};
 
     auto results = co_await tmc::spawn_tuple(
-      [](auto& Chan) -> tmc::task<size_t> {
+      [](auto& Q) -> tmc::task<size_t> {
         // Producer orchestrator: spawn NPRODUCERS producers in parallel.
         std::vector<tmc::task<size_t>> producers;
         for (size_t p = 0; p < NPRODUCERS; ++p) {
@@ -638,7 +637,7 @@ TEST_F(CATEGORY, multi_producer) {
               }
             }
             co_return produced;
-          }(Chan, p * PER_PRODUCER));
+          }(Q, p * PER_PRODUCER));
         }
         auto counts =
           co_await tmc::spawn_many(producers.data(), producers.size());
@@ -647,13 +646,13 @@ TEST_F(CATEGORY, multi_producer) {
           totalProduced += c;
         }
         // Wake the consumer.
-        Chan.post(MPSC_TEST_SENTINEL);
+        Q.post(MPSC_TEST_SENTINEL);
         co_return totalProduced;
-      }(chan),
-      [](auto& Chan) -> tmc::task<size_t> {
+      }(q),
+      [](auto& Q) -> tmc::task<size_t> {
         size_t pulled = 0;
         while (true) {
-          auto v = co_await Chan.pull();
+          auto v = co_await Q.pull();
           if (!v) {
             co_return pulled;
           }
@@ -662,7 +661,7 @@ TEST_F(CATEGORY, multi_producer) {
           }
           ++pulled;
         }
-      }(chan)
+      }(q)
     );
 
     EXPECT_EQ(TOTAL, std::get<0>(results));
@@ -680,13 +679,12 @@ TEST_F(CATEGORY, try_pull_zc_scope_move) {
     {
       std::atomic<size_t> count{0};
       {
-        auto chan =
-          tmc::qu_unbounded_mpsc<mpsc_destructor_counter, chan_config<0>>{};
-        chan.post(mpsc_destructor_counter{&count});
-        chan.post(mpsc_destructor_counter{&count});
-        chan.post(mpsc_destructor_counter{&count});
+        auto q = tmc::qu_unbounded_mpsc<mpsc_destructor_counter, q_config<0>>{};
+        q.post(mpsc_destructor_counter{&count});
+        q.post(mpsc_destructor_counter{&count});
+        q.post(mpsc_destructor_counter{&count});
 
-        auto v1 = chan.try_pull();
+        auto v1 = q.try_pull();
         EXPECT_TRUE(static_cast<bool>(v1));
         auto v2 = std::move(v1);
         EXPECT_FALSE(static_cast<bool>(v1));
@@ -701,15 +699,14 @@ TEST_F(CATEGORY, try_pull_zc_scope_move) {
     {
       std::atomic<size_t> count{0};
       {
-        using qu =
-          tmc::qu_unbounded_mpsc<mpsc_destructor_counter, chan_config<0>>;
-        qu chan{};
-        chan.post(mpsc_destructor_counter{&count});
-        chan.post(mpsc_destructor_counter{&count});
+        using qu = tmc::qu_unbounded_mpsc<mpsc_destructor_counter, q_config<0>>;
+        qu q{};
+        q.post(mpsc_destructor_counter{&count});
+        q.post(mpsc_destructor_counter{&count});
 
         typename qu::try_pull_zc_scope dest;
         EXPECT_FALSE(static_cast<bool>(dest));
-        auto src = chan.try_pull();
+        auto src = q.try_pull();
         EXPECT_TRUE(static_cast<bool>(src));
         dest = std::move(src);
         EXPECT_FALSE(static_cast<bool>(src));
@@ -725,23 +722,23 @@ TEST_F(CATEGORY, try_pull_zc_scope_move) {
 TEST_F(CATEGORY, try_pull_empty_status) {
   test_async_main(ex(), []() -> tmc::task<void> {
     using qerr = tmc::qu_unbounded_mpsc_err;
-    auto chan = tmc::qu_unbounded_mpsc<size_t, chan_config<0>>{};
+    auto q = tmc::qu_unbounded_mpsc<size_t, q_config<0>>{};
 
     {
-      auto v = chan.try_pull();
+      auto v = q.try_pull();
       EXPECT_EQ(qerr::EMPTY, v.status());
       EXPECT_FALSE(static_cast<bool>(v));
     }
 
-    chan.post(static_cast<size_t>(7));
+    q.post(static_cast<size_t>(7));
     {
-      auto v2 = chan.try_pull();
+      auto v2 = q.try_pull();
       EXPECT_EQ(qerr::OK, v2.status());
       EXPECT_TRUE(static_cast<bool>(v2));
     }
 
     {
-      auto v3 = chan.try_pull();
+      auto v3 = q.try_pull();
       EXPECT_EQ(qerr::EMPTY, v3.status());
     }
     co_return;
@@ -755,37 +752,37 @@ TEST_F(CATEGORY, close_concurrent_post_bulk) {
   test_async_main(ex(), []() -> tmc::task<void> {
     static constexpr size_t NBULKS = 200;
     static constexpr size_t BULK_SIZE = 7;
-    auto chan = tmc::qu_unbounded_mpsc<size_t, chan_config<0>>{};
+    auto q = tmc::qu_unbounded_mpsc<size_t, q_config<0>>{};
     std::atomic<size_t> posted_ok{0};
 
     auto results = co_await tmc::spawn_tuple(
-      [&](auto& Chan) -> tmc::task<void> {
+      [&](auto& Q) -> tmc::task<void> {
         size_t vals[BULK_SIZE];
         for (size_t i = 0; i < BULK_SIZE; ++i) {
           vals[i] = 1;
         }
         for (size_t i = 0; i < NBULKS; ++i) {
-          if (Chan.post_bulk(&vals[0], BULK_SIZE)) {
+          if (Q.post_bulk(&vals[0], BULK_SIZE)) {
             posted_ok.fetch_add(BULK_SIZE, std::memory_order_relaxed);
           }
           if ((i & 0xF) == 0) {
             co_await tmc::reschedule();
           }
         }
-        Chan.close();
-        EXPECT_FALSE(Chan.post_bulk(&vals[0], BULK_SIZE));
+        Q.close();
+        EXPECT_FALSE(Q.post_bulk(&vals[0], BULK_SIZE));
         co_return;
-      }(chan),
-      [](auto& Chan) -> tmc::task<size_t> {
+      }(q),
+      [](auto& Q) -> tmc::task<size_t> {
         size_t pulled = 0;
         while (true) {
-          auto v = co_await Chan.pull();
+          auto v = co_await Q.pull();
           if (!v) {
             co_return pulled;
           }
           pulled += *v;
         }
-      }(chan)
+      }(q)
     );
 
     size_t pulled = std::get<1>(results);
