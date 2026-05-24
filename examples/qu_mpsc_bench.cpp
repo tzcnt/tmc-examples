@@ -13,11 +13,11 @@
 #include <vector>
 
 #define NELEMS 10000000
-static constexpr size_t PRODUCER_COUNT = 1;
+static constexpr size_t PRODUCER_COUNT = 2;
 static constexpr size_t CONSUMER_COUNT = 1;
 
 struct queue_config : tmc::qu_unbounded_mpsc_default_config {
-  // static inline constexpr bool ConsumerCanSuspend = true;
+  //  static inline constexpr bool ConsumerCanSuspend = true;
   //  static inline constexpr size_t BlockSize = 4096;
   //  static inline constexpr size_t PackingLevel = 0;
   //  static inline constexpr bool EmbedFirstBlock = false;
@@ -51,7 +51,8 @@ struct result {
   size_t sum;
 };
 
-static tmc::task<result> consumer(queue_t& queue, size_t expected_count) {
+[[maybe_unused]] static tmc::task<result>
+consumer(queue_t& queue, size_t expected_count) {
   size_t count = 0;
   size_t sum = 0;
 
@@ -118,7 +119,7 @@ int main() {
     }
     auto startTime = std::chrono::high_resolution_clock::now();
     std::vector<tmc::task<result>> cons(CONSUMER_COUNT);
-    cons[0] = consumer_try_pull(queue, NELEMS);
+    cons[0] = consumer(queue, NELEMS);
     auto c = tmc::spawn_many(cons).fork();
     auto prodResults = co_await tmc::spawn_many(prod);
     auto consResults = co_await std::move(c);
