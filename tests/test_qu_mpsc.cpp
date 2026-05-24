@@ -718,6 +718,69 @@ TEST_F(CATEGORY, try_pull_zc_scope_move) {
   }());
 }
 
+// Move-assignment of try_pull_zc_scope when the destination already holds a
+// value. Two distinct queues are used because the API requires that at most
+// one scope from a given queue be live at a time. The destination scope's
+// element must be released (destroyed + slot freed) before adopting the
+// source's element.
+TEST_F(CATEGORY, try_pull_zc_scope_move_assign_over_nonempty) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    std::atomic<size_t> count1{0};
+    std::atomic<size_t> count2{0};
+    {
+      auto q1 = tmc::qu_unbounded_mpsc<mpsc_destructor_counter, q_config<0>>{};
+      auto q2 = tmc::qu_unbounded_mpsc<mpsc_destructor_counter, q_config<0>>{};
+      q1.post(mpsc_destructor_counter{&count1});
+      q2.post(mpsc_destructor_counter{&count2});
+
+      auto v1 = q1.try_pull();
+      EXPECT_TRUE(static_cast<bool>(v1));
+      auto v2 = q2.try_pull();
+      EXPECT_TRUE(static_cast<bool>(v2));
+      EXPECT_EQ(0u, count1.load());
+      EXPECT_EQ(0u, count2.load());
+
+      // Move-assign over a non-empty scope. v1's existing element (from q1)
+      // must be destroyed and its slot released; v1 then takes ownership of
+      // v2's element (from q2).
+      v1 = std::move(v2);
+      EXPECT_FALSE(static_cast<bool>(v2));
+      EXPECT_TRUE(static_cast<bool>(v1));
+      EXPECT_EQ(1u, count1.load()); // q1's slot was destroyed by the assign
+      EXPECT_EQ(0u, count2.load()); // q2's element now lives in v1
+    } // ~v1 destroys q2's element (count2 -> 1); both queues then destruct.
+    EXPECT_EQ(1u, count1.load());
+    EXPECT_EQ(1u, count2.load());
+    co_return;
+  }());
+}
+
+// Self-move-assignment of try_pull_zc_scope must be a no-op: the held value
+// stays valid and the slot is not double-released. (This exercises the
+// `this != &Other` early-out branch in operator=.)
+TEST_F(CATEGORY, try_pull_zc_scope_self_move_assign) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    std::atomic<size_t> count{0};
+    {
+      auto q = tmc::qu_unbounded_mpsc<mpsc_destructor_counter, q_config<0>>{};
+      q.post(mpsc_destructor_counter{&count});
+
+      auto v = q.try_pull();
+      EXPECT_TRUE(static_cast<bool>(v));
+
+      // Self-move-assign through a reference to defeat compiler warnings.
+      auto& vref = v;
+      v = std::move(vref);
+
+      EXPECT_TRUE(static_cast<bool>(v));
+      EXPECT_NE(v->count, nullptr);
+      EXPECT_EQ(0u, count.load());
+    }
+    EXPECT_EQ(1u, count.load());
+    co_return;
+  }());
+}
+
 // Explicit EMPTY status before close().
 TEST_F(CATEGORY, try_pull_empty_status) {
   test_async_main(ex(), []() -> tmc::task<void> {
@@ -788,6 +851,140 @@ TEST_F(CATEGORY, close_concurrent_post_bulk) {
     size_t pulled = std::get<1>(results);
     EXPECT_EQ(posted_ok.load(), pulled);
     EXPECT_EQ(NBULKS * BULK_SIZE, pulled);
+    co_return;
+  }());
+}
+
+// Type that requires multiple arguments to construct. Used to verify that
+// post() forwards a variadic argument pack and constructs T in-place.
+struct mpsc_multi_arg {
+  size_t a;
+  size_t b;
+  size_t c;
+  mpsc_multi_arg(size_t A, size_t B, size_t C) noexcept : a{A}, b{B}, c{C} {}
+  mpsc_multi_arg(size_t A, size_t B) noexcept : a{A}, b{B}, c{0} {}
+};
+
+// post() forwards variadic arguments and constructs T in-place.
+TEST_F(CATEGORY, post_variadic_args) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    auto q = tmc::qu_unbounded_mpsc<mpsc_multi_arg, q_config<0>>{};
+
+    // Single-argument form: construct from an existing T.
+    EXPECT_TRUE(q.post(mpsc_multi_arg{1, 2, 3}));
+    // Two-argument form.
+    EXPECT_TRUE(q.post(static_cast<size_t>(4), static_cast<size_t>(5)));
+    // Three-argument form: construct in-place from (size_t, size_t, size_t).
+    EXPECT_TRUE(q.post(
+      static_cast<size_t>(6), static_cast<size_t>(7), static_cast<size_t>(8)
+    ));
+
+    {
+      auto v = q.try_pull();
+      EXPECT_TRUE(static_cast<bool>(v));
+      EXPECT_EQ(1u, v->a);
+      EXPECT_EQ(2u, v->b);
+      EXPECT_EQ(3u, v->c);
+    }
+    {
+      auto v = q.try_pull();
+      EXPECT_TRUE(static_cast<bool>(v));
+      EXPECT_EQ(4u, v->a);
+      EXPECT_EQ(5u, v->b);
+      EXPECT_EQ(0u, v->c);
+    }
+    {
+      auto v = q.try_pull();
+      EXPECT_TRUE(static_cast<bool>(v));
+      EXPECT_EQ(6u, v->a);
+      EXPECT_EQ(7u, v->b);
+      EXPECT_EQ(8u, v->c);
+    }
+    co_return;
+  }());
+}
+
+// post_bulk(Begin, End) iterator-pair overload.
+TEST_F(CATEGORY, post_bulk_iter_pair) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    auto q = tmc::qu_unbounded_mpsc<size_t, q_config<0>>{};
+
+    std::vector<size_t> vals;
+    for (size_t i = 0; i < 10; ++i) {
+      vals.push_back(i);
+    }
+    EXPECT_TRUE(q.post_bulk(vals.begin(), vals.end()));
+
+    size_t count = 0;
+    size_t sum = 0;
+    for (size_t i = 0; i < 10; ++i) {
+      auto v = q.try_pull();
+      EXPECT_TRUE(static_cast<bool>(v));
+      sum += *v;
+      ++count;
+    }
+    EXPECT_EQ(10u, count);
+    EXPECT_EQ(0u + 1u + 2u + 3u + 4u + 5u + 6u + 7u + 8u + 9u, sum);
+
+    auto empty = q.try_pull();
+    EXPECT_FALSE(static_cast<bool>(empty));
+    co_return;
+  }());
+}
+
+// post_bulk(Range) range overload.
+TEST_F(CATEGORY, post_bulk_range) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    auto q = tmc::qu_unbounded_mpsc<size_t, q_config<0>>{};
+
+    std::vector<size_t> vals;
+    for (size_t i = 0; i < 10; ++i) {
+      vals.push_back(i);
+    }
+    EXPECT_TRUE(q.post_bulk(vals));
+
+    size_t count = 0;
+    size_t sum = 0;
+    for (size_t i = 0; i < 10; ++i) {
+      auto v = q.try_pull();
+      EXPECT_TRUE(static_cast<bool>(v));
+      sum += *v;
+      ++count;
+    }
+    EXPECT_EQ(10u, count);
+    EXPECT_EQ(0u + 1u + 2u + 3u + 4u + 5u + 6u + 7u + 8u + 9u, sum);
+
+    auto empty = q.try_pull();
+    EXPECT_FALSE(static_cast<bool>(empty));
+    co_return;
+  }());
+}
+
+// All 3 post_bulk forms accept zero-element inputs and become no-ops.
+TEST_F(CATEGORY, post_bulk_empty_all_forms) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    auto q = tmc::qu_unbounded_mpsc<size_t, q_config<0>>{};
+
+    // (iter, count) form with count == 0.
+    size_t dummy = 0;
+    EXPECT_TRUE(q.post_bulk(&dummy, 0));
+
+    // (begin, end) form with begin == end.
+    std::vector<size_t> empty_vec;
+    EXPECT_TRUE(q.post_bulk(empty_vec.begin(), empty_vec.end()));
+
+    // (range) form with an empty range.
+    EXPECT_TRUE(q.post_bulk(empty_vec));
+
+    // None of the calls should have produced any elements.
+    auto v = q.try_pull();
+    EXPECT_FALSE(static_cast<bool>(v));
+
+    // The queue must still be usable after the no-op bulk posts.
+    EXPECT_TRUE(q.post(static_cast<size_t>(42)));
+    auto v2 = q.try_pull();
+    EXPECT_TRUE(static_cast<bool>(v2));
+    EXPECT_EQ(42u, *v2);
     co_return;
   }());
 }
