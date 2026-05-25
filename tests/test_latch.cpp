@@ -74,7 +74,7 @@ TEST_F(CATEGORY, once) {
         }(lat, aa)
       )
         .fork();
-    waiter_count_accessor::wait_for_waiter_count(lat, 1);
+    co_await waiter_count_accessor::wait_for_waiter_count(lat, 1);
     EXPECT_FALSE(lat.is_ready());
     EXPECT_EQ(aa.load(), 0);
     lat.count_down();
@@ -112,7 +112,7 @@ TEST_F(CATEGORY, resume_in_destructor) {
         }(*lat, aa)
       )
         .fork();
-    waiter_count_accessor::wait_for_waiter_count(*lat, 1);
+    co_await waiter_count_accessor::wait_for_waiter_count(*lat, 1);
     EXPECT_EQ(aa.load(), 0);
     // Destroy lat while the task is still waiting.
     lat.reset();

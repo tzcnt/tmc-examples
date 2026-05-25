@@ -1,5 +1,7 @@
 #pragma once
 
+#include "tmc/aw_yield.hpp"
+#include "tmc/task.hpp"
 #include <chrono>
 #include <cstddef>
 #include <thread>
@@ -20,8 +22,18 @@ public:
   // place of fixed std::this_thread::sleep_for waits, which are not reliable
   // on loaded CI runners.
   template <typename Primitive>
-  static void wait_for_waiter_count(Primitive& P, size_t Expected) {
-    while (P.waiter_count() != Expected) {
+  static tmc::task<void> wait_for_waiter_count(Primitive& P, size_t Expected) {
+    while (true) {
+      // alternate between reschedule() if running on the same thread and sleep
+      // if waiting for another thread
+      if (P.waiter_count() == Expected) {
+        break;
+      }
+      co_await tmc::reschedule();
+
+      if (P.waiter_count() == Expected) {
+        break;
+      }
       std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
   }

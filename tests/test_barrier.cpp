@@ -138,7 +138,7 @@ TEST_F(CATEGORY, resume_in_destructor) {
         }(*bar, aa)
       )
         .fork();
-    waiter_count_accessor::wait_for_waiter_count(*bar, 1);
+    co_await waiter_count_accessor::wait_for_waiter_count(*bar, 1);
     EXPECT_EQ(aa.load(), 0);
     // Destroy bar while the task is still waiting.
     bar.reset();

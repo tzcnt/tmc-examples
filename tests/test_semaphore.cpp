@@ -87,7 +87,7 @@ TEST_F(CATEGORY, one_waiter) {
         }(sem, aa)
       )
         .fork();
-    waiter_count_accessor::wait_for_waiter_count(sem, 1);
+    co_await waiter_count_accessor::wait_for_waiter_count(sem, 1);
     EXPECT_EQ(sem.count(), 0);
     EXPECT_EQ(aa.load(), 0);
     sem.release();
@@ -109,11 +109,11 @@ TEST_F(CATEGORY, multi_waiter) {
       }(sem, aa);
     }
     auto t = tmc::spawn_many(tasks).fork();
-    waiter_count_accessor::wait_for_waiter_count(sem, 5);
+    co_await waiter_count_accessor::wait_for_waiter_count(sem, 5);
     EXPECT_EQ(sem.count(), 0);
     EXPECT_EQ(aa.load(), 0);
     sem.release(1);
-    waiter_count_accessor::wait_for_waiter_count(sem, 4);
+    co_await waiter_count_accessor::wait_for_waiter_count(sem, 4);
     sem.release(4);
     co_await aa;
     co_await std::move(t);
@@ -133,11 +133,11 @@ TEST_F(CATEGORY, multi_waiter_co_release) {
       }(sem, aa);
     }
     auto t = tmc::spawn_many(tasks).fork();
-    waiter_count_accessor::wait_for_waiter_count(sem, 5);
+    co_await waiter_count_accessor::wait_for_waiter_count(sem, 5);
     EXPECT_EQ(sem.count(), 0);
     EXPECT_EQ(aa.load(), 0);
     co_await sem.co_release();
-    waiter_count_accessor::wait_for_waiter_count(sem, 4);
+    co_await waiter_count_accessor::wait_for_waiter_count(sem, 4);
     co_await sem.co_release();
     co_await sem.co_release();
     co_await sem.co_release();
@@ -160,7 +160,7 @@ TEST_F(CATEGORY, resume_in_destructor) {
         }(*sem, aa)
       )
         .fork();
-    waiter_count_accessor::wait_for_waiter_count(*sem, 1);
+    co_await waiter_count_accessor::wait_for_waiter_count(*sem, 1);
     EXPECT_EQ(aa.load(), 0);
     // Destroy sem while the task is still waiting.
     sem.reset();
@@ -184,7 +184,7 @@ TEST_F(CATEGORY, move_scope) {
       )
         .fork();
     {
-      waiter_count_accessor::wait_for_waiter_count(*sem, 1);
+      co_await waiter_count_accessor::wait_for_waiter_count(*sem, 1);
       EXPECT_EQ(aa.load(), 0);
       auto s = *std::move(scope);
       scope.reset(); // should do nothing as the scope has been moved
@@ -242,7 +242,7 @@ TEST_F(CATEGORY, access_control_scope) {
         1000
       )
         .fork();
-    waiter_count_accessor::wait_for_waiter_count(sem, 1000);
+    co_await waiter_count_accessor::wait_for_waiter_count(sem, 1000);
     sem.release();
     co_await std::move(ts);
     co_await sem;
@@ -272,7 +272,7 @@ TEST_F(CATEGORY, co_release) {
                  }(sem, aa)
       )
                  .fork();
-      waiter_count_accessor::wait_for_waiter_count(sem, 1);
+      co_await waiter_count_accessor::wait_for_waiter_count(sem, 1);
       EXPECT_EQ(sem.count(), 0);
       EXPECT_EQ(aa.load(), 0);
       co_await sem.co_release();
@@ -299,7 +299,7 @@ TEST_F(CATEGORY, co_release_no_symmetric) {
       )
         .with_priority(1)
         .fork();
-    waiter_count_accessor::wait_for_waiter_count(sem, 1);
+    co_await waiter_count_accessor::wait_for_waiter_count(sem, 1);
     EXPECT_EQ(sem.count(), 0);
     EXPECT_EQ(aa.load(), 0);
     EXPECT_EQ(tmc::current_priority(), 0);

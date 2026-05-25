@@ -67,7 +67,7 @@ TEST_F(CATEGORY, one_waiter) {
     tmc::atomic_condvar<int> cv(1);
     atomic_awaitable<int> aa(1);
     auto t = tmc::spawn(make_waiter(cv, aa)).fork();
-    waiter_count_accessor::wait_for_waiter_count(cv, 1);
+    co_await waiter_count_accessor::wait_for_waiter_count(cv, 1);
     EXPECT_EQ(cv.ref().load(std::memory_order_relaxed), 1);
     EXPECT_EQ(aa.load(), 0);
     cv.ref()++;
@@ -86,14 +86,14 @@ TEST_F(CATEGORY, multi_waiter) {
       tasks[i] = make_waiter(cv, aa);
     }
     auto t = tmc::spawn_many(tasks).fork();
-    waiter_count_accessor::wait_for_waiter_count(cv, 5);
+    co_await waiter_count_accessor::wait_for_waiter_count(cv, 5);
     EXPECT_EQ(cv.ref().load(std::memory_order_relaxed), 1);
     EXPECT_EQ(aa.load(), 0);
     cv.ref()++;
     cv.notify_one();
-    waiter_count_accessor::wait_for_waiter_count(cv, 4);
+    co_await waiter_count_accessor::wait_for_waiter_count(cv, 4);
     cv.notify_n(2);
-    waiter_count_accessor::wait_for_waiter_count(cv, 2);
+    co_await waiter_count_accessor::wait_for_waiter_count(cv, 2);
     cv.notify_all();
     co_await aa;
     EXPECT_EQ(aa.load(), 5);
@@ -107,7 +107,7 @@ TEST_F(CATEGORY, resume_in_destructor) {
     std::optional<tmc::atomic_condvar<int>> cv;
     cv.emplace(1);
     auto t = tmc::spawn(make_waiter(*cv, aa)).fork();
-    waiter_count_accessor::wait_for_waiter_count(*cv, 1);
+    co_await waiter_count_accessor::wait_for_waiter_count(*cv, 1);
     EXPECT_EQ(aa.load(), 0);
 
     // Notify 0 waiters
@@ -140,7 +140,7 @@ TEST_F(CATEGORY, co_notify_one) {
       tmc::atomic_condvar<int> cv(1);
       atomic_awaitable<int> aa(1);
       auto t = tmc::spawn(make_waiter(cv, aa)).fork();
-      waiter_count_accessor::wait_for_waiter_count(cv, 1);
+      co_await waiter_count_accessor::wait_for_waiter_count(cv, 1);
       EXPECT_EQ(cv.ref().load(std::memory_order_relaxed), 1);
       EXPECT_EQ(aa.load(), 0);
       cv.ref()++;
@@ -157,7 +157,7 @@ TEST_F(CATEGORY, co_notify_one) {
       )
                  .with_priority(1)
                  .fork();
-      waiter_count_accessor::wait_for_waiter_count(cv, 1);
+      co_await waiter_count_accessor::wait_for_waiter_count(cv, 1);
       EXPECT_EQ(cv.ref().load(std::memory_order_relaxed), 1);
       EXPECT_EQ(aa.load(), 0);
       cv.ref()++;
@@ -175,7 +175,7 @@ TEST_F(CATEGORY, co_notify_n) {
       atomic_awaitable<int> aa(2);
       auto t =
         tmc::spawn_tuple(make_waiter(cv, aa), make_waiter(cv, aa)).fork();
-      waiter_count_accessor::wait_for_waiter_count(cv, 2);
+      co_await waiter_count_accessor::wait_for_waiter_count(cv, 2);
       EXPECT_EQ(cv.ref().load(std::memory_order_relaxed), 1);
       EXPECT_EQ(aa.load(), 0);
       cv.ref()++;
@@ -189,7 +189,7 @@ TEST_F(CATEGORY, co_notify_n) {
       auto t = tmc::spawn_tuple(make_waiter(cv, aa), make_waiter(cv, aa))
                  .with_priority(1)
                  .fork();
-      waiter_count_accessor::wait_for_waiter_count(cv, 2);
+      co_await waiter_count_accessor::wait_for_waiter_count(cv, 2);
       EXPECT_EQ(cv.ref().load(std::memory_order_relaxed), 1);
       EXPECT_EQ(aa.load(), 0);
       cv.ref()++;
@@ -207,7 +207,7 @@ TEST_F(CATEGORY, co_notify_all) {
       atomic_awaitable<int> aa(2);
       auto t =
         tmc::spawn_tuple(make_waiter(cv, aa), make_waiter(cv, aa)).fork();
-      waiter_count_accessor::wait_for_waiter_count(cv, 2);
+      co_await waiter_count_accessor::wait_for_waiter_count(cv, 2);
       EXPECT_EQ(cv.ref().load(std::memory_order_relaxed), 1);
       EXPECT_EQ(aa.load(), 0);
       cv.ref()++;
@@ -221,7 +221,7 @@ TEST_F(CATEGORY, co_notify_all) {
       auto t = tmc::spawn_tuple(make_waiter(cv, aa), make_waiter(cv, aa))
                  .with_priority(1)
                  .fork();
-      waiter_count_accessor::wait_for_waiter_count(cv, 2);
+      co_await waiter_count_accessor::wait_for_waiter_count(cv, 2);
       EXPECT_EQ(cv.ref().load(std::memory_order_relaxed), 1);
       EXPECT_EQ(aa.load(), 0);
       cv.ref()++;
@@ -239,7 +239,7 @@ TEST_F(CATEGORY, co_notify_no_symmetric) {
     tmc::atomic_condvar<int> cv(1);
     atomic_awaitable<int> aa(1);
     auto t = tmc::spawn(make_waiter(cv, aa)).with_priority(1).fork();
-    waiter_count_accessor::wait_for_waiter_count(cv, 1);
+    co_await waiter_count_accessor::wait_for_waiter_count(cv, 1);
     EXPECT_EQ(cv.ref().load(std::memory_order_relaxed), 1);
     EXPECT_EQ(aa.load(), 0);
     EXPECT_EQ(tmc::current_priority(), 0);

@@ -58,7 +58,7 @@ TEST_F(CATEGORY, one_waiter) {
         }(mut, aa)
       )
         .fork();
-    waiter_count_accessor::wait_for_waiter_count(mut, 1);
+    co_await waiter_count_accessor::wait_for_waiter_count(mut, 1);
     EXPECT_EQ(mut.is_locked(), true);
     EXPECT_EQ(aa.load(), 0);
     mut.unlock();
@@ -84,7 +84,7 @@ TEST_F(CATEGORY, multi_waiter) {
       }(mut, aa);
     }
     auto t = tmc::spawn_many(tasks).fork();
-    waiter_count_accessor::wait_for_waiter_count(mut, 5);
+    co_await waiter_count_accessor::wait_for_waiter_count(mut, 5);
     EXPECT_EQ(mut.is_locked(), true);
     EXPECT_EQ(aa.load(), 0);
     mut.unlock();
@@ -108,7 +108,7 @@ TEST_F(CATEGORY, resume_in_destructor) {
         }(*mut, aa)
       )
         .fork();
-    waiter_count_accessor::wait_for_waiter_count(*mut, 1);
+    co_await waiter_count_accessor::wait_for_waiter_count(*mut, 1);
     EXPECT_EQ(aa.load(), 0);
     // Destroy mut while the task is still waiting.
     mut.reset();
@@ -132,7 +132,7 @@ TEST_F(CATEGORY, move_scope) {
       )
         .fork();
     {
-      waiter_count_accessor::wait_for_waiter_count(*mut, 1);
+      co_await waiter_count_accessor::wait_for_waiter_count(*mut, 1);
       EXPECT_EQ(aa.load(), 0);
       auto s = *std::move(scope);
       scope.reset(); // should do nothing as the scope has been moved
@@ -189,7 +189,7 @@ TEST_F(CATEGORY, access_control_scope) {
         1000
       )
         .fork();
-    waiter_count_accessor::wait_for_waiter_count(mut, 1000);
+    co_await waiter_count_accessor::wait_for_waiter_count(mut, 1000);
     mut.unlock();
     co_await std::move(ts);
     co_await mut;
@@ -218,7 +218,7 @@ TEST_F(CATEGORY, co_unlock) {
           }(mut, aa)
         )
           .fork();
-      waiter_count_accessor::wait_for_waiter_count(mut, 1);
+      co_await waiter_count_accessor::wait_for_waiter_count(mut, 1);
       EXPECT_EQ(mut.is_locked(), true);
       EXPECT_EQ(aa.load(), 0);
       co_await mut.co_unlock();
@@ -246,7 +246,7 @@ TEST_F(CATEGORY, co_unlock_no_symmetric) {
       )
         .with_priority(1)
         .fork();
-    waiter_count_accessor::wait_for_waiter_count(mut, 1);
+    co_await waiter_count_accessor::wait_for_waiter_count(mut, 1);
     EXPECT_EQ(mut.is_locked(), true);
     EXPECT_EQ(aa.load(), 0);
     EXPECT_EQ(tmc::current_priority(), 0);
