@@ -312,8 +312,8 @@ make_exe(chan_bench
     examples/chan_bench.cpp
 )
 
-make_exe(qu_mpsc_bench
-    examples/qu_mpsc_bench.cpp
+make_exe(queue_bench
+    examples/queue_bench.cpp
 )
 
 make_exe(sync
