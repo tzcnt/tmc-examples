@@ -6,7 +6,7 @@
 #include <gtest/gtest.h>
 #include <ranges>
 
-#define CATEGORY test_qu_mpsc
+#define CATEGORY test_qu_unbounded_mpsc
 
 class CATEGORY : public testing::Test {
 protected:
@@ -570,9 +570,9 @@ TEST_F(CATEGORY, no_suspend_try_pull_only) {
   }());
 }
 
-// EmbedFirstBlock = true: first block is embedded in the qu_mpsc object.
-// Push and reclaim past the embedded block to ensure the destructor handles
-// the embedded-vs-heap distinction correctly.
+// EmbedFirstBlock = true: first block is embedded in the qu_unbounded_mpsc
+// object. Push and reclaim past the embedded block to ensure the destructor
+// handles the embedded-vs-heap distinction correctly.
 struct q_config_embed : tmc::qu_unbounded_mpsc_default_config {
   static inline constexpr size_t BlockSize = 2;
   static inline constexpr bool EmbedFirstBlock = true;
@@ -694,7 +694,8 @@ TEST_F(CATEGORY, try_pull_zc_scope_move) {
         EXPECT_TRUE(static_cast<bool>(v2));
         EXPECT_NE(v2->count, nullptr);
         // v1's destructor must be a no-op; only v2's release the slot.
-      } // v2 destructor releases slot 0; remaining 2 destroyed by ~qu_mpsc
+      } // v2 destructor releases slot 0; remaining 2 destroyed by
+        // ~qu_unbounded_mpsc
       EXPECT_EQ(count.load(), 3);
     }
 
