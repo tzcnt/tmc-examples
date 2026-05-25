@@ -103,25 +103,46 @@ static std::string formatWithCommas(size_t n) {
 }
 
 int main() {
+  tmc::ex_any* prodExPtr;
+#if PRODUCER_COUNT == 1
+  // Use a single-threaded producer
   tmc::ex_cpu_st prodEx;
 #ifdef TMC_USE_HWLOC
-  // Pin producer to physical core 0
+  // Pin producer to physical core 1
   tmc::topology::topology_filter f;
-  f.set_core_indexes({0});
+  f.set_core_indexes({1});
   prodEx.add_partition(f);
 #endif
   prodEx.init();
+  prodExPtr = prodEx.type_erased();
+#else
+  // Use a multi-threaded producer
+  tmc::ex_cpu prodEx;
+#ifdef TMC_USE_HWLOC
+  // Pin producer to physical cores adjacent to the consumer.
+  // Consumer is on core 0, so producers start from core 1
+  tmc::topology::topology_filter f;
+  std::vector<size_t> allowedCores;
+  for (size_t i = 1; i <= PRODUCER_COUNT; ++i) {
+    allowedCores.push_back(i);
+  }
+  f.set_core_indexes(allowedCores);
+  prodEx.add_partition(f);
+#endif
+  prodEx.set_thread_count(PRODUCER_COUNT).init();
+  prodExPtr = prodEx.type_erased();
+#endif
   std::printf(
     "qu_mpsc SPSC bench: %s elements\n", formatWithCommas(NELEMS).c_str()
   );
   return tmc::post_waitable(
-           prodEx,
+           prodExPtr,
            []() -> tmc::task<int> {
              tmc::ex_cpu_st consEx;
 #ifdef TMC_USE_HWLOC
-             // Pin consumer to physical core 1
+             // Pin consumer to physical core 0
              tmc::topology::topology_filter f2;
-             f2.set_core_indexes({1});
+             f2.set_core_indexes({0});
              consEx.add_partition(f2);
 #endif
              consEx.init();
