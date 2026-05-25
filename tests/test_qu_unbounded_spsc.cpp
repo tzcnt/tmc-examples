@@ -318,4 +318,154 @@ TEST_F(CATEGORY, non_movable_type) {
   }());
 }
 
+// try_pull on a closed, empty queue returns CLOSED status.
+TEST_F(CATEGORY, try_pull_closed_empty) {
+  tmc::ex_cpu ex;
+  ex.set_thread_count(1).init();
+  test_async_main(ex, []() -> tmc::task<void> {
+    using qerr = tmc::qu_unbounded_spsc_err;
+    auto chan = tmc::qu_unbounded_spsc<size_t, qu_config<0>>{};
+    chan.close();
+
+    auto v = chan.try_pull();
+    EXPECT_EQ(qerr::CLOSED, v.status());
+    EXPECT_FALSE(static_cast<bool>(v));
+    co_return;
+  }());
+}
+
+// close() is idempotent: a second call must be a no-op.
+TEST_F(CATEGORY, close_idempotent) {
+  tmc::ex_cpu ex;
+  ex.set_thread_count(1).init();
+  test_async_main(ex, []() -> tmc::task<void> {
+    auto chan = tmc::qu_unbounded_spsc<size_t, qu_config<0>>{};
+    chan.close();
+    chan.close();
+    chan.close();
+    co_return;
+  }());
+}
+
+// pull() after close() returns an empty scope. This exercises the
+// aw_pull::await_suspend branch where try_wait observes CLOSED_BIT.
+TEST_F(CATEGORY, pull_after_close_returns_empty) {
+  tmc::ex_cpu ex;
+  ex.set_thread_count(1).init();
+  test_async_main(ex, []() -> tmc::task<void> {
+    auto chan = tmc::qu_unbounded_spsc<size_t, qu_config<0>>{};
+    chan.close();
+
+    auto v = co_await chan.pull();
+    EXPECT_FALSE(static_cast<bool>(v));
+
+    // A second pull() should also yield an empty scope.
+    auto v2 = co_await chan.pull();
+    EXPECT_FALSE(static_cast<bool>(v2));
+    co_return;
+  }());
+}
+
+// Move-assignment of try_pull_zc_scope when the destination already holds a
+// value. Two distinct queues are used because the API requires that at most
+// one scope from a given queue be live at a time. The destination scope's
+// element must be released (destroyed + slot freed) before adopting the
+// source's element.
+TEST_F(CATEGORY, try_pull_zc_scope_move_assign_over_nonempty) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    std::atomic<size_t> count1{0};
+    std::atomic<size_t> count2{0};
+    {
+      auto q1 = tmc::qu_unbounded_spsc<spsc_destructor_counter, qu_config<0>>{};
+      auto q2 = tmc::qu_unbounded_spsc<spsc_destructor_counter, qu_config<0>>{};
+      q1.post(spsc_destructor_counter{&count1});
+      q2.post(spsc_destructor_counter{&count2});
+
+      auto v1 = q1.try_pull();
+      EXPECT_TRUE(static_cast<bool>(v1));
+      auto v2 = q2.try_pull();
+      EXPECT_TRUE(static_cast<bool>(v2));
+      EXPECT_EQ(0u, count1.load());
+      EXPECT_EQ(0u, count2.load());
+
+      // Move-assign over a non-empty scope. v1's existing element (from q1)
+      // must be destroyed and its slot released; v1 then takes ownership of
+      // v2's element (from q2).
+      v1 = std::move(v2);
+      EXPECT_FALSE(static_cast<bool>(v2));
+      EXPECT_TRUE(static_cast<bool>(v1));
+      EXPECT_EQ(1u, count1.load()); // q1's slot was destroyed by the assign
+      EXPECT_EQ(0u, count2.load()); // q2's element now lives in v1
+    } // ~v1 destroys q2's element (count2 -> 1); both queues then destruct.
+    EXPECT_EQ(1u, count1.load());
+    EXPECT_EQ(1u, count2.load());
+    co_return;
+  }());
+}
+
+// close() wakes a consumer suspended on an empty slot. The consumer is parked
+// at slot 0 (no producer has posted), then close() races in and publishes the
+// CLOSED sentinel at slot 0, returning the waiting consumer pointer which
+// close() then resumes.
+TEST_F(CATEGORY, close_wakes_suspended_consumer) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    auto chan = tmc::qu_unbounded_spsc<size_t, qu_config<0>>{};
+
+    auto results = co_await tmc::spawn_tuple(
+      [](auto& Chan) -> tmc::task<bool> {
+        auto v = co_await Chan.pull();
+        co_return static_cast<bool>(v);
+      }(chan),
+      [](auto& Chan) -> tmc::task<void> {
+        // Yield to give the consumer a chance to suspend.
+        for (size_t i = 0; i < 10; ++i) {
+          co_await tmc::reschedule();
+        }
+        Chan.close();
+        co_return;
+      }(chan)
+    );
+
+    bool got_value = std::get<0>(results);
+    EXPECT_FALSE(got_value); // consumer was woken by close with empty scope
+    co_return;
+  }());
+}
+
+// post_bulk() wakes a consumer suspended on the slot it writes. Exercises
+// the branch in post_bulk that captures the waiting consumer pointer
+// returned by write_element and posts its resumption.
+TEST_F(CATEGORY, post_bulk_wakes_suspended_consumer) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    auto chan = tmc::qu_unbounded_spsc<size_t, qu_config<0>>{};
+
+    auto results = co_await tmc::spawn_tuple(
+      [](auto& Chan) -> tmc::task<size_t> {
+        // Consumer suspends at slot 0; post_bulk wakes it. Drain everything
+        // until the queue is closed (empty scope). Each pull_zc_scope must
+        // be released before the next pull() runs, since the queue requires
+        // that at most one scope from a given queue be live at a time.
+        size_t sum = 0;
+        while (auto v = co_await Chan.pull()) {
+          sum += *v;
+        }
+        co_return sum;
+      }(chan),
+      [](auto& Chan) -> tmc::task<void> {
+        // Yield to give the consumer a chance to suspend.
+        for (size_t i = 0; i < 10; ++i) {
+          co_await tmc::reschedule();
+        }
+        size_t items[5] = {10, 20, 30, 40, 50};
+        Chan.post_bulk(&items[0], 5);
+        Chan.close();
+        co_return;
+      }(chan)
+    );
+
+    EXPECT_EQ(10u + 20u + 30u + 40u + 50u, std::get<0>(results));
+    co_return;
+  }());
+}
+
 #undef CATEGORY
