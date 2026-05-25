@@ -22,7 +22,7 @@ public:
   template <typename Primitive>
   static void wait_for_waiter_count(Primitive& P, size_t Expected) {
     while (P.waiter_count() != Expected) {
-      std::this_thread::sleep_for(std::chrono::microseconds(100));
+      std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
   }
 };
