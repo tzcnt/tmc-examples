@@ -23,11 +23,7 @@
 
 // pipeline_queue_ptr is a thin wrapper around tmc::chan_tok that exposes the
 // same arrow-style API (->post() / ->close()) as the FIFO pipeline's
-// shared_ptr<qu_unbounded_spsc<T>>. tmc::chan_tok already owns a shared_ptr
-// to the underlying channel and carries per-thread hazard-pointer state, so
-// there is no need to add another shared_ptr layer; copying the wrapper
-// copies the chan_tok, producing an independent token that refers to the
-// same channel.
+// shared_ptr<qu_unbounded_spsc<T>>.
 template <typename T> class pipeline_queue_ptr {
   tmc::chan_tok<T> tok_;
 
