@@ -2,11 +2,11 @@
 #include "test_common.hpp"
 #include "tmc/auto_reset_event.hpp"
 #include "tmc/current.hpp"
+#include "waiter_count_accessor.hpp"
 
 #include <gtest/gtest.h>
 
 #include <array>
-#include <thread>
 
 #define CATEGORY test_auto_reset_event
 
@@ -19,6 +19,8 @@ protected:
   static void TearDownTestSuite() { tmc::cpu_executor().teardown(); }
 
   static tmc::ex_cpu& ex() { return tmc::cpu_executor(); }
+
+  using waiter_count_accessor = tmc::tests::waiter_count_accessor;
 };
 
 TEST_F(CATEGORY, no_waiters) {
@@ -84,7 +86,7 @@ TEST_F(CATEGORY, one_waiter) {
                  }(event, aa)
       )
                  .fork();
-      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+      waiter_count_accessor::wait_for_waiter_count(event, 1);
       EXPECT_EQ(event.is_set(), false);
       EXPECT_EQ(aa.load(), 0);
       event.set();
@@ -104,7 +106,7 @@ TEST_F(CATEGORY, one_waiter) {
                  }(event, aa)
       )
                  .fork();
-      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+      waiter_count_accessor::wait_for_waiter_count(event, 1);
       EXPECT_EQ(event.is_set(), false);
       EXPECT_EQ(aa.load(), 0);
       co_await event.co_set();
@@ -131,11 +133,10 @@ TEST_F(CATEGORY, multi_waiter) {
         }(event, aa);
       }
       auto t = tmc::spawn_many(tasks).fork();
-      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+      waiter_count_accessor::wait_for_waiter_count(event, 5);
       EXPECT_EQ(aa.load(), 0);
       event.set();
-      std::this_thread::sleep_for(std::chrono::milliseconds(10));
-      EXPECT_EQ(aa.load(), 1);
+      waiter_count_accessor::wait_for_waiter_count(event, 4);
       event.set();
       event.set();
       event.set();
@@ -163,11 +164,10 @@ TEST_F(CATEGORY, multi_waiter_co_set) {
         }(event, aa);
       }
       auto t = tmc::spawn_many(tasks).fork();
-      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+      waiter_count_accessor::wait_for_waiter_count(event, 5);
       EXPECT_EQ(aa.load(), 0);
       co_await event.co_set();
-      std::this_thread::sleep_for(std::chrono::milliseconds(10));
-      EXPECT_EQ(aa.load(), 1);
+      waiter_count_accessor::wait_for_waiter_count(event, 4);
       co_await event.co_set();
       co_await event.co_set();
       co_await event.co_set();
@@ -194,7 +194,7 @@ TEST_F(CATEGORY, resume_in_destructor) {
                }(*event, aa)
     )
                .fork();
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    waiter_count_accessor::wait_for_waiter_count(*event, 1);
     EXPECT_EQ(aa.load(), 0);
     EXPECT_EQ(event->is_set(), false);
     // Destroy event while the task is still waiting.
@@ -255,7 +255,7 @@ TEST_F(CATEGORY, co_set) {
                  }(event, aa)
       )
                  .fork();
-      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+      waiter_count_accessor::wait_for_waiter_count(event, 1);
       EXPECT_EQ(event.is_set(), false);
       EXPECT_EQ(aa.load(), 0);
       co_await event.co_set();
@@ -285,7 +285,7 @@ TEST_F(CATEGORY, co_set_no_symmetric) {
     )
                .with_priority(1)
                .fork();
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    waiter_count_accessor::wait_for_waiter_count(event, 1);
     EXPECT_EQ(event.is_set(), false);
     EXPECT_EQ(aa.load(), 0);
     EXPECT_EQ(tmc::current_priority(), 0);

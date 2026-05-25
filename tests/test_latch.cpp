@@ -1,18 +1,20 @@
 #include "atomic_awaitable.hpp"
 #include "test_common.hpp"
 #include "tmc/latch.hpp"
+#include "waiter_count_accessor.hpp"
 
 #include <gtest/gtest.h>
 
 #include <atomic>
 #include <optional>
-#include <thread>
 #include <vector>
 
 #define CATEGORY test_latch
 
 class CATEGORY : public testing::Test {
 protected:
+  using waiter_count_accessor = tmc::tests::waiter_count_accessor;
+
   static void SetUpTestSuite() {
     tmc::cpu_executor().set_thread_count(4).init();
   }
@@ -72,7 +74,7 @@ TEST_F(CATEGORY, once) {
         }(lat, aa)
       )
         .fork();
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    waiter_count_accessor::wait_for_waiter_count(lat, 1);
     EXPECT_FALSE(lat.is_ready());
     EXPECT_EQ(aa.load(), 0);
     lat.count_down();
@@ -110,7 +112,7 @@ TEST_F(CATEGORY, resume_in_destructor) {
         }(*lat, aa)
       )
         .fork();
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    waiter_count_accessor::wait_for_waiter_count(*lat, 1);
     EXPECT_EQ(aa.load(), 0);
     // Destroy lat while the task is still waiting.
     lat.reset();

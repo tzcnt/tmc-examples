@@ -1,18 +1,20 @@
 #include "atomic_awaitable.hpp"
 #include "test_common.hpp"
 #include "tmc/barrier.hpp"
+#include "waiter_count_accessor.hpp"
 
 #include <gtest/gtest.h>
 
 #include <atomic>
 #include <optional>
-#include <thread>
 #include <vector>
 
 #define CATEGORY test_barrier
 
 class CATEGORY : public testing::Test {
 protected:
+  using waiter_count_accessor = tmc::tests::waiter_count_accessor;
+
   static void SetUpTestSuite() {
     tmc::cpu_executor().set_thread_count(4).init();
   }
@@ -136,7 +138,7 @@ TEST_F(CATEGORY, resume_in_destructor) {
         }(*bar, aa)
       )
         .fork();
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    waiter_count_accessor::wait_for_waiter_count(*bar, 1);
     EXPECT_EQ(aa.load(), 0);
     // Destroy bar while the task is still waiting.
     bar.reset();
