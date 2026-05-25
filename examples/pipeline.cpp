@@ -7,18 +7,17 @@
 // This is just the user application.
 // The generic implementation is in "pipeline.hpp" or "pipeline_fifo.hpp".
 
-#include "tmc/channel.hpp"
 #include "tmc/ex_cpu.hpp"
 #include "tmc/fork_group.hpp"
 #include "tmc/semaphore.hpp"
 #include "tmc/task.hpp"
 
-// This pipeline may process tasks out of order. For a FIFO pipeline,
-// include pipeline_fifo.hpp instead.
-#include "pipeline.hpp"
+// // This pipeline may process tasks out of order. For a FIFO pipeline,
+// // include pipeline_fifo.hpp instead.
+// #include "pipeline.hpp"
 
-// // Strictly FIFO pipeline implementation
-// #include "pipeline_fifo.hpp"
+// Strictly FIFO pipeline implementation
+#include "pipeline_fifo.hpp"
 
 #include <chrono>
 #include <cstdio>
@@ -55,7 +54,7 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
     // Track all pipeline stage workers here so we can cleanly join at the end
     auto fg = tmc::fork_group();
 
-    auto in = tmc::make_channel<int>();
+    auto in = make_pipeline_queue<int>();
     tmc::semaphore inputSem(0);
     auto first = start_pipeline(fg, in, &inputSem, plus_half, 10);
     auto second = pipeline_transform(fg, first, times_two, 10);
@@ -84,9 +83,12 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
       for (int i = 0; i < NELEMS; ++i) {
         // Also apply backpressure to the input to avoid overloading the queue
         co_await inputSem;
-        in.post(i);
+        in->post(i);
       }
-      co_await in.drain();
+      // Close the input queue. The first stage worker will drain remaining
+      // items and then close its output queue, propagating closure through
+      // the pipeline. Awaiting the fork_group below ensures full drain.
+      in->close();
     }
 
     co_await std::move(fg);
