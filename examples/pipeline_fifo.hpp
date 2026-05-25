@@ -19,7 +19,7 @@
 // results by co_awaiting the output of pull().
 
 #include "tmc/fork_group.hpp"
-#include "tmc/qu_unbounded_mpsc.hpp"
+#include "tmc/qu_unbounded_spsc.hpp"
 #include "tmc/semaphore.hpp"
 #include "tmc/spawn.hpp"
 #include "tmc/task.hpp"
@@ -45,10 +45,10 @@ template <class F> inline with_result_of_t<F> with_result_of(F&& f) {
   return with_result_of_t<F>(std::forward<F>(f));
 }
 
-// qu_unbounded_mpsc is non-movable and non-copyable, so we share it via
-// shared_ptr to keep it alive for the lifetime of all producers and the
+// qu_unbounded_spsc is non-movable and non-copyable, so we share it via
+// shared_ptr to keep it alive for the lifetime of the single producer and
 // single consumer.
-template <typename T> using pipeline_queue = tmc::qu_unbounded_mpsc<T>;
+template <typename T> using pipeline_queue = tmc::qu_unbounded_spsc<T>;
 template <typename T>
 using pipeline_queue_ptr = std::shared_ptr<pipeline_queue<T>>;
 
