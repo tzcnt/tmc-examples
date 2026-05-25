@@ -469,6 +469,80 @@ TEST_F(CATEGORY, post_bulk_wakes_suspended_consumer) {
   }());
 }
 
+// close_resume_inline() with no waiting consumer: behaves like close() in
+// that subsequent posts must not be used, and pre-close posts can still drain.
+TEST_F(CATEGORY, close_resume_inline_no_waiting_consumer) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    using qerr = tmc::qu_unbounded_spsc_err;
+    auto chan = tmc::qu_unbounded_spsc<size_t, qu_config<0>>{};
+
+    for (size_t i = 0; i < 5; ++i) {
+      chan.post(i);
+    }
+
+    chan.close_resume_inline();
+
+    // Drain the queue.
+    size_t sum = 0;
+    size_t count = 0;
+    while (true) {
+      auto v = chan.try_pull();
+      if (v.status() == qerr::OK) {
+        sum += *v;
+        ++count;
+      } else if (v.status() == qerr::CLOSED) {
+        break;
+      } else {
+        ADD_FAILURE() << "Unexpected EMPTY after close_resume_inline";
+        break;
+      }
+    }
+    EXPECT_EQ(5u, count);
+    EXPECT_EQ(0u + 1u + 2u + 3u + 4u, sum);
+
+    // Further try_pull stays CLOSED.
+    auto v = chan.try_pull();
+    EXPECT_EQ(qerr::CLOSED, v.status());
+    EXPECT_FALSE(static_cast<bool>(v));
+
+    // close_resume_inline() is idempotent.
+    chan.close_resume_inline();
+    chan.close();
+    co_return;
+  }());
+}
+
+// close_resume_inline() wakes a consumer suspended on an empty slot, just like
+// close() does. The consumer is parked at slot 0 (no producer has posted),
+// then close_resume_inline() races in and publishes the CLOSED sentinel at slot
+// 0, which wakes the consumer (resumed inline) with an empty scope.
+TEST_F(CATEGORY, close_resume_inline_wakes_suspended_consumer) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    auto chan = tmc::qu_unbounded_spsc<size_t, qu_config<0>>{};
+
+    auto results = co_await tmc::spawn_tuple(
+      [](auto& Chan) -> tmc::task<bool> {
+        auto v = co_await Chan.pull();
+        co_return static_cast<bool>(v);
+      }(chan),
+      [](auto& Chan) -> tmc::task<void> {
+        // Yield to give the consumer a chance to suspend.
+        for (size_t i = 0; i < 10; ++i) {
+          co_await tmc::reschedule();
+        }
+        Chan.close_resume_inline();
+        co_return;
+      }(chan)
+    );
+
+    bool got_value = std::get<0>(results);
+    EXPECT_FALSE(
+      got_value
+    ); // consumer was woken by close_resume_inline with empty scope
+    co_return;
+  }());
+}
+
 // post_bulk(Begin, End) iterator-pair overload: pushes [Begin, End) into the
 // queue and drains them in order.
 TEST_F(CATEGORY, post_bulk_iterator_pair) {
