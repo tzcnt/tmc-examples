@@ -7,6 +7,9 @@
 // This pipeline may process tasks out of order. For a FIFO pipeline, see
 // pipeline_fifo.cpp.
 
+// This pipeline uses tmc::channel (MPMC) since each stage may have multiple
+// concurrent workers reading from the input channel.
+
 #include "tmc/channel.hpp"
 #include "tmc/fork_group.hpp"
 #include "tmc/semaphore.hpp"
@@ -16,6 +19,31 @@
 
 #include <cstddef>
 #include <type_traits>
+#include <utility>
+
+// pipeline_queue_ptr is a thin wrapper around tmc::chan_tok that exposes the
+// same arrow-style API (->post() / ->close()) as the FIFO pipeline's
+// shared_ptr<qu_unbounded_spsc<T>>. tmc::chan_tok already owns a shared_ptr
+// to the underlying channel and carries per-thread hazard-pointer state, so
+// there is no need to add another shared_ptr layer; copying the wrapper
+// copies the chan_tok, producing an independent token that refers to the
+// same channel.
+template <typename T> class pipeline_queue_ptr {
+  tmc::chan_tok<T> tok_;
+
+public:
+  explicit pipeline_queue_ptr(tmc::chan_tok<T> Tok) noexcept
+      : tok_(std::move(Tok)) {}
+
+  operator tmc::chan_tok<T>() { return tok_; }
+
+  tmc::chan_tok<T>* operator->() noexcept { return &tok_; }
+  tmc::chan_tok<T>& operator*() noexcept { return tok_; }
+};
+
+template <typename T> pipeline_queue_ptr<T> make_pipeline_queue() {
+  return pipeline_queue_ptr<T>(tmc::make_channel<T>());
+}
 
 template <typename Input, typename Output, typename ProcessFunc>
 struct pipeline_stage {
@@ -52,7 +80,7 @@ struct pipeline_stage {
     tmc::aw_fork_group<0, void>& fg, tmc::chan_tok<Input> inChan,
     tmc::semaphore* inSem, ProcessFunc func, size_t workerCount
   )
-      : outChan_(tmc::make_channel<Output>()),
+      : outChan_(make_pipeline_queue<Output>()),
         // Initialize our output semaphore to 0. The next stage will set this
         // semaphore capacity (for their input channel) based on their worker
         // count.
@@ -65,12 +93,13 @@ struct pipeline_stage {
 
     auto sg = tmc::spawn_group();
     for (size_t i = 0; i < workerCount; ++i) {
+      // Each worker receives its own independent token (via chan_tok copy).
       sg.add(worker(inChan, inSem, outChan_, &outSem_, func));
     }
 
     // Create a task that automatically closes and drains the output channel
-    // after all of the workers finish.
-    fg.fork([](auto SG, auto Chan) -> tmc::task<void> {
+    // after all of the workers finish. It also gets its own token copy.
+    fg.fork([](auto SG, tmc::chan_tok<Output> Chan) -> tmc::task<void> {
       co_await std::move(SG);
       co_await Chan.drain(); // implicitly closes the channel
     }(std::move(sg), outChan_));
@@ -105,6 +134,7 @@ template <typename Input, typename ProcessFunc> struct pipeline_end_stage {
 
     auto sg = tmc::spawn_group();
     for (size_t i = 0; i < workerCount; ++i) {
+      // Each worker receives its own independent token (via chan_tok copy).
       sg.add(worker(inChan, inSem, func));
     }
 
@@ -114,7 +144,7 @@ template <typename Input, typename ProcessFunc> struct pipeline_end_stage {
 
 template <typename Input, typename Func>
 auto start_pipeline(
-  tmc::aw_fork_group<0, void>& fg, tmc::chan_tok<Input> from,
+  tmc::aw_fork_group<0, void>& fg, pipeline_queue_ptr<Input> from,
   tmc::semaphore* inSem, Func transformFunc, size_t workerCount = 1
 ) {
   using Intermediate = std::invoke_result_t<Func, Input&&>;

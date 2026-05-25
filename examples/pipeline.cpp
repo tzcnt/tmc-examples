@@ -12,12 +12,12 @@
 #include "tmc/semaphore.hpp"
 #include "tmc/task.hpp"
 
-// // This pipeline may process tasks out of order. For a FIFO pipeline,
-// // include pipeline_fifo.hpp instead.
-// #include "pipeline.hpp"
+// This pipeline may process tasks out of order. For a FIFO pipeline,
+// include pipeline_fifo.hpp instead.
+#include "pipeline.hpp"
 
-// Strictly FIFO pipeline implementation
-#include "pipeline_fifo.hpp"
+// // Strictly FIFO pipeline implementation
+// #include "pipeline_fifo.hpp"
 
 #include <chrono>
 #include <cstdio>
