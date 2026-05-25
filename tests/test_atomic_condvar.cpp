@@ -2,12 +2,12 @@
 #include "test_common.hpp"
 #include "tmc/atomic_condvar.hpp"
 #include "tmc/current.hpp"
+#include "waiter_count_accessor.hpp"
 
 #include <atomic>
 #include <gtest/gtest.h>
 
 #include <array>
-#include <thread>
 
 #define CATEGORY test_atomic_condvar
 
@@ -20,6 +20,8 @@ protected:
   static void TearDownTestSuite() { tmc::cpu_executor().teardown(); }
 
   static tmc::ex_cpu& ex() { return tmc::cpu_executor(); }
+
+  using waiter_count_accessor = tmc::tests::waiter_count_accessor;
 };
 
 static tmc::task<void>
@@ -65,7 +67,7 @@ TEST_F(CATEGORY, one_waiter) {
     tmc::atomic_condvar<int> cv(1);
     atomic_awaitable<int> aa(1);
     auto t = tmc::spawn(make_waiter(cv, aa)).fork();
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    co_await waiter_count_accessor::wait_for_waiter_count(cv, 1);
     EXPECT_EQ(cv.ref().load(std::memory_order_relaxed), 1);
     EXPECT_EQ(aa.load(), 0);
     cv.ref()++;
@@ -75,9 +77,6 @@ TEST_F(CATEGORY, one_waiter) {
   }());
 }
 
-// This specific test is kind of flaky on the CI runners, especially the MacOS
-// runner. The issue is not with the library, but if one of the threads gets
-// pre-empted for a while then the timed wait may not be long enough.
 TEST_F(CATEGORY, multi_waiter) {
   test_async_main(ex(), []() -> tmc::task<void> {
     tmc::atomic_condvar<int> cv(1);
@@ -87,16 +86,14 @@ TEST_F(CATEGORY, multi_waiter) {
       tasks[i] = make_waiter(cv, aa);
     }
     auto t = tmc::spawn_many(tasks).fork();
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    co_await waiter_count_accessor::wait_for_waiter_count(cv, 5);
     EXPECT_EQ(cv.ref().load(std::memory_order_relaxed), 1);
     EXPECT_EQ(aa.load(), 0);
     cv.ref()++;
     cv.notify_one();
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
-    EXPECT_EQ(aa.load(), 1);
+    co_await waiter_count_accessor::wait_for_waiter_count(cv, 4);
     cv.notify_n(2);
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
-    EXPECT_EQ(aa.load(), 3);
+    co_await waiter_count_accessor::wait_for_waiter_count(cv, 2);
     cv.notify_all();
     co_await aa;
     EXPECT_EQ(aa.load(), 5);
@@ -110,7 +107,7 @@ TEST_F(CATEGORY, resume_in_destructor) {
     std::optional<tmc::atomic_condvar<int>> cv;
     cv.emplace(1);
     auto t = tmc::spawn(make_waiter(*cv, aa)).fork();
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    co_await waiter_count_accessor::wait_for_waiter_count(*cv, 1);
     EXPECT_EQ(aa.load(), 0);
 
     // Notify 0 waiters
@@ -125,7 +122,9 @@ TEST_F(CATEGORY, resume_in_destructor) {
     co_await cv->co_notify_one();
     co_await cv->co_notify_all();
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    // The value hasn't changed, so none of the notifies above should have
+    // woken the waiter. Verify it is still waiting.
+    EXPECT_EQ(waiter_count_accessor::waiter_count(*cv), 1u);
     EXPECT_EQ(aa.load(), 0);
 
     // Destroy cv while the task is still waiting.
@@ -141,7 +140,7 @@ TEST_F(CATEGORY, co_notify_one) {
       tmc::atomic_condvar<int> cv(1);
       atomic_awaitable<int> aa(1);
       auto t = tmc::spawn(make_waiter(cv, aa)).fork();
-      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+      co_await waiter_count_accessor::wait_for_waiter_count(cv, 1);
       EXPECT_EQ(cv.ref().load(std::memory_order_relaxed), 1);
       EXPECT_EQ(aa.load(), 0);
       cv.ref()++;
@@ -158,7 +157,7 @@ TEST_F(CATEGORY, co_notify_one) {
       )
                  .with_priority(1)
                  .fork();
-      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+      co_await waiter_count_accessor::wait_for_waiter_count(cv, 1);
       EXPECT_EQ(cv.ref().load(std::memory_order_relaxed), 1);
       EXPECT_EQ(aa.load(), 0);
       cv.ref()++;
@@ -176,7 +175,7 @@ TEST_F(CATEGORY, co_notify_n) {
       atomic_awaitable<int> aa(2);
       auto t =
         tmc::spawn_tuple(make_waiter(cv, aa), make_waiter(cv, aa)).fork();
-      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+      co_await waiter_count_accessor::wait_for_waiter_count(cv, 2);
       EXPECT_EQ(cv.ref().load(std::memory_order_relaxed), 1);
       EXPECT_EQ(aa.load(), 0);
       cv.ref()++;
@@ -190,7 +189,7 @@ TEST_F(CATEGORY, co_notify_n) {
       auto t = tmc::spawn_tuple(make_waiter(cv, aa), make_waiter(cv, aa))
                  .with_priority(1)
                  .fork();
-      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+      co_await waiter_count_accessor::wait_for_waiter_count(cv, 2);
       EXPECT_EQ(cv.ref().load(std::memory_order_relaxed), 1);
       EXPECT_EQ(aa.load(), 0);
       cv.ref()++;
@@ -208,7 +207,7 @@ TEST_F(CATEGORY, co_notify_all) {
       atomic_awaitable<int> aa(2);
       auto t =
         tmc::spawn_tuple(make_waiter(cv, aa), make_waiter(cv, aa)).fork();
-      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+      co_await waiter_count_accessor::wait_for_waiter_count(cv, 2);
       EXPECT_EQ(cv.ref().load(std::memory_order_relaxed), 1);
       EXPECT_EQ(aa.load(), 0);
       cv.ref()++;
@@ -222,7 +221,7 @@ TEST_F(CATEGORY, co_notify_all) {
       auto t = tmc::spawn_tuple(make_waiter(cv, aa), make_waiter(cv, aa))
                  .with_priority(1)
                  .fork();
-      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+      co_await waiter_count_accessor::wait_for_waiter_count(cv, 2);
       EXPECT_EQ(cv.ref().load(std::memory_order_relaxed), 1);
       EXPECT_EQ(aa.load(), 0);
       cv.ref()++;
@@ -240,7 +239,7 @@ TEST_F(CATEGORY, co_notify_no_symmetric) {
     tmc::atomic_condvar<int> cv(1);
     atomic_awaitable<int> aa(1);
     auto t = tmc::spawn(make_waiter(cv, aa)).with_priority(1).fork();
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    co_await waiter_count_accessor::wait_for_waiter_count(cv, 1);
     EXPECT_EQ(cv.ref().load(std::memory_order_relaxed), 1);
     EXPECT_EQ(aa.load(), 0);
     EXPECT_EQ(tmc::current_priority(), 0);
