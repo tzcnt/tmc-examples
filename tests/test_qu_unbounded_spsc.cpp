@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <gtest/gtest.h>
 #include <ranges>
+#include <vector>
 
 #define CATEGORY test_qu_unbounded_spsc
 
@@ -464,6 +465,110 @@ TEST_F(CATEGORY, post_bulk_wakes_suspended_consumer) {
     );
 
     EXPECT_EQ(10u + 20u + 30u + 40u + 50u, std::get<0>(results));
+    co_return;
+  }());
+}
+
+// post_bulk(Begin, End) iterator-pair overload: pushes [Begin, End) into the
+// queue and drains them in order.
+TEST_F(CATEGORY, post_bulk_iterator_pair) {
+  tmc::ex_cpu ex;
+  ex.set_thread_count(1).init();
+  test_async_main(ex, []() -> tmc::task<void> {
+    auto chan = tmc::qu_unbounded_spsc<size_t, qu_config<0>>{};
+
+    std::vector<size_t> items{1, 2, 3, 4, 5, 6, 7};
+    chan.post_bulk(items.begin(), items.end());
+
+    size_t sum = 0;
+    size_t count = 0;
+    for (size_t i = 0; i < items.size(); ++i) {
+      auto v = chan.try_pull();
+      EXPECT_TRUE(static_cast<bool>(v));
+      sum += *v;
+      ++count;
+    }
+    EXPECT_EQ(items.size(), count);
+    EXPECT_EQ(1u + 2u + 3u + 4u + 5u + 6u + 7u, sum);
+
+    // Queue is drained.
+    auto empty = chan.try_pull();
+    EXPECT_FALSE(static_cast<bool>(empty));
+    co_return;
+  }());
+}
+
+// post_bulk(Begin, End) with Begin == End must be a no-op.
+TEST_F(CATEGORY, post_bulk_iterator_pair_empty) {
+  tmc::ex_cpu ex;
+  ex.set_thread_count(1).init();
+  test_async_main(ex, []() -> tmc::task<void> {
+    auto chan = tmc::qu_unbounded_spsc<size_t, qu_config<0>>{};
+
+    std::vector<size_t> empty_items;
+    chan.post_bulk(empty_items.begin(), empty_items.end());
+
+    // Queue should still be empty.
+    auto v = chan.try_pull();
+    EXPECT_FALSE(static_cast<bool>(v));
+
+    // A real post afterwards should still work and arrive at slot 0.
+    chan.post(42u);
+    auto v2 = chan.try_pull();
+    EXPECT_TRUE(static_cast<bool>(v2));
+    EXPECT_EQ(42u, *v2);
+    co_return;
+  }());
+}
+
+// post_bulk(Range) overload: pushes the range into the queue and drains in
+// order.
+TEST_F(CATEGORY, post_bulk_range) {
+  tmc::ex_cpu ex;
+  ex.set_thread_count(1).init();
+  test_async_main(ex, []() -> tmc::task<void> {
+    auto chan = tmc::qu_unbounded_spsc<size_t, qu_config<0>>{};
+
+    std::vector<size_t> items{10, 20, 30, 40, 50};
+    chan.post_bulk(items);
+
+    size_t sum = 0;
+    size_t count = 0;
+    for (size_t i = 0; i < items.size(); ++i) {
+      auto v = chan.try_pull();
+      EXPECT_TRUE(static_cast<bool>(v));
+      sum += *v;
+      ++count;
+    }
+    EXPECT_EQ(items.size(), count);
+    EXPECT_EQ(10u + 20u + 30u + 40u + 50u, sum);
+
+    // Queue is drained.
+    auto empty = chan.try_pull();
+    EXPECT_FALSE(static_cast<bool>(empty));
+    co_return;
+  }());
+}
+
+// post_bulk(Range) with an empty range must be a no-op.
+TEST_F(CATEGORY, post_bulk_range_empty) {
+  tmc::ex_cpu ex;
+  ex.set_thread_count(1).init();
+  test_async_main(ex, []() -> tmc::task<void> {
+    auto chan = tmc::qu_unbounded_spsc<size_t, qu_config<0>>{};
+
+    std::vector<size_t> empty_items;
+    chan.post_bulk(empty_items);
+
+    // Queue should still be empty.
+    auto v = chan.try_pull();
+    EXPECT_FALSE(static_cast<bool>(v));
+
+    // A real post afterwards should still work and arrive at slot 0.
+    chan.post(99u);
+    auto v2 = chan.try_pull();
+    EXPECT_TRUE(static_cast<bool>(v2));
+    EXPECT_EQ(99u, *v2);
     co_return;
   }());
 }
