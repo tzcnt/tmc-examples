@@ -555,7 +555,7 @@ TEST_F(CATEGORY, pull_after_closed) {
     using qerr = tmc::qu_bounded_spsc_err;
     auto chan = tmc::qu_bounded_spsc<size_t, qu_config<0>>{TEST_CAPACITY};
 
-    auto results = co_await tmc::spawn_tuple(
+    co_await tmc::spawn_tuple(
       [](auto& Chan) -> tmc::task<void> {
         // Suspend on the empty cutoff slot.
         auto v = co_await Chan.pull();
