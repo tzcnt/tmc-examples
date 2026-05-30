@@ -18,9 +18,15 @@
 // One quirk of this implementation is that the final consumer must also read
 // results by co_awaiting the output of pull().
 
+// Each stage owns its own output queue, sized to that stage's parallelism
+// parameter. The bounded output queue gates the stage's own in-flight
+// parallelism: when the queue is full, the stage's worker blocks on post(),
+// preventing it from forking more work than `parallelism` items at a time.
+// The start stage owns its input queue (the queue the driver posts to) in
+// addition to its output queue, and exposes it as the public `in` member.
+
 #include "tmc/fork_group.hpp"
-#include "tmc/qu_unbounded_spsc.hpp"
-#include "tmc/semaphore.hpp"
+#include "tmc/qu_bounded_spsc.hpp"
 #include "tmc/spawn.hpp"
 #include "tmc/task.hpp"
 #include "tmc/traits.hpp"
@@ -45,43 +51,37 @@ template <class F> inline with_result_of_t<F> with_result_of(F&& f) {
   return with_result_of_t<F>(std::forward<F>(f));
 }
 
-// qu_unbounded_spsc is non-movable and non-copyable, so we share it via
+// qu_bounded_spsc is non-movable and non-copyable, so we share it via
 // shared_ptr to keep it alive for the lifetime of the single producer and
 // single consumer.
-template <typename T> using pipeline_queue = tmc::qu_unbounded_spsc<T>;
+struct pipeline_queue_config : tmc::qu_bounded_spsc_default_config {};
+template <typename T>
+using pipeline_queue = tmc::qu_bounded_spsc<T, pipeline_queue_config>;
 template <typename T>
 using pipeline_queue_ptr = std::shared_ptr<pipeline_queue<T>>;
 
-template <typename T> pipeline_queue_ptr<T> make_pipeline_queue() {
-  return std::make_shared<pipeline_queue<T>>();
+template <typename T> pipeline_queue_ptr<T> make_pipeline_queue(size_t size) {
+  return std::make_shared<pipeline_queue<T>>(size);
 }
 
-template <typename Input, typename Output, typename ProcessFunc, bool End>
+template <typename Input, typename Output, typename ProcessFunc>
 struct pipeline_stage {
   // The output queue contains forked task handles - this is how we manage
   // parallelism while ensuring FIFO ordering.
   using output_t = tmc::aw_spawn_fork<tmc::task<Output>>;
 
+  // This stage owns its own output queue. It is sized to `parallelism` so
+  // that at most `parallelism` forked task handles can be in flight: when
+  // the queue is full, `co_await outChan_->post()` suspends, preventing
+  // further forks until the downstream stage drains an entry.
   pipeline_queue_ptr<output_t> outChan_;
-  tmc::semaphore outSem_;
 
   template <typename CInput>
   static tmc::task<void> worker(
-    pipeline_queue_ptr<CInput> inChan, tmc::semaphore* inSem,
-    pipeline_queue_ptr<output_t> outChan, tmc::semaphore* outSem,
+    pipeline_queue_ptr<CInput> inChan, pipeline_queue_ptr<output_t> outChan,
     ProcessFunc func
   ) {
     while (auto input = co_await inChan->pull()) {
-      if (inSem != nullptr) {
-        inSem->release();
-      }
-
-      // Wait for the output semaphore so we can construct the data directly in
-      // the output queue
-      if (outSem != nullptr) {
-        co_await *outSem;
-      }
-
       if constexpr (tmc::traits::is_awaitable<CInput>) {
         auto data = co_await std::move(input.get());
         using FInput = tmc::traits::awaitable_result_t<CInput>;
@@ -89,12 +89,12 @@ struct pipeline_stage {
         if constexpr (tmc::traits::is_awaitable<
                         std::invoke_result_t<ProcessFunc, FInput&&>>) {
           // ProcessFunc is a coroutine
-          outChan->post(with_result_of([&]() {
+          co_await outChan->post(with_result_of([&]() {
             return tmc::spawn(func(std::move(data))).fork();
           }));
         } else {
           // ProcessFunc is a regular function
-          outChan->post(with_result_of([&]() {
+          co_await outChan->post(with_result_of([&]() {
             return tmc::spawn([](ProcessFunc f, FInput i) -> tmc::task<Output> {
                      co_return f(std::move(i));
                    }(func, std::move(data)))
@@ -107,12 +107,12 @@ struct pipeline_stage {
         if constexpr (tmc::traits::is_awaitable<
                         std::invoke_result_t<ProcessFunc, FInput&&>>) {
           // ProcessFunc is a coroutine
-          outChan->post(with_result_of([&]() {
+          co_await outChan->post(with_result_of([&]() {
             return tmc::spawn(func(std::move(input.get()))).fork();
           }));
         } else {
           // ProcessFunc is a regular function
-          outChan->post(with_result_of([&]() {
+          co_await outChan->post(with_result_of([&]() {
             return tmc::spawn([](ProcessFunc f, FInput i) -> tmc::task<Output> {
                      co_return f(std::move(i));
                    }(func, std::move(input.get())))
@@ -129,44 +129,53 @@ struct pipeline_stage {
 
   pipeline_stage(
     tmc::aw_fork_group<0, void>& fg, pipeline_queue_ptr<Input> inChan,
-    tmc::semaphore* inSem, ProcessFunc func, size_t parallelism
+    ProcessFunc func, size_t parallelism
   )
-      : outChan_(make_pipeline_queue<output_t>()),
-        // Initialize our output semaphore to 0. The next stage will set this
-        // semaphore capacity (for their input queue) based on their worker
-        // count.
-        outSem_(tmc::semaphore(0)) {
-
-    // Set our input queue capacity to 2x our worker count.
-    if (inSem != nullptr) {
-      inSem->release(2 * parallelism);
-    }
-
-    tmc::semaphore* outSem = &outSem_;
-    if constexpr (End) {
-      outSem = nullptr;
-    }
-
-    fg.fork(worker(inChan, inSem, outChan_, outSem, func));
+      : outChan_(make_pipeline_queue<output_t>(parallelism)) {
+    fg.fork(worker(inChan, outChan_, func));
   }
 
   pipeline_queue_ptr<output_t> get_channel() { return outChan_; }
 };
 
+// The start stage is a normal pipeline_stage that additionally owns its
+// input queue and exposes it as the public `in` member, so the driver has
+// somewhere to post the initial elements.
+template <typename Input, typename Output, typename ProcessFunc>
+struct pipeline_start_stage : pipeline_stage<Input, Output, ProcessFunc> {
+  pipeline_queue_ptr<Input> in;
+
+  pipeline_start_stage(
+    tmc::aw_fork_group<0, void>& fg, pipeline_queue_ptr<Input> inChan,
+    ProcessFunc func, size_t parallelism
+  )
+      : pipeline_stage<Input, Output, ProcessFunc>(
+          fg, inChan, func, parallelism
+        ),
+        in(std::move(inChan)) {}
+};
+
+// Creates the first stage of the pipeline. The driver writes input elements
+// to the returned stage's `in` member. The Input type must be specified
+// explicitly as a template argument.
 template <typename Input, typename Func>
 auto start_pipeline(
-  tmc::aw_fork_group<0, void>& fg, pipeline_queue_ptr<Input> from,
-  tmc::semaphore* inSem, Func transformFunc, size_t parallelism = 1
+  tmc::aw_fork_group<0, void>& fg, Func transformFunc, size_t parallelism = 1
 ) {
   using Intermediate = std::invoke_result_t<Func, Input&&>;
   using Output = std::conditional_t<
     tmc::traits::is_awaitable<Intermediate>,
     tmc::traits::awaitable_result_t<Intermediate>, Intermediate>;
-  return pipeline_stage<Input, Output, Func, false>{
-    fg, from, inSem, transformFunc, parallelism
+  // The input queue is sized to `parallelism` to give the driver buffering
+  // proportional to the stage's processing capacity.
+  auto inChan = make_pipeline_queue<Input>(parallelism);
+  return pipeline_start_stage<Input, Output, Func>{
+    fg, std::move(inChan), transformFunc, parallelism
   };
 }
 
+// Adds an intermediate stage that pulls from the prior stage's output queue
+// and forwards through its own output queue (sized to `parallelism`).
 template <typename PriorStage, typename Func>
 auto pipeline_transform(
   tmc::aw_fork_group<0, void>& fg, PriorStage& from, Func transformFunc,
@@ -180,19 +189,18 @@ auto pipeline_transform(
   using Output = std::conditional_t<
     tmc::traits::is_awaitable<IntermediateOutput>,
     tmc::traits::awaitable_result_t<IntermediateOutput>, IntermediateOutput>;
-  return pipeline_stage<Input, Output, Func, false>{
-    fg, from.outChan_, &from.outSem_, transformFunc, parallelism
+  return pipeline_stage<Input, Output, Func>{
+    fg, from.get_channel(), transformFunc, parallelism
   };
 }
 
 template <typename Input, typename ProcessFunc> struct pipeline_end_stage {
+  // Fast path used when parallelism == 1: process each item inline in the
+  // consumer task, avoiding the internal queue and fork overhead entirely.
   template <typename CInput>
-  static tmc::task<void> worker(
-    pipeline_queue_ptr<CInput> inChan, tmc::semaphore* inSem, ProcessFunc func
-  ) {
+  static tmc::task<void>
+  inline_worker(pipeline_queue_ptr<CInput> inChan, ProcessFunc func) {
     while (auto input = co_await inChan->pull()) {
-      inSem->release();
-
       if constexpr (tmc::traits::is_awaitable<CInput>) {
         auto data = co_await std::move(input.get());
         using FInput = tmc::traits::awaitable_result_t<CInput>;
@@ -214,17 +222,91 @@ template <typename Input, typename ProcessFunc> struct pipeline_end_stage {
     }
   }
 
+  template <typename CInput>
+  static tmc::task<void> worker(
+    pipeline_queue_ptr<CInput> inChan, ProcessFunc func, size_t parallelism
+  ) {
+    // Each in-flight consume runs as its own forked task. The internal
+    // bounded queue holds those fork handles so we can await them in FIFO
+    // order. Sized to `parallelism` - exactly large enough to hold all
+    // currently in-flight tasks.
+    using consume_fork_t = tmc::aw_spawn_fork<tmc::task<void>>;
+    auto internalQueue = make_pipeline_queue<consume_fork_t>(parallelism);
+
+    // Track the number of currently active (in-flight) consume tasks in
+    // a separate size_t. This lets us drain exactly when we hit the
+    // parallelism limit, so the next post() never blocks on a full queue.
+    size_t active = 0;
+
+    while (auto input = co_await inChan->pull()) {
+      if constexpr (tmc::traits::is_awaitable<CInput>) {
+        // Upstream queue contains forked task handles - await to get value.
+        auto data = co_await std::move(input.get());
+        using FInput = tmc::traits::awaitable_result_t<CInput>;
+        co_await internalQueue->post(with_result_of([&]() {
+          return tmc::spawn([](ProcessFunc f, FInput d) -> tmc::task<void> {
+                   if constexpr (tmc::traits::is_awaitable<
+                                   std::invoke_result_t<ProcessFunc, FInput&&>>) {
+                     co_await f(std::move(d));
+                   } else {
+                     f(std::move(d));
+                   }
+                   co_return;
+                 }(func, std::move(data)))
+            .fork();
+        }));
+      } else {
+        using FInput = CInput;
+        // Upstream queue contains values directly.
+        co_await internalQueue->post(with_result_of([&]() {
+          return tmc::spawn([](ProcessFunc f, FInput d) -> tmc::task<void> {
+                   if constexpr (tmc::traits::is_awaitable<
+                                   std::invoke_result_t<ProcessFunc, FInput&&>>) {
+                     co_await f(std::move(d));
+                   } else {
+                     f(std::move(d));
+                   }
+                   co_return;
+                 }(func, std::move(input.get())))
+            .fork();
+        }));
+      }
+      ++active;
+
+      // Hit the parallelism limit - drain one completion (in FIFO order)
+      // before the next iteration's post() could otherwise block.
+      if (active >= parallelism) {
+        auto handle = co_await internalQueue->pull();
+        co_await std::move(handle.get());
+        --active;
+      }
+    }
+
+    // Upstream is closed. Drain any remaining in-flight forks in order.
+    while (active > 0) {
+      auto handle = co_await internalQueue->pull();
+      co_await std::move(handle.get());
+      --active;
+    }
+  }
+
   pipeline_end_stage(
     tmc::aw_fork_group<0, void>& fg, pipeline_queue_ptr<Input> inChan,
-    tmc::semaphore* inSem, ProcessFunc func, size_t parallelism
+    ProcessFunc func, size_t parallelism
   ) {
-    // Set our input queue capacity to 2x our worker count.
-    inSem->release(2 * parallelism);
-
-    fg.fork(worker(inChan, inSem, func));
+    if (parallelism == 1) {
+      fg.fork(inline_worker(inChan, func));
+    } else {
+      fg.fork(worker(inChan, func, parallelism));
+    }
   }
 };
 
+// The terminal consumer of the pipeline. With `parallelism` > 1 it runs
+// up to that many consume() invocations concurrently. Completion of those
+// forked tasks is awaited in FIFO order, but the consume() bodies
+// themselves execute in parallel - if `consumeFunc` touches shared state,
+// the caller is responsible for synchronization.
 template <typename PriorStage, typename Func>
 auto end_pipeline(
   tmc::aw_fork_group<0, void>& fg, PriorStage& from, Func consumeFunc,
@@ -232,6 +314,6 @@ auto end_pipeline(
 ) {
   using Input = typename PriorStage::output_t;
   return pipeline_end_stage<Input, Func>{
-    fg, from.outChan_, &from.outSem_, consumeFunc, parallelism
+    fg, from.get_channel(), consumeFunc, parallelism
   };
 }

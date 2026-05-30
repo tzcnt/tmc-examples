@@ -3,18 +3,15 @@
 // - Configurable number of stages / input / output types
 // - Configurable parallelism per stage
 // - Automatic backpressure based on the current stage parallelism
-
-// This pipeline may process tasks out of order. For a FIFO pipeline,
-// see pipeline_fifo.cpp.
+// - Parallel processing of inputs with FIFO serialization of outputs
 
 #include "tmc/ex_cpu.hpp"
 #include "tmc/fork_group.hpp"
-#include "tmc/semaphore.hpp"
 #include "tmc/task.hpp"
 
 // This is just the user application.
-// The generic pipeline implementation is in the header
-#include "pipeline.hpp"
+// The generic FIFO pipeline implementation is in the header
+#include "pipeline_fifo.hpp"
 
 #include <chrono>
 #include <cstdio>
@@ -51,9 +48,11 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
     // Track all pipeline stage workers here so we can cleanly join at the end
     auto fg = tmc::fork_group();
 
-    auto in = tmc::make_channel<int>();
-    tmc::semaphore inputSem(0);
-    auto first = start_pipeline(fg, in, &inputSem, plus_half, 10);
+    // Each stage owns its own output queue, sized to that stage's parallelism
+    // parameter. The bounded output queue provides backpressure and gates the
+    // stage's own in-flight parallelism. The start stage additionally owns
+    // its input queue (the queue the driver posts to), exposed as `.in`.
+    auto first = start_pipeline<int>(fg, plus_half, 10);
     auto second = pipeline_transform(fg, first, times_two, 10);
     auto third = pipeline_transform(fg, second, minus_one, 10);
     auto fourth = pipeline_transform(fg, third, as_bool, 10);
@@ -61,13 +60,15 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
     size_t sum = 0;
     size_t count = 0;
 
-    // The final stage serializes all the results with workerCount = 1
-    // So it's the bottleneck in this pipeline design
+    // This final stage has been configured to serialize the results by setting
+    // parallelism = 1. Results will appear in the same order as the original
+    // input. Another option would be to consume the results directly from the
+    // prior stage's get_channel().
     [[maybe_unused]] auto fifth = end_pipeline(
       fg, fourth,
       [&sum, &count](bool i) {
         sum += static_cast<size_t>(i);
-        ++count;
+        count += 1;
       },
       1
     );
@@ -78,11 +79,14 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
       // Run the initial producer task inline. Optionally, this could also be
       // added to the fg.
       for (int i = 0; i < NELEMS; ++i) {
-        // Also apply backpressure to the input to avoid overloading the queue
-        co_await inputSem;
-        in.post(i);
+        // The bounded queue's post() suspends when the queue is full,
+        // providing backpressure to the producer.
+        co_await first.in->post(i);
       }
-      co_await in.drain();
+      // Close the input queue. The first stage worker will drain remaining
+      // items and then close its output queue, propagating closure through
+      // the pipeline. Awaiting the fork_group below ensures full drain.
+      first.in->close();
     }
 
     co_await std::move(fg);
