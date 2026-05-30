@@ -24,8 +24,7 @@ static constexpr size_t SPSC_TEST_SENTINEL = static_cast<size_t>(-1);
 // largest bulk post in any single call (post_bulk requires Count <= capacity).
 static constexpr size_t TEST_CAPACITY = 128;
 
-template <size_t Pack>
-struct qu_config : tmc::qu_bounded_spsc_default_config {
+template <size_t Pack> struct qu_config : tmc::qu_bounded_spsc_default_config {
   static inline constexpr size_t PackingLevel = Pack;
   static inline constexpr bool ConsumerCanSuspend = true;
 };
@@ -122,9 +121,7 @@ void do_chan_test(Executor& Exec) {
             if (j > NITEMS) {
               j = NITEMS;
             }
-            co_await Chan.post_bulk(
-              std::ranges::views::iota(i).begin(), j - i
-            );
+            co_await Chan.post_bulk(std::ranges::views::iota(i).begin(), j - i);
           }
           co_return i;
         }(chan),
@@ -383,10 +380,12 @@ TEST_F(CATEGORY, try_pull_zc_scope_move_assign_over_nonempty) {
     std::atomic<size_t> count1{0};
     std::atomic<size_t> count2{0};
     {
-      auto q1 = tmc::qu_bounded_spsc<
-        spsc_destructor_counter, qu_config<0>>{TEST_CAPACITY};
-      auto q2 = tmc::qu_bounded_spsc<
-        spsc_destructor_counter, qu_config<0>>{TEST_CAPACITY};
+      auto q1 = tmc::qu_bounded_spsc<spsc_destructor_counter, qu_config<0>>{
+        TEST_CAPACITY
+      };
+      auto q2 = tmc::qu_bounded_spsc<spsc_destructor_counter, qu_config<0>>{
+        TEST_CAPACITY
+      };
       co_await q1.post(spsc_destructor_counter{&count1});
       co_await q2.post(spsc_destructor_counter{&count2});
 
@@ -547,6 +546,38 @@ TEST_F(CATEGORY, close_resume_inline_wakes_suspended_consumer) {
     EXPECT_FALSE(
       got_value
     ); // consumer was woken by close_resume_inline with empty scope
+    co_return;
+  }());
+}
+
+TEST_F(CATEGORY, pull_after_closed) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    using qerr = tmc::qu_bounded_spsc_err;
+    auto chan = tmc::qu_bounded_spsc<size_t, qu_config<0>>{TEST_CAPACITY};
+
+    auto results = co_await tmc::spawn_tuple(
+      [](auto& Chan) -> tmc::task<void> {
+        // Suspend on the empty cutoff slot.
+        auto v = co_await Chan.pull();
+        EXPECT_FALSE(static_cast<bool>(v)); // woken by close, empty.
+
+        // Now poll the same slot. Per the close() contract this must
+        // immediately return CLOSED again.
+        auto v2 = Chan.try_pull();
+        EXPECT_EQ(qerr::CLOSED, v2.status());
+        EXPECT_EQ(false, v2.has_value());
+        auto v3 = co_await Chan.pull();
+        EXPECT_EQ(false, v3.has_value());
+      }(chan),
+      [](auto& Chan) -> tmc::task<void> {
+        // Yield to give the consumer a chance to suspend.
+        for (size_t i = 0; i < 10; ++i) {
+          co_await tmc::reschedule();
+        }
+        Chan.close();
+      }(chan)
+    );
+
     co_return;
   }());
 }
