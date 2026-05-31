@@ -847,4 +847,171 @@ TEST_F(CATEGORY, push_bulk_range_empty) {
   }());
 }
 
+// try_push() succeeds on an empty queue, returns false when the queue is
+// full, and resumes successfully after the consumer drains a slot.
+TEST_F(CATEGORY, try_push_basic) {
+  tmc::ex_cpu ex;
+  ex.set_thread_count(1).init();
+  test_async_main(ex, []() -> tmc::task<void> {
+    static constexpr size_t CAP = 4;
+    auto chan = tmc::qu_spsc_bounded<size_t, qu_config<0>>{CAP};
+
+    // Fill the queue exactly to capacity.
+    for (size_t i = 0; i < CAP; ++i) {
+      EXPECT_TRUE(chan.try_push(i));
+    }
+
+    // Queue is full; try_push must return false without modifying the queue.
+    EXPECT_FALSE(chan.try_push(999u));
+    EXPECT_FALSE(chan.try_push(1000u));
+
+    // Drain one slot. try_push should now succeed once, then fail again.
+    {
+      auto v = chan.try_pull();
+      EXPECT_TRUE(static_cast<bool>(v));
+      EXPECT_EQ(0u, *v);
+    }
+    EXPECT_TRUE(chan.try_push(100u));
+    EXPECT_FALSE(chan.try_push(200u));
+
+    // Drain the rest and confirm contents are in order: 1, 2, 3, 100.
+    size_t expected[CAP] = {1, 2, 3, 100};
+    for (size_t i = 0; i < CAP; ++i) {
+      auto v = chan.try_pull();
+      EXPECT_TRUE(static_cast<bool>(v));
+      EXPECT_EQ(expected[i], *v);
+    }
+
+    // Queue is drained.
+    auto empty = chan.try_pull();
+    EXPECT_FALSE(static_cast<bool>(empty));
+    co_return;
+  }());
+}
+
+// try_push() wakes a consumer suspended on the slot it writes.
+TEST_F(CATEGORY, try_push_wakes_suspended_consumer) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    auto chan = tmc::qu_spsc_bounded<size_t, qu_config<0>>{TEST_CAPACITY};
+
+    auto results = co_await tmc::spawn_tuple(
+      [](auto& Chan) -> tmc::task<size_t> {
+        size_t sum = 0;
+        while (auto v = co_await Chan.pull()) {
+          sum += *v;
+        }
+        co_return sum;
+      }(chan),
+      [](auto& Chan) -> tmc::task<void> {
+        // Yield to give the consumer a chance to suspend.
+        for (size_t i = 0; i < 10; ++i) {
+          co_await tmc::reschedule();
+        }
+        EXPECT_TRUE(Chan.try_push(123u));
+        EXPECT_TRUE(Chan.try_push(456u));
+        Chan.close();
+        co_return;
+      }(chan)
+    );
+
+    EXPECT_EQ(123u + 456u, std::get<0>(results));
+    co_return;
+  }());
+}
+
+// try_push() works when ConsumerCanSuspend = false (no pull() available).
+TEST_F(CATEGORY, try_push_no_suspend) {
+  tmc::ex_cpu ex;
+  ex.set_thread_count(1).init();
+  test_async_main(ex, []() -> tmc::task<void> {
+    static constexpr size_t CAP = 8;
+    auto chan = tmc::qu_spsc_bounded<size_t, chan_config_no_suspend>{CAP};
+
+    // Fill to capacity.
+    for (size_t i = 0; i < CAP; ++i) {
+      EXPECT_TRUE(chan.try_push(i));
+    }
+    EXPECT_FALSE(chan.try_push(999u));
+
+    size_t sum = 0;
+    size_t count = 0;
+    for (size_t i = 0; i < CAP; ++i) {
+      auto v = chan.try_pull();
+      EXPECT_TRUE(static_cast<bool>(v));
+      sum += *v;
+      ++count;
+    }
+    EXPECT_EQ(CAP, count);
+    size_t expectedSum = 0;
+    for (size_t i = 0; i < CAP; ++i) {
+      expectedSum += i;
+    }
+    EXPECT_EQ(expectedSum, sum);
+
+    co_return;
+  }());
+}
+
+// try_push() of a non-movable type: emplace-constructs in place.
+TEST_F(CATEGORY, try_push_non_movable_type) {
+  tmc::ex_cpu ex;
+  ex.set_thread_count(1).init();
+  test_async_main(ex, []() -> tmc::task<void> {
+    auto chan = tmc::qu_spsc_bounded<non_movable, qu_config<0>>{TEST_CAPACITY};
+
+    EXPECT_TRUE(chan.try_push(1, 2));
+    EXPECT_TRUE(chan.try_push(3, 4));
+
+    {
+      auto v = chan.try_pull();
+      EXPECT_TRUE(static_cast<bool>(v));
+      EXPECT_EQ(3, v->value);
+    }
+    {
+      auto v = chan.try_pull();
+      EXPECT_TRUE(static_cast<bool>(v));
+      EXPECT_EQ(7, v->value);
+    }
+    {
+      auto v = chan.try_pull();
+      EXPECT_FALSE(static_cast<bool>(v));
+    }
+    co_return;
+  }());
+}
+
+// When try_push returns false, the element must not be constructed (no
+// destructor call on the would-be element).
+TEST_F(CATEGORY, try_push_full_does_not_construct) {
+  tmc::ex_cpu ex;
+  ex.set_thread_count(1).init();
+  test_async_main(ex, []() -> tmc::task<void> {
+    static constexpr size_t CAP = 2;
+    std::atomic<size_t> count{0};
+    {
+      auto chan = tmc::qu_spsc_bounded<
+        spsc_destructor_counter, qu_config<0>>{CAP};
+
+      // Fill the queue.
+      EXPECT_TRUE(chan.try_push(spsc_destructor_counter{&count}));
+      EXPECT_TRUE(chan.try_push(spsc_destructor_counter{&count}));
+
+      // Failed try_push must not consume / construct from the argument.
+      // The temporary is destroyed at the end of the full-expression here;
+      // since try_push didn't move from it, only the original temporary's
+      // destructor fires (count is incremented once for the temporary).
+      size_t before = count.load();
+      spsc_destructor_counter extra{&count};
+      EXPECT_FALSE(chan.try_push(std::move(extra)));
+      // `extra` still owns its counter pointer (the move didn't happen
+      // inside try_push because we never reached write_element).
+      EXPECT_EQ(before, count.load());
+      // When `extra` goes out of scope below it will increment count once.
+    }
+    // Two queued + the local `extra` destructor = 3 total increments.
+    EXPECT_EQ(3u, count.load());
+    co_return;
+  }());
+}
+
 #undef CATEGORY

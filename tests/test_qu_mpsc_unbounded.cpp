@@ -615,8 +615,6 @@ TEST_F(CATEGORY, embed_first_block) {
   }
 }
 
-// Multiple concurrent producers. This is what the M in MPSC stands for; the
-// existing tests only use a single producer task.
 TEST_F(CATEGORY, multi_producer) {
   test_async_main(ex(), []() -> tmc::task<void> {
     static constexpr size_t NPRODUCERS = 4;
