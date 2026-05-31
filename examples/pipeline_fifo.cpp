@@ -51,7 +51,7 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
     // Each stage owns its own output queue, sized to that stage's parallelism
     // parameter. The bounded output queue provides backpressure and gates the
     // stage's own in-flight parallelism. The start stage additionally owns
-    // its input queue (the queue the driver posts to), exposed as `.in`.
+    // its input queue (the queue the driver pushes to), exposed as `.in`.
     auto first = start_pipeline<int>(fg, plus_half, 10);
     auto second = pipeline_transform(fg, first, times_two, 10);
     auto third = pipeline_transform(fg, second, minus_one, 10);
@@ -63,7 +63,7 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
     // This final stage has been configured to serialize the results by setting
     // parallelism = 1. Results will appear in the same order as the original
     // input. Another option would be to consume the results directly from the
-    // prior stage's get_channel().
+    // prior stage's get_queue().
     [[maybe_unused]] auto fifth = end_pipeline(
       fg, fourth,
       [&sum, &count](bool i) {
@@ -79,14 +79,14 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
       // Run the initial producer task inline. Optionally, this could also be
       // added to the fg.
       for (int i = 0; i < NELEMS; ++i) {
-        // The bounded queue's post() suspends when the queue is full,
+        // The bounded queue's push() suspends when the queue is full,
         // providing backpressure to the producer.
-        co_await first.in->post(i);
+        co_await first.input_queue->push(i);
       }
       // Close the input queue. The first stage worker will drain remaining
       // items and then close its output queue, propagating closure through
       // the pipeline. Awaiting the fork_group below ensures full drain.
-      first.in->close();
+      first.input_queue->close();
     }
 
     co_await std::move(fg);
