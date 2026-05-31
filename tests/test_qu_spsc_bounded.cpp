@@ -21,7 +21,7 @@ protected:
 static constexpr size_t SPSC_TEST_SENTINEL = static_cast<size_t>(-1);
 
 // Default capacity used by tests below. Must be large enough to hold the
-// largest bulk post in any single call (post_bulk requires Count <= capacity).
+// largest bulk push in any single call (push_bulk requires Count <= capacity).
 static constexpr size_t TEST_CAPACITY = 128;
 
 template <size_t Pack> struct qu_config : tmc::qu_spsc_bounded_default_config {
@@ -74,9 +74,9 @@ void do_chan_test(Executor& Exec) {
         [](auto& Chan) -> tmc::task<size_t> {
           size_t i = 0;
           for (; i < NITEMS; ++i) {
-            co_await Chan.post(i);
+            co_await Chan.push(i);
           }
-          co_await Chan.post(SPSC_TEST_SENTINEL);
+          co_await Chan.push(SPSC_TEST_SENTINEL);
           co_return i;
         }(chan),
         [](auto& Chan) -> tmc::task<result> {
@@ -103,7 +103,7 @@ void do_chan_test(Executor& Exec) {
       EXPECT_EQ(expectedSum, cons.sum);
     }
     {
-      // general test - post_bulk
+      // general test - push_bulk
       static constexpr size_t NITEMS = 1000;
       struct result {
         size_t count;
@@ -121,7 +121,7 @@ void do_chan_test(Executor& Exec) {
             if (j > NITEMS) {
               j = NITEMS;
             }
-            co_await Chan.post_bulk(std::ranges::views::iota(i).begin(), j - i);
+            co_await Chan.push_bulk(std::ranges::views::iota(i).begin(), j - i);
           }
           co_return i;
         }(chan),
@@ -157,7 +157,7 @@ void do_chan_test(Executor& Exec) {
         auto chan = tmc::qu_spsc_bounded<
           spsc_destructor_counter, qu_config<PackingLevel>>{TEST_CAPACITY};
         for (size_t i = 0; i < 12; ++i) {
-          co_await chan.post(spsc_destructor_counter{&count});
+          co_await chan.push(spsc_destructor_counter{&count});
         }
 
         for (size_t i = 0; i < 7; ++i) {
@@ -178,22 +178,22 @@ TEST_F(CATEGORY, config_sweep) {
   do_chan_test<1>(ex());
 }
 
-// Test post_bulk of 0 items
-TEST_F(CATEGORY, post_bulk_none) {
+// Test push_bulk of 0 items
+TEST_F(CATEGORY, push_bulk_none) {
   tmc::ex_cpu ex;
   ex.set_thread_count(1).init();
   test_async_main(ex, []() -> tmc::task<void> {
     auto chan = tmc::qu_spsc_bounded<size_t, qu_config<0>>{TEST_CAPACITY};
     size_t i = 0;
     for (; i < 4; ++i) {
-      co_await chan.post_bulk(&i, 0);
-      co_await chan.post_bulk(std::ranges::views::iota(i).begin(), 0);
-      co_await chan.post(i);
+      co_await chan.push_bulk(&i, 0);
+      co_await chan.push_bulk(std::ranges::views::iota(i).begin(), 0);
+      co_await chan.push(i);
     }
     for (; i < 8; ++i) {
-      co_await chan.post_bulk(std::ranges::views::iota(i).begin(), 0);
-      co_await chan.post_bulk(std::ranges::views::iota(i).begin(), 0);
-      co_await chan.post_bulk(std::ranges::views::iota(i).begin(), 1);
+      co_await chan.push_bulk(std::ranges::views::iota(i).begin(), 0);
+      co_await chan.push_bulk(std::ranges::views::iota(i).begin(), 0);
+      co_await chan.push_bulk(std::ranges::views::iota(i).begin(), 1);
     }
     size_t count = 0;
     size_t sum = 0;
@@ -231,10 +231,10 @@ TEST_F(CATEGORY, try_pull_no_suspend) {
       EXPECT_FALSE(static_cast<bool>(v));
     }
 
-    // Post enough items to exercise the queue.
+    // Push enough items to exercise the queue.
     static constexpr size_t NITEMS = 10;
     for (size_t i = 0; i < NITEMS; ++i) {
-      co_await chan.post(i);
+      co_await chan.push(i);
     }
 
     size_t sum = 0;
@@ -262,7 +262,7 @@ TEST_F(CATEGORY, try_pull_no_suspend) {
 }
 
 // A type with no default, copy, or move constructor. Can only be created
-// in-place via post()'s emplace forwarding.
+// in-place via push()'s emplace forwarding.
 struct non_movable {
   int value;
 
@@ -288,9 +288,9 @@ TEST_F(CATEGORY, non_movable_type) {
     }
 
     // Emplace-construct values directly in the queue storage.
-    co_await chan.post(1, 2);
-    co_await chan.post(3, 4);
-    co_await chan.post(5, 6);
+    co_await chan.push(1, 2);
+    co_await chan.push(3, 4);
+    co_await chan.push(5, 6);
 
     // First value via try_pull
     {
@@ -386,8 +386,8 @@ TEST_F(CATEGORY, try_pull_zc_scope_move_assign_over_nonempty) {
       auto q2 = tmc::qu_spsc_bounded<spsc_destructor_counter, qu_config<0>>{
         TEST_CAPACITY
       };
-      co_await q1.post(spsc_destructor_counter{&count1});
-      co_await q2.post(spsc_destructor_counter{&count2});
+      co_await q1.push(spsc_destructor_counter{&count1});
+      co_await q2.push(spsc_destructor_counter{&count2});
 
       auto v1 = q1.try_pull();
       EXPECT_TRUE(static_cast<bool>(v1));
@@ -412,7 +412,7 @@ TEST_F(CATEGORY, try_pull_zc_scope_move_assign_over_nonempty) {
 }
 
 // close() wakes a consumer suspended on an empty slot. The consumer is parked
-// at slot 0 (no producer has posted), then close() races in and publishes the
+// at slot 0 (no producer has pushed), then close() races in and publishes the
 // CLOSED sentinel at slot 0, returning the waiting consumer pointer which
 // close() then resumes.
 TEST_F(CATEGORY, close_wakes_suspended_consumer) {
@@ -440,16 +440,16 @@ TEST_F(CATEGORY, close_wakes_suspended_consumer) {
   }());
 }
 
-// post_bulk() wakes a consumer suspended on the slot it writes. Exercises
-// the branch in post_bulk that captures the waiting consumer pointer
-// returned by write_element and posts its resumption.
-TEST_F(CATEGORY, post_bulk_wakes_suspended_consumer) {
+// push_bulk() wakes a consumer suspended on the slot it writes. Exercises
+// the branch in push_bulk that captures the waiting consumer pointer
+// returned by write_element and pushs its resumption.
+TEST_F(CATEGORY, push_bulk_wakes_suspended_consumer) {
   test_async_main(ex(), []() -> tmc::task<void> {
     auto chan = tmc::qu_spsc_bounded<size_t, qu_config<0>>{TEST_CAPACITY};
 
     auto results = co_await tmc::spawn_tuple(
       [](auto& Chan) -> tmc::task<size_t> {
-        // Consumer suspends at slot 0; post_bulk wakes it. Drain everything
+        // Consumer suspends at slot 0; push_bulk wakes it. Drain everything
         // until the queue is closed (empty scope). Each pull_zc_scope must
         // be released before the next pull() runs, since the queue requires
         // that at most one scope from a given queue be live at a time.
@@ -465,7 +465,7 @@ TEST_F(CATEGORY, post_bulk_wakes_suspended_consumer) {
           co_await tmc::reschedule();
         }
         size_t items[5] = {10, 20, 30, 40, 50};
-        co_await Chan.post_bulk(&items[0], 5);
+        co_await Chan.push_bulk(&items[0], 5);
         Chan.close();
         co_return;
       }(chan)
@@ -477,14 +477,14 @@ TEST_F(CATEGORY, post_bulk_wakes_suspended_consumer) {
 }
 
 // close_resume_inline() with no waiting consumer: behaves like close() in
-// that subsequent posts must not be used, and pre-close posts can still drain.
+// that subsequent pushs must not be used, and pre-close pushs can still drain.
 TEST_F(CATEGORY, close_resume_inline_no_waiting_consumer) {
   test_async_main(ex(), []() -> tmc::task<void> {
     using qerr = tmc::qu_spsc_bounded_err;
     auto chan = tmc::qu_spsc_bounded<size_t, qu_config<0>>{TEST_CAPACITY};
 
     for (size_t i = 0; i < 5; ++i) {
-      co_await chan.post(i);
+      co_await chan.push(i);
     }
 
     chan.close_resume_inline();
@@ -520,7 +520,7 @@ TEST_F(CATEGORY, close_resume_inline_no_waiting_consumer) {
 }
 
 // close_resume_inline() wakes a consumer suspended on an empty slot, just like
-// close() does. The consumer is parked at slot 0 (no producer has posted),
+// close() does. The consumer is parked at slot 0 (no producer has pushed),
 // then close_resume_inline() races in and publishes the CLOSED sentinel at slot
 // 0, which wakes the consumer (resumed inline) with an empty scope.
 TEST_F(CATEGORY, close_resume_inline_wakes_suspended_consumer) {
@@ -582,16 +582,16 @@ TEST_F(CATEGORY, pull_after_closed) {
   }());
 }
 
-// post_bulk(Begin, End) iterator-pair overload: pushes [Begin, End) into the
+// push_bulk(Begin, End) iterator-pair overload: pushes [Begin, End) into the
 // queue and drains them in order.
-TEST_F(CATEGORY, post_bulk_iterator_pair) {
+TEST_F(CATEGORY, push_bulk_iterator_pair) {
   tmc::ex_cpu ex;
   ex.set_thread_count(1).init();
   test_async_main(ex, []() -> tmc::task<void> {
     auto chan = tmc::qu_spsc_bounded<size_t, qu_config<0>>{TEST_CAPACITY};
 
     std::vector<size_t> items{1, 2, 3, 4, 5, 6, 7};
-    co_await chan.post_bulk(items.begin(), items.end());
+    co_await chan.push_bulk(items.begin(), items.end());
 
     size_t sum = 0;
     size_t count = 0;
@@ -611,22 +611,22 @@ TEST_F(CATEGORY, post_bulk_iterator_pair) {
   }());
 }
 
-// post_bulk(Begin, End) with Begin == End must be a no-op.
-TEST_F(CATEGORY, post_bulk_iterator_pair_empty) {
+// push_bulk(Begin, End) with Begin == End must be a no-op.
+TEST_F(CATEGORY, push_bulk_iterator_pair_empty) {
   tmc::ex_cpu ex;
   ex.set_thread_count(1).init();
   test_async_main(ex, []() -> tmc::task<void> {
     auto chan = tmc::qu_spsc_bounded<size_t, qu_config<0>>{TEST_CAPACITY};
 
     std::vector<size_t> empty_items;
-    co_await chan.post_bulk(empty_items.begin(), empty_items.end());
+    co_await chan.push_bulk(empty_items.begin(), empty_items.end());
 
     // Queue should still be empty.
     auto v = chan.try_pull();
     EXPECT_FALSE(static_cast<bool>(v));
 
-    // A real post afterwards should still work and arrive at slot 0.
-    co_await chan.post(42u);
+    // A real push afterwards should still work and arrive at slot 0.
+    co_await chan.push(42u);
     auto v2 = chan.try_pull();
     EXPECT_TRUE(static_cast<bool>(v2));
     EXPECT_EQ(42u, *v2);
@@ -634,16 +634,16 @@ TEST_F(CATEGORY, post_bulk_iterator_pair_empty) {
   }());
 }
 
-// post_bulk(Range) overload: pushes the range into the queue and drains in
+// push_bulk(Range) overload: pushes the range into the queue and drains in
 // order.
-TEST_F(CATEGORY, post_bulk_range) {
+TEST_F(CATEGORY, push_bulk_range) {
   tmc::ex_cpu ex;
   ex.set_thread_count(1).init();
   test_async_main(ex, []() -> tmc::task<void> {
     auto chan = tmc::qu_spsc_bounded<size_t, qu_config<0>>{TEST_CAPACITY};
 
     std::vector<size_t> items{10, 20, 30, 40, 50};
-    co_await chan.post_bulk(items);
+    co_await chan.push_bulk(items);
 
     size_t sum = 0;
     size_t count = 0;
@@ -663,10 +663,10 @@ TEST_F(CATEGORY, post_bulk_range) {
   }());
 }
 
-// post() wakes a consumer suspended on the slot it writes. Exercises the
-// branch in aw_post_impl::await_resume that captures the waiting consumer
-// pointer returned by write_element and posts its resumption.
-TEST_F(CATEGORY, post_wakes_suspended_consumer) {
+// push() wakes a consumer suspended on the slot it writes. Exercises the
+// branch in aw_push_impl::await_resume that captures the waiting consumer
+// pointer returned by write_element and pushs its resumption.
+TEST_F(CATEGORY, push_wakes_suspended_consumer) {
   test_async_main(ex(), []() -> tmc::task<void> {
     auto chan = tmc::qu_spsc_bounded<size_t, qu_config<0>>{TEST_CAPACITY};
 
@@ -683,8 +683,8 @@ TEST_F(CATEGORY, post_wakes_suspended_consumer) {
         for (size_t i = 0; i < 10; ++i) {
           co_await tmc::reschedule();
         }
-        co_await Chan.post(123u);
-        co_await Chan.post(456u);
+        co_await Chan.push(123u);
+        co_await Chan.push(456u);
         Chan.close();
         co_return;
       }(chan)
@@ -695,12 +695,12 @@ TEST_F(CATEGORY, post_wakes_suspended_consumer) {
   }());
 }
 
-// Fill the queue to capacity, then have the producer attempt one more post()
+// Fill the queue to capacity, then have the producer attempt one more push()
 // which must suspend until the consumer drains. Exercises
-// aw_post_impl::await_suspend (producer suspension on a DATA_BIT slot) and
+// aw_push_impl::await_suspend (producer suspension on a DATA_BIT slot) and
 // finish_read's branch that wakes a producer when prev flags is a
 // producer_base*.
-TEST_F(CATEGORY, post_suspends_when_full) {
+TEST_F(CATEGORY, push_suspends_when_full) {
   test_async_main(ex(), []() -> tmc::task<void> {
     // Tiny capacity so we can easily fill the queue.
     static constexpr size_t CAP = 4;
@@ -711,8 +711,8 @@ TEST_F(CATEGORY, post_suspends_when_full) {
       [](auto& Chan) -> tmc::task<size_t> {
         size_t sum = 0;
         for (size_t i = 0; i < NITEMS; ++i) {
-          // Each post may suspend once the queue fills up.
-          co_await Chan.post(i);
+          // Each push may suspend once the queue fills up.
+          co_await Chan.push(i);
           sum += i;
         }
         co_return sum;
@@ -742,10 +742,10 @@ TEST_F(CATEGORY, post_suspends_when_full) {
   }());
 }
 
-// Fill the queue to capacity, then have the producer attempt a post_bulk()
-// that does not fit. Exercises aw_post_bulk_impl::await_suspend (producer
+// Fill the queue to capacity, then have the producer attempt a push_bulk()
+// that does not fit. Exercises aw_push_bulk_impl::await_suspend (producer
 // suspension on a full bulk slot) and the finish_read wake-producer branch.
-TEST_F(CATEGORY, post_bulk_suspends_when_full) {
+TEST_F(CATEGORY, push_bulk_suspends_when_full) {
   test_async_main(ex(), []() -> tmc::task<void> {
     static constexpr size_t CAP = 4;
     auto chan = tmc::qu_spsc_bounded<size_t, qu_config<0>>{CAP};
@@ -754,15 +754,15 @@ TEST_F(CATEGORY, post_bulk_suspends_when_full) {
       [](auto& Chan) -> tmc::task<size_t> {
         size_t items[CAP] = {1, 2, 3, 4};
         // First fill the queue exactly.
-        co_await Chan.post_bulk(&items[0], CAP);
-        // This second post_bulk cannot fit any element; producer must
+        co_await Chan.push_bulk(&items[0], CAP);
+        // This second push_bulk cannot fit any element; producer must
         // suspend until the consumer drains the queue.
         size_t more[CAP] = {10, 20, 30, 40};
-        co_await Chan.post_bulk(&more[0], CAP);
+        co_await Chan.push_bulk(&more[0], CAP);
         co_return 1u + 2u + 3u + 4u + 10u + 20u + 30u + 40u;
       }(chan),
       [](auto& Chan) -> tmc::task<size_t> {
-        // Give the producer time to fill and then suspend on post_bulk.
+        // Give the producer time to fill and then suspend on push_bulk.
         for (size_t i = 0; i < 20; ++i) {
           co_await tmc::reschedule();
         }
@@ -781,7 +781,7 @@ TEST_F(CATEGORY, post_bulk_suspends_when_full) {
   }());
 }
 
-// empty() returns true on an empty queue and false after a post; returns true
+// empty() returns true on an empty queue and false after a push; returns true
 // again after a try_pull drains the slot. Exercises empty() and the
 // is_data_waiting() helper.
 TEST_F(CATEGORY, empty_method) {
@@ -791,7 +791,7 @@ TEST_F(CATEGORY, empty_method) {
     auto chan = tmc::qu_spsc_bounded<size_t, qu_config<0>>{TEST_CAPACITY};
     EXPECT_TRUE(chan.empty());
 
-    co_await chan.post(7u);
+    co_await chan.push(7u);
     EXPECT_FALSE(chan.empty());
 
     {
@@ -803,7 +803,7 @@ TEST_F(CATEGORY, empty_method) {
 
     // Bulk fill, then drain.
     size_t items[3] = {100, 200, 300};
-    co_await chan.post_bulk(&items[0], 3);
+    co_await chan.push_bulk(&items[0], 3);
     EXPECT_FALSE(chan.empty());
     {
       auto v = chan.try_pull();
@@ -824,22 +824,22 @@ TEST_F(CATEGORY, empty_method) {
   }());
 }
 
-// post_bulk(Range) with an empty range must be a no-op.
-TEST_F(CATEGORY, post_bulk_range_empty) {
+// push_bulk(Range) with an empty range must be a no-op.
+TEST_F(CATEGORY, push_bulk_range_empty) {
   tmc::ex_cpu ex;
   ex.set_thread_count(1).init();
   test_async_main(ex, []() -> tmc::task<void> {
     auto chan = tmc::qu_spsc_bounded<size_t, qu_config<0>>{TEST_CAPACITY};
 
     std::vector<size_t> empty_items;
-    co_await chan.post_bulk(empty_items);
+    co_await chan.push_bulk(empty_items);
 
     // Queue should still be empty.
     auto v = chan.try_pull();
     EXPECT_FALSE(static_cast<bool>(v));
 
-    // A real post afterwards should still work and arrive at slot 0.
-    co_await chan.post(99u);
+    // A real push afterwards should still work and arrive at slot 0.
+    co_await chan.push(99u);
     auto v2 = chan.try_pull();
     EXPECT_TRUE(static_cast<bool>(v2));
     EXPECT_EQ(99u, *v2);
