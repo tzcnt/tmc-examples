@@ -83,7 +83,7 @@ struct pipeline_stage {
   ) {
     while (auto input = co_await inQueue->pull()) {
       if constexpr (tmc::traits::is_awaitable<CInput>) {
-        auto data = co_await std::move(input.get());
+        auto data = co_await std::move(input.value());
         using FInput = tmc::traits::awaitable_result_t<CInput>;
         // The data element in the queue is an awaitable
         if constexpr (tmc::traits::is_awaitable<
@@ -108,14 +108,14 @@ struct pipeline_stage {
                         std::invoke_result_t<ProcessFunc, FInput&&>>) {
           // ProcessFunc is a coroutine
           co_await outQueue->push(with_result_of([&]() {
-            return tmc::spawn(func(std::move(input.get()))).fork();
+            return tmc::spawn(func(std::move(input.value()))).fork();
           }));
         } else {
           // ProcessFunc is a regular function
           co_await outQueue->push(with_result_of([&]() {
             return tmc::spawn([](ProcessFunc f, FInput i) -> tmc::task<Output> {
                      co_return f(std::move(i));
-                   }(func, std::move(input.get())))
+                   }(func, std::move(input.value())))
               .fork();
           }));
         }
@@ -202,7 +202,7 @@ template <typename Input, typename ProcessFunc> struct pipeline_end_stage {
   inline_worker(pipeline_queue_ptr<CInput> inQueue, ProcessFunc func) {
     while (auto input = co_await inQueue->pull()) {
       if constexpr (tmc::traits::is_awaitable<CInput>) {
-        auto data = co_await std::move(input.get());
+        auto data = co_await std::move(input.value());
         using FInput = tmc::traits::awaitable_result_t<CInput>;
         if constexpr (tmc::traits::is_awaitable<
                         std::invoke_result_t<ProcessFunc, FInput&&>>) {
@@ -214,9 +214,9 @@ template <typename Input, typename ProcessFunc> struct pipeline_end_stage {
         using FInput = CInput;
         if constexpr (tmc::traits::is_awaitable<
                         std::invoke_result_t<ProcessFunc, FInput&&>>) {
-          co_await func(std::move(input.get()));
+          co_await func(std::move(input.value()));
         } else {
-          func(std::move(input.get()));
+          func(std::move(input.value()));
         }
       }
     }
@@ -241,7 +241,7 @@ template <typename Input, typename ProcessFunc> struct pipeline_end_stage {
     while (auto input = co_await inQueue->pull()) {
       if constexpr (tmc::traits::is_awaitable<CInput>) {
         // Upstream queue contains forked task handles - await to get value.
-        auto data = co_await std::move(input.get());
+        auto data = co_await std::move(input.value());
         using FInput = tmc::traits::awaitable_result_t<CInput>;
         co_await internalQueue->push(with_result_of([&]() {
           return tmc::spawn([](ProcessFunc f, FInput d) -> tmc::task<void> {
@@ -267,7 +267,7 @@ template <typename Input, typename ProcessFunc> struct pipeline_end_stage {
                      f(std::move(d));
                    }
                    co_return;
-                 }(func, std::move(input.get())))
+                 }(func, std::move(input.value())))
             .fork();
         }));
       }
@@ -277,7 +277,7 @@ template <typename Input, typename ProcessFunc> struct pipeline_end_stage {
       // before the next iteration's push() could otherwise block.
       if (active >= parallelism) {
         auto handle = co_await internalQueue->pull();
-        co_await std::move(handle.get());
+        co_await std::move(handle.value());
         --active;
       }
     }
@@ -285,7 +285,7 @@ template <typename Input, typename ProcessFunc> struct pipeline_end_stage {
     // Upstream is closed. Drain any remaining in-flight forks in order.
     while (active > 0) {
       auto handle = co_await internalQueue->pull();
-      co_await std::move(handle.get());
+      co_await std::move(handle.value());
       --active;
     }
   }
