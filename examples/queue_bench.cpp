@@ -1,4 +1,4 @@
-// A benchmark for the throughput of tmc::qu_unbounded_spsc / mpsc.
+// A benchmark for the throughput of tmc::qu_spsc_unbounded / mpsc.
 
 #include "tmc/all_headers.hpp"
 
@@ -18,21 +18,21 @@ static_assert(
 );
 
 #if PRODUCER_COUNT == 1
-struct queue_config : tmc::qu_unbounded_spsc_default_config {
+struct queue_config : tmc::qu_spsc_unbounded_default_config {
   //  static inline constexpr bool ConsumerCanSuspend = true;
   //  static inline constexpr size_t BlockSize = 4096;
   //  static inline constexpr size_t PackingLevel = 1;
   //  static inline constexpr bool EmbedFirstBlock = false;
 };
-using queue_t = tmc::qu_unbounded_spsc<size_t, queue_config>;
+using queue_t = tmc::qu_spsc_unbounded<size_t, queue_config>;
 #else
-struct queue_config : tmc::qu_unbounded_mpsc_default_config {
+struct queue_config : tmc::qu_mpsc_unbounded_default_config {
   //  static inline constexpr bool ConsumerCanSuspend = true;
   //  static inline constexpr size_t BlockSize = 4096;
   //  static inline constexpr size_t PackingLevel = 0;
   //  static inline constexpr bool EmbedFirstBlock = false;
 };
-using queue_t = tmc::qu_unbounded_mpsc<size_t, queue_config>;
+using queue_t = tmc::qu_mpsc_unbounded<size_t, queue_config>;
 #endif
 
 struct producer_result {

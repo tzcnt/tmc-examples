@@ -26,7 +26,7 @@
 // addition to its output queue, and exposes it as the public `in` member.
 
 #include "tmc/fork_group.hpp"
-#include "tmc/qu_bounded_spsc.hpp"
+#include "tmc/qu_spsc_bounded.hpp"
 #include "tmc/spawn.hpp"
 #include "tmc/task.hpp"
 #include "tmc/traits.hpp"
@@ -51,12 +51,12 @@ template <class F> inline with_result_of_t<F> with_result_of(F&& f) {
   return with_result_of_t<F>(std::forward<F>(f));
 }
 
-// qu_bounded_spsc is non-movable and non-copyable, so we share it via
+// qu_spsc_bounded is non-movable and non-copyable, so we share it via
 // shared_ptr to keep it alive for the lifetime of the single producer and
 // single consumer.
-struct pipeline_queue_config : tmc::qu_bounded_spsc_default_config {};
+struct pipeline_queue_config : tmc::qu_spsc_bounded_default_config {};
 template <typename T>
-using pipeline_queue = tmc::qu_bounded_spsc<T, pipeline_queue_config>;
+using pipeline_queue = tmc::qu_spsc_bounded<T, pipeline_queue_config>;
 template <typename T>
 using pipeline_queue_ptr = std::shared_ptr<pipeline_queue<T>>;
 
@@ -245,8 +245,8 @@ template <typename Input, typename ProcessFunc> struct pipeline_end_stage {
         using FInput = tmc::traits::awaitable_result_t<CInput>;
         co_await internalQueue->post(with_result_of([&]() {
           return tmc::spawn([](ProcessFunc f, FInput d) -> tmc::task<void> {
-                   if constexpr (tmc::traits::is_awaitable<
-                                   std::invoke_result_t<ProcessFunc, FInput&&>>) {
+                   if constexpr (tmc::traits::is_awaitable<std::invoke_result_t<
+                                   ProcessFunc, FInput&&>>) {
                      co_await f(std::move(d));
                    } else {
                      f(std::move(d));
@@ -260,8 +260,8 @@ template <typename Input, typename ProcessFunc> struct pipeline_end_stage {
         // Upstream queue contains values directly.
         co_await internalQueue->post(with_result_of([&]() {
           return tmc::spawn([](ProcessFunc f, FInput d) -> tmc::task<void> {
-                   if constexpr (tmc::traits::is_awaitable<
-                                   std::invoke_result_t<ProcessFunc, FInput&&>>) {
+                   if constexpr (tmc::traits::is_awaitable<std::invoke_result_t<
+                                   ProcessFunc, FInput&&>>) {
                      co_await f(std::move(d));
                    } else {
                      f(std::move(d));
