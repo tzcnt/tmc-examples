@@ -1,6 +1,8 @@
 // An implementation of the skynet benchmark as described here:
 // https://github.com/atemerev/skynet
 
+#include "tmc/aw_yield.hpp"
+#include "tmc/current.hpp"
 #include "tmc/ex_cpu.hpp"
 #include "tmc/spawn_group.hpp"
 #include "tmc/spawn_many.hpp"
@@ -19,33 +21,61 @@ static constexpr inline size_t EXPECTED_RESULT =
 
 #define DEPTH 6
 
+tmc::task<size_t> skynet_leaf(size_t BaseNum) { co_return BaseNum; }
+
 template <size_t DepthMax>
 tmc::task<size_t> skynet_one(size_t BaseNum, size_t Depth) {
-  if (Depth == DepthMax) {
-    co_return BaseNum;
-  }
+  // if (Depth == DepthMax) {
+  //   co_return BaseNum;
+  // }
+  // else if (Depth == DepthMax - 2) {
+  //   co_await tmc::pin_to_thread();
+  // }
   size_t count = 0;
   size_t depthOffset = 1;
   for (size_t i = 0; i < DepthMax - Depth - 1; ++i) {
     depthOffset *= 10;
   }
 
-  // // Simplest way to spawn subtasks
-  // auto sg = tmc::spawn_group<10, tmc::task<size_t>>();
-  // for (size_t idx = 0; idx < 10; ++idx) {
-  //   sg.add(skynet_one<DepthMax>(BaseNum + depthOffset * idx, Depth + 1));
-  // }
-  // std::array<size_t, 10> results = co_await std::move(sg);
+  // std::array<size_t, 10> results = co_await tmc::spawn_many<10>(
+  //   (
+  //     std::ranges::views::iota(0UL) |
+  //     std::ranges::views::transform([=](size_t idx) {
+  //       return skynet_one<DepthMax>(BaseNum + depthOffset * idx, Depth + 1);
+  //     })
+  //   ).begin()
+  // );
 
-  // spawn_many from a sized iterator has slightly better performance
-  std::array<size_t, 10> results = co_await tmc::spawn_many<10>(
-    (
+  std::array<size_t, 10> results;
+  if (Depth == DepthMax - 1) {
+    auto s = tmc::spawn_group<10, tmc::task<size_t>>();
+    co_await s.add_clang(skynet_leaf(BaseNum + depthOffset * 0));
+    co_await s.add_clang(skynet_leaf(BaseNum + depthOffset * 1));
+    co_await s.add_clang(skynet_leaf(BaseNum + depthOffset * 2));
+    co_await s.add_clang(skynet_leaf(BaseNum + depthOffset * 3));
+    co_await s.add_clang(skynet_leaf(BaseNum + depthOffset * 4));
+    co_await s.add_clang(skynet_leaf(BaseNum + depthOffset * 5));
+    co_await s.add_clang(skynet_leaf(BaseNum + depthOffset * 6));
+    co_await s.add_clang(skynet_leaf(BaseNum + depthOffset * 7));
+    co_await s.add_clang(skynet_leaf(BaseNum + depthOffset * 8));
+    co_await s.add_clang(skynet_leaf(BaseNum + depthOffset * 9));
+    results = co_await std::move(s);
+  } else {
+    auto tasks =
       std::ranges::views::iota(0UL) |
       std::ranges::views::transform([=](size_t idx) {
         return skynet_one<DepthMax>(BaseNum + depthOffset * idx, Depth + 1);
-      })
-    ).begin()
-  );
+      });
+    auto s = tmc::spawn_many<10>(tasks.begin());
+
+    if (Depth == DepthMax - 2) {
+      results = co_await std::move(s).run_on(
+        tmc::cpu_executor().single_thread(tmc::current_thread_index())
+      );
+    } else {
+      results = co_await std::move(s);
+    }
+  }
 
   for (size_t idx = 0; idx < 10; ++idx) {
     count += results[idx];
@@ -61,7 +91,7 @@ template <size_t DepthMax> tmc::task<void> skynet() {
 
 template <size_t Depth> tmc::task<void> loop_skynet() {
   const size_t iter_count = 1000;
-  for (size_t j = 0; j < 5; ++j) {
+  for (size_t j = 0; j < 1; ++j) {
     auto startTime = std::chrono::high_resolution_clock::now();
     for (size_t i = 0; i < iter_count; ++i) {
       co_await skynet<Depth>();
