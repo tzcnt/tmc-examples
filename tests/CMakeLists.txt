@@ -133,7 +133,8 @@ make_exe_base(
   test_yield.cpp
   test_misc.cpp
   test_coro_functor.cpp
-  test_qu_lockfree.cpp
+  test_chase_lev_deque.cpp
+  test_qu_mc.cpp
   test_qu_mpsc_unbounded.cpp
   test_qu_spsc_unbounded.cpp
   test_qu_spsc_bounded.cpp
