@@ -1,4 +1,5 @@
 #include "test_common.hpp"
+#include "tmc/ex_cpu_st.hpp"
 #include "tmc/qu_mpsc_bounded.hpp"
 
 #include <atomic>
@@ -10,7 +11,9 @@
 
 class CATEGORY : public testing::Test {
 protected:
-  static void SetUpTestSuite() { tmc::cpu_executor().init(); }
+  static void SetUpTestSuite() {
+    tmc::cpu_executor().set_thread_count(4).init();
+  }
   static void TearDownTestSuite() { tmc::cpu_executor().teardown(); }
   static tmc::ex_cpu& ex() { return tmc::cpu_executor(); }
 };
@@ -342,25 +345,22 @@ TEST_F(CATEGORY, pull_after_close_returns_empty) {
 
 // close() wakes a consumer suspended at the cutoff offset.
 TEST_F(CATEGORY, close_wakes_suspended_consumer) {
-  test_async_main(ex(), []() -> tmc::task<void> {
+  tmc::ex_cpu_st exec;
+  exec.init();
+  test_async_main(exec, []() -> tmc::task<void> {
     auto chan = tmc::qu_mpsc_bounded<size_t, qu_config<0>>{TEST_CAPACITY};
 
-    auto results = co_await tmc::spawn_tuple(
-      [](auto& Chan) -> tmc::task<bool> {
-        auto v = co_await Chan.pull();
-        co_return static_cast<bool>(v);
-      }(chan),
-      [](auto& Chan) -> tmc::task<void> {
-        // Yield to give the consumer a chance to suspend.
-        for (size_t i = 0; i < 10; ++i) {
-          co_await tmc::reschedule();
-        }
-        Chan.close();
-        co_return;
-      }(chan)
-    );
+    auto consumer = tmc::spawn([](auto& Chan) -> tmc::task<bool> {
+                      auto v = co_await Chan.pull();
+                      co_return static_cast<bool>(v);
+                    }(chan))
+                      .fork();
 
-    bool got_value = std::get<0>(results);
+    // Force the consumer to run first and suspend on the empty queue.
+    co_await tmc::reschedule();
+    chan.close();
+
+    bool got_value = co_await std::move(consumer);
     EXPECT_FALSE(got_value); // consumer woken by close with empty scope
     co_return;
   }());
@@ -457,24 +457,23 @@ TEST_F(CATEGORY, push_after_close_returns_false) {
 
 // close_resume_inline() resumes a consumer that is already suspended.
 TEST_F(CATEGORY, close_resume_inline_wakes_suspended_consumer) {
-  tmc::ex_cpu ex;
-  ex.set_thread_count(1).init();
-  test_async_main(ex, []() -> tmc::task<void> {
+  tmc::ex_cpu_st exec;
+  exec.init();
+  test_async_main(exec, []() -> tmc::task<void> {
     auto chan = tmc::qu_mpsc_bounded<size_t, qu_config<0>>{TEST_CAPACITY};
 
-    auto results = co_await tmc::spawn_tuple(
-      [](auto& Chan) -> tmc::task<bool> {
-        auto v = co_await Chan.pull();
-        co_return static_cast<bool>(v);
-      }(chan),
-      [](auto& Chan) -> tmc::task<void> {
-        co_await tmc::reschedule();
-        Chan.close_resume_inline();
-        co_return;
-      }(chan)
-    );
+    auto consumer = tmc::spawn([](auto& Chan) -> tmc::task<bool> {
+                      auto v = co_await Chan.pull();
+                      co_return static_cast<bool>(v);
+                    }(chan))
+                      .fork();
 
-    EXPECT_FALSE(std::get<0>(results));
+    // Force the consumer to run first and suspend on the empty queue.
+    co_await tmc::reschedule();
+    chan.close_resume_inline();
+
+    bool got_value = co_await std::move(consumer);
+    EXPECT_FALSE(got_value);
     co_return;
   }());
 }
