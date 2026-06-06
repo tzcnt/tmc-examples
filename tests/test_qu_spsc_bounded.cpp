@@ -1,5 +1,6 @@
 #include "test_common.hpp"
 #include "tmc/detail/compat.hpp"
+#include "tmc/ex_cpu_st.hpp"
 #include "tmc/qu_spsc_bounded.hpp"
 
 #include <cstddef>
@@ -11,7 +12,9 @@
 
 class CATEGORY : public testing::Test {
 protected:
-  static void SetUpTestSuite() { tmc::cpu_executor().init(); }
+  static void SetUpTestSuite() {
+    tmc::cpu_executor().set_thread_count(2).init();
+  }
 
   static void TearDownTestSuite() { tmc::cpu_executor().teardown(); }
 
@@ -416,25 +419,24 @@ TEST_F(CATEGORY, try_pull_zc_scope_move_assign_over_nonempty) {
 // CLOSED sentinel at slot 0, returning the waiting consumer pointer which
 // close() then resumes.
 TEST_F(CATEGORY, close_wakes_suspended_consumer) {
-  test_async_main(ex(), []() -> tmc::task<void> {
+  tmc::ex_cpu_st exec;
+  exec.init();
+  test_async_main(exec, []() -> tmc::task<void> {
     auto chan = tmc::qu_spsc_bounded<size_t, qu_config<0>>{TEST_CAPACITY};
 
-    auto results = co_await tmc::spawn_tuple(
-      [](auto& Chan) -> tmc::task<bool> {
-        auto v = co_await Chan.pull();
-        co_return static_cast<bool>(v);
-      }(chan),
-      [](auto& Chan) -> tmc::task<void> {
-        // Yield to give the consumer a chance to suspend.
-        for (size_t i = 0; i < 10; ++i) {
-          co_await tmc::reschedule();
-        }
-        Chan.close();
-        co_return;
-      }(chan)
-    );
+    auto consumer = tmc::spawn([](auto& Chan) -> tmc::task<bool> {
+                      auto v = co_await Chan.pull();
+                      co_return static_cast<bool>(v);
+                    }(chan))
+                      .fork();
 
-    bool got_value = std::get<0>(results);
+    // Force the consumer to run first and suspend on the empty queue.
+    // This is non-racy since we are using a single-threaded executor and
+    // reschedule() puts us at the back of the FIFO queue.
+    co_await tmc::reschedule();
+    chan.close();
+
+    bool got_value = co_await std::move(consumer);
     EXPECT_FALSE(got_value); // consumer was woken by close with empty scope
     co_return;
   }());
@@ -444,34 +446,34 @@ TEST_F(CATEGORY, close_wakes_suspended_consumer) {
 // the branch in push_bulk that captures the waiting consumer pointer
 // returned by write_element and pushs its resumption.
 TEST_F(CATEGORY, push_bulk_wakes_suspended_consumer) {
-  test_async_main(ex(), []() -> tmc::task<void> {
+  tmc::ex_cpu_st exec;
+  exec.init();
+  test_async_main(exec, []() -> tmc::task<void> {
     auto chan = tmc::qu_spsc_bounded<size_t, qu_config<0>>{TEST_CAPACITY};
 
-    auto results = co_await tmc::spawn_tuple(
-      [](auto& Chan) -> tmc::task<size_t> {
-        // Consumer suspends at slot 0; push_bulk wakes it. Drain everything
-        // until the queue is closed (empty scope). Each pull_zc_scope must
-        // be released before the next pull() runs, since the queue requires
-        // that at most one scope from a given queue be live at a time.
-        size_t sum = 0;
-        while (auto v = co_await Chan.pull()) {
-          sum += *v;
-        }
-        co_return sum;
-      }(chan),
-      [](auto& Chan) -> tmc::task<void> {
-        // Yield to give the consumer a chance to suspend.
-        for (size_t i = 0; i < 10; ++i) {
-          co_await tmc::reschedule();
-        }
-        size_t items[5] = {10, 20, 30, 40, 50};
-        co_await Chan.push_bulk(&items[0], 5);
-        Chan.close();
-        co_return;
-      }(chan)
-    );
+    auto consumer = tmc::spawn([](auto& Chan) -> tmc::task<size_t> {
+                      // Consumer suspends at slot 0; push_bulk wakes it.
+                      // Drain everything until the queue is closed (empty
+                      // scope). Each pull_zc_scope must be released before
+                      // the next pull() runs, since the queue requires that
+                      // at most one scope from a given queue be live at a
+                      // time.
+                      size_t sum = 0;
+                      while (auto v = co_await Chan.pull()) {
+                        sum += *v;
+                      }
+                      co_return sum;
+                    }(chan))
+                      .fork();
 
-    EXPECT_EQ(10u + 20u + 30u + 40u + 50u, std::get<0>(results));
+    // Force the consumer to run first and suspend on the empty queue.
+    co_await tmc::reschedule();
+    size_t items[5] = {10, 20, 30, 40, 50};
+    co_await chan.push_bulk(&items[0], 5);
+    chan.close();
+
+    auto sum = co_await std::move(consumer);
+    EXPECT_EQ(10u + 20u + 30u + 40u + 50u, sum);
     co_return;
   }());
 }
@@ -524,25 +526,22 @@ TEST_F(CATEGORY, close_resume_inline_no_waiting_consumer) {
 // then close_resume_inline() races in and publishes the CLOSED sentinel at slot
 // 0, which wakes the consumer (resumed inline) with an empty scope.
 TEST_F(CATEGORY, close_resume_inline_wakes_suspended_consumer) {
-  test_async_main(ex(), []() -> tmc::task<void> {
+  tmc::ex_cpu_st exec;
+  exec.init();
+  test_async_main(exec, []() -> tmc::task<void> {
     auto chan = tmc::qu_spsc_bounded<size_t, qu_config<0>>{TEST_CAPACITY};
 
-    auto results = co_await tmc::spawn_tuple(
-      [](auto& Chan) -> tmc::task<bool> {
-        auto v = co_await Chan.pull();
-        co_return static_cast<bool>(v);
-      }(chan),
-      [](auto& Chan) -> tmc::task<void> {
-        // Yield to give the consumer a chance to suspend.
-        for (size_t i = 0; i < 10; ++i) {
-          co_await tmc::reschedule();
-        }
-        Chan.close_resume_inline();
-        co_return;
-      }(chan)
-    );
+    auto consumer = tmc::spawn([](auto& Chan) -> tmc::task<bool> {
+                      auto v = co_await Chan.pull();
+                      co_return static_cast<bool>(v);
+                    }(chan))
+                      .fork();
 
-    bool got_value = std::get<0>(results);
+    // Force the consumer to run first and suspend on the empty queue.
+    co_await tmc::reschedule();
+    chan.close_resume_inline();
+
+    bool got_value = co_await std::move(consumer);
     EXPECT_FALSE(
       got_value
     ); // consumer was woken by close_resume_inline with empty scope
@@ -551,32 +550,32 @@ TEST_F(CATEGORY, close_resume_inline_wakes_suspended_consumer) {
 }
 
 TEST_F(CATEGORY, pull_after_closed) {
-  test_async_main(ex(), []() -> tmc::task<void> {
+  tmc::ex_cpu_st exec;
+  exec.init();
+  test_async_main(exec, []() -> tmc::task<void> {
     using qerr = tmc::qu_spsc_bounded_err;
     auto chan = tmc::qu_spsc_bounded<size_t, qu_config<0>>{TEST_CAPACITY};
 
-    co_await tmc::spawn_tuple(
-      [](auto& Chan) -> tmc::task<void> {
-        // Suspend on the empty cutoff slot.
-        auto v = co_await Chan.pull();
-        EXPECT_FALSE(static_cast<bool>(v)); // woken by close, empty.
+    auto consumer = tmc::spawn([](auto& Chan) -> tmc::task<void> {
+                      // Suspend on the empty cutoff slot.
+                      auto v = co_await Chan.pull();
+                      EXPECT_FALSE(static_cast<bool>(v)); // woken by close.
 
-        // Now poll the same slot. Per the close() contract this must
-        // immediately return CLOSED again.
-        auto v2 = Chan.try_pull();
-        EXPECT_EQ(qerr::CLOSED, v2.status());
-        EXPECT_EQ(false, v2.has_value());
-        auto v3 = co_await Chan.pull();
-        EXPECT_EQ(false, v3.has_value());
-      }(chan),
-      [](auto& Chan) -> tmc::task<void> {
-        // Yield to give the consumer a chance to suspend.
-        for (size_t i = 0; i < 10; ++i) {
-          co_await tmc::reschedule();
-        }
-        Chan.close();
-      }(chan)
-    );
+                      // Now poll the same slot. Per the close() contract this
+                      // must immediately return CLOSED again.
+                      auto v2 = Chan.try_pull();
+                      EXPECT_EQ(qerr::CLOSED, v2.status());
+                      EXPECT_EQ(false, v2.has_value());
+                      auto v3 = co_await Chan.pull();
+                      EXPECT_EQ(false, v3.has_value());
+                    }(chan))
+                      .fork();
+
+    // Force the consumer to run first and suspend on the empty queue.
+    co_await tmc::reschedule();
+    chan.close();
+
+    co_await std::move(consumer);
 
     co_return;
   }());
@@ -667,30 +666,28 @@ TEST_F(CATEGORY, push_bulk_range) {
 // branch in aw_push_impl::await_resume that captures the waiting consumer
 // pointer returned by write_element and pushs its resumption.
 TEST_F(CATEGORY, push_wakes_suspended_consumer) {
-  test_async_main(ex(), []() -> tmc::task<void> {
+  tmc::ex_cpu_st exec;
+  exec.init();
+  test_async_main(exec, []() -> tmc::task<void> {
     auto chan = tmc::qu_spsc_bounded<size_t, qu_config<0>>{TEST_CAPACITY};
 
-    auto results = co_await tmc::spawn_tuple(
-      [](auto& Chan) -> tmc::task<size_t> {
-        size_t sum = 0;
-        while (auto v = co_await Chan.pull()) {
-          sum += *v;
-        }
-        co_return sum;
-      }(chan),
-      [](auto& Chan) -> tmc::task<void> {
-        // Yield to give the consumer a chance to suspend.
-        for (size_t i = 0; i < 10; ++i) {
-          co_await tmc::reschedule();
-        }
-        co_await Chan.push(123u);
-        co_await Chan.push(456u);
-        Chan.close();
-        co_return;
-      }(chan)
-    );
+    auto consumer = tmc::spawn([](auto& Chan) -> tmc::task<size_t> {
+                      size_t sum = 0;
+                      while (auto v = co_await Chan.pull()) {
+                        sum += *v;
+                      }
+                      co_return sum;
+                    }(chan))
+                      .fork();
 
-    EXPECT_EQ(123u + 456u, std::get<0>(results));
+    // Force the consumer to run first and suspend on the empty queue.
+    co_await tmc::reschedule();
+    co_await chan.push(123u);
+    co_await chan.push(456u);
+    chan.close();
+
+    auto sum = co_await std::move(consumer);
+    EXPECT_EQ(123u + 456u, sum);
     co_return;
   }());
 }
@@ -701,43 +698,43 @@ TEST_F(CATEGORY, push_wakes_suspended_consumer) {
 // finish_read's branch that wakes a producer when prev flags is a
 // producer_base*.
 TEST_F(CATEGORY, push_suspends_when_full) {
-  test_async_main(ex(), []() -> tmc::task<void> {
+  tmc::ex_cpu_st exec;
+  exec.init();
+  test_async_main(exec, []() -> tmc::task<void> {
     // Tiny capacity so we can easily fill the queue.
     static constexpr size_t CAP = 4;
     static constexpr size_t NITEMS = 32;
     auto chan = tmc::qu_spsc_bounded<size_t, qu_config<0>>{CAP};
 
-    auto results = co_await tmc::spawn_tuple(
-      [](auto& Chan) -> tmc::task<size_t> {
-        size_t sum = 0;
-        for (size_t i = 0; i < NITEMS; ++i) {
-          // Each push may suspend once the queue fills up.
-          co_await Chan.push(i);
-          sum += i;
-        }
-        co_return sum;
-      }(chan),
-      [](auto& Chan) -> tmc::task<size_t> {
-        // Give the producer time to fill the queue and suspend.
-        for (size_t i = 0; i < 20; ++i) {
-          co_await tmc::reschedule();
-        }
-        size_t sum = 0;
-        for (size_t i = 0; i < NITEMS; ++i) {
-          auto v = co_await Chan.pull();
-          EXPECT_TRUE(static_cast<bool>(v));
-          sum += *v;
-        }
-        co_return sum;
-      }(chan)
-    );
+    auto producer = tmc::spawn([](auto& Chan) -> tmc::task<size_t> {
+                      size_t sum = 0;
+                      for (size_t i = 0; i < NITEMS; ++i) {
+                        // Each push may suspend once the queue fills up.
+                        co_await Chan.push(i);
+                        sum += i;
+                      }
+                      co_return sum;
+                    }(chan))
+                      .fork();
+
+    // Force the producer to run first, fill the queue, and suspend.
+    co_await tmc::reschedule();
+
+    size_t consumer_sum = 0;
+    for (size_t i = 0; i < NITEMS; ++i) {
+      auto v = co_await chan.pull();
+      EXPECT_TRUE(static_cast<bool>(v));
+      consumer_sum += *v;
+    }
+
+    auto producer_sum = co_await std::move(producer);
 
     size_t expected = 0;
     for (size_t i = 0; i < NITEMS; ++i) {
       expected += i;
     }
-    EXPECT_EQ(expected, std::get<0>(results));
-    EXPECT_EQ(expected, std::get<1>(results));
+    EXPECT_EQ(expected, consumer_sum);
+    EXPECT_EQ(expected, producer_sum);
     co_return;
   }());
 }
@@ -746,37 +743,39 @@ TEST_F(CATEGORY, push_suspends_when_full) {
 // that does not fit. Exercises aw_push_bulk_impl::await_suspend (producer
 // suspension on a full bulk slot) and the finish_read wake-producer branch.
 TEST_F(CATEGORY, push_bulk_suspends_when_full) {
-  test_async_main(ex(), []() -> tmc::task<void> {
+  tmc::ex_cpu_st exec;
+  exec.init();
+  test_async_main(exec, []() -> tmc::task<void> {
     static constexpr size_t CAP = 4;
     auto chan = tmc::qu_spsc_bounded<size_t, qu_config<0>>{CAP};
 
-    auto results = co_await tmc::spawn_tuple(
-      [](auto& Chan) -> tmc::task<size_t> {
-        size_t items[CAP] = {1, 2, 3, 4};
-        // First fill the queue exactly.
-        co_await Chan.push_bulk(&items[0], CAP);
-        // This second push_bulk cannot fit any element; producer must
-        // suspend until the consumer drains the queue.
-        size_t more[CAP] = {10, 20, 30, 40};
-        co_await Chan.push_bulk(&more[0], CAP);
-        co_return 1u + 2u + 3u + 4u + 10u + 20u + 30u + 40u;
-      }(chan),
-      [](auto& Chan) -> tmc::task<size_t> {
-        // Give the producer time to fill and then suspend on push_bulk.
-        for (size_t i = 0; i < 20; ++i) {
-          co_await tmc::reschedule();
-        }
-        size_t sum = 0;
-        for (size_t i = 0; i < 2 * CAP; ++i) {
-          auto v = co_await Chan.pull();
-          EXPECT_TRUE(static_cast<bool>(v));
-          sum += *v;
-        }
-        co_return sum;
-      }(chan)
-    );
+    auto producer = tmc::spawn([](auto& Chan) -> tmc::task<size_t> {
+                      size_t items[CAP] = {1, 2, 3, 4};
+                      // First fill the queue exactly.
+                      co_await Chan.push_bulk(&items[0], CAP);
+                      // This second push_bulk cannot fit any element;
+                      // producer must suspend until the consumer drains the
+                      // queue.
+                      size_t more[CAP] = {10, 20, 30, 40};
+                      co_await Chan.push_bulk(&more[0], CAP);
+                      co_return 1u + 2u + 3u + 4u + 10u + 20u + 30u + 40u;
+                    }(chan))
+                      .fork();
 
-    EXPECT_EQ(std::get<0>(results), std::get<1>(results));
+    // Force the producer to run first, fill the queue, and suspend on the
+    // second push_bulk.
+    co_await tmc::reschedule();
+
+    size_t consumer_sum = 0;
+    for (size_t i = 0; i < 2 * CAP; ++i) {
+      auto v = co_await chan.pull();
+      EXPECT_TRUE(static_cast<bool>(v));
+      consumer_sum += *v;
+    }
+
+    auto producer_sum = co_await std::move(producer);
+
+    EXPECT_EQ(producer_sum, consumer_sum);
     co_return;
   }());
 }
@@ -891,30 +890,28 @@ TEST_F(CATEGORY, try_push_basic) {
 
 // try_push() wakes a consumer suspended on the slot it writes.
 TEST_F(CATEGORY, try_push_wakes_suspended_consumer) {
-  test_async_main(ex(), []() -> tmc::task<void> {
+  tmc::ex_cpu_st exec;
+  exec.init();
+  test_async_main(exec, []() -> tmc::task<void> {
     auto chan = tmc::qu_spsc_bounded<size_t, qu_config<0>>{TEST_CAPACITY};
 
-    auto results = co_await tmc::spawn_tuple(
-      [](auto& Chan) -> tmc::task<size_t> {
-        size_t sum = 0;
-        while (auto v = co_await Chan.pull()) {
-          sum += *v;
-        }
-        co_return sum;
-      }(chan),
-      [](auto& Chan) -> tmc::task<void> {
-        // Yield to give the consumer a chance to suspend.
-        for (size_t i = 0; i < 10; ++i) {
-          co_await tmc::reschedule();
-        }
-        EXPECT_TRUE(Chan.try_push(123u));
-        EXPECT_TRUE(Chan.try_push(456u));
-        Chan.close();
-        co_return;
-      }(chan)
-    );
+    auto consumer = tmc::spawn([](auto& Chan) -> tmc::task<size_t> {
+                      size_t sum = 0;
+                      while (auto v = co_await Chan.pull()) {
+                        sum += *v;
+                      }
+                      co_return sum;
+                    }(chan))
+                      .fork();
 
-    EXPECT_EQ(123u + 456u, std::get<0>(results));
+    // Force the consumer to run first and suspend on the empty queue.
+    co_await tmc::reschedule();
+    EXPECT_TRUE(chan.try_push(123u));
+    EXPECT_TRUE(chan.try_push(456u));
+    chan.close();
+
+    auto sum = co_await std::move(consumer);
+    EXPECT_EQ(123u + 456u, sum);
     co_return;
   }());
 }
@@ -989,8 +986,8 @@ TEST_F(CATEGORY, try_push_full_does_not_construct) {
     static constexpr size_t CAP = 2;
     std::atomic<size_t> count{0};
     {
-      auto chan = tmc::qu_spsc_bounded<
-        spsc_destructor_counter, qu_config<0>>{CAP};
+      auto chan =
+        tmc::qu_spsc_bounded<spsc_destructor_counter, qu_config<0>>{CAP};
 
       // Fill the queue.
       EXPECT_TRUE(chan.try_push(spsc_destructor_counter{&count}));
