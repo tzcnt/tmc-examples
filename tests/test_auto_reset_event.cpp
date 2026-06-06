@@ -179,6 +179,78 @@ TEST_F(CATEGORY, multi_waiter_co_set) {
   }());
 }
 
+TEST_F(CATEGORY, set_wakes_waiters_fifo) {
+  tmc::ex_cpu_st exec;
+  exec.init();
+  test_async_main(exec, []() -> tmc::task<void> {
+    tmc::auto_reset_event event;
+
+    auto make_waiter = [](tmc::auto_reset_event& Event, size_t Idx)
+      -> tmc::task<size_t> {
+      co_await Event;
+      co_return Idx;
+    };
+
+    auto w0 = tmc::spawn(make_waiter(event, 0)).fork();
+    co_await tmc::reschedule();
+    auto w1 = tmc::spawn(make_waiter(event, 1)).fork();
+    co_await tmc::reschedule();
+    auto w2 = tmc::spawn(make_waiter(event, 2)).fork();
+    co_await tmc::reschedule();
+    auto w3 = tmc::spawn(make_waiter(event, 3)).fork();
+    co_await tmc::reschedule();
+    auto w4 = tmc::spawn(make_waiter(event, 4)).fork();
+    co_await tmc::reschedule();
+
+    event.set();
+    EXPECT_EQ(co_await std::move(w0), 0u);
+    event.set();
+    EXPECT_EQ(co_await std::move(w1), 1u);
+    event.set();
+    EXPECT_EQ(co_await std::move(w2), 2u);
+    event.set();
+    EXPECT_EQ(co_await std::move(w3), 3u);
+    event.set();
+    EXPECT_EQ(co_await std::move(w4), 4u);
+  }());
+}
+
+TEST_F(CATEGORY, co_set_wakes_waiters_fifo) {
+  tmc::ex_cpu_st exec;
+  exec.init();
+  test_async_main(exec, []() -> tmc::task<void> {
+    tmc::auto_reset_event event;
+
+    auto make_waiter = [](tmc::auto_reset_event& Event, size_t Idx)
+      -> tmc::task<size_t> {
+      co_await Event;
+      co_return Idx;
+    };
+
+    auto w0 = tmc::spawn(make_waiter(event, 0)).fork();
+    co_await tmc::reschedule();
+    auto w1 = tmc::spawn(make_waiter(event, 1)).fork();
+    co_await tmc::reschedule();
+    auto w2 = tmc::spawn(make_waiter(event, 2)).fork();
+    co_await tmc::reschedule();
+    auto w3 = tmc::spawn(make_waiter(event, 3)).fork();
+    co_await tmc::reschedule();
+    auto w4 = tmc::spawn(make_waiter(event, 4)).fork();
+    co_await tmc::reschedule();
+
+    co_await event.co_set();
+    EXPECT_EQ(co_await std::move(w0), 0u);
+    co_await event.co_set();
+    EXPECT_EQ(co_await std::move(w1), 1u);
+    co_await event.co_set();
+    EXPECT_EQ(co_await std::move(w2), 2u);
+    co_await event.co_set();
+    EXPECT_EQ(co_await std::move(w3), 3u);
+    co_await event.co_set();
+    EXPECT_EQ(co_await std::move(w4), 4u);
+  }());
+}
+
 TEST_F(CATEGORY, resume_in_destructor) {
   test_async_main(ex(), []() -> tmc::task<void> {
     atomic_awaitable<int> aa(1);

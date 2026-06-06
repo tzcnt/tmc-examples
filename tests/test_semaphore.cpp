@@ -147,6 +147,78 @@ TEST_F(CATEGORY, multi_waiter_co_release) {
   }());
 }
 
+TEST_F(CATEGORY, release_wakes_waiters_fifo) {
+  tmc::ex_cpu_st exec;
+  exec.init();
+  test_async_main(exec, []() -> tmc::task<void> {
+    tmc::semaphore sem(0);
+
+    auto make_waiter = [](tmc::semaphore& Sem, size_t Idx)
+      -> tmc::task<size_t> {
+      co_await Sem;
+      co_return Idx;
+    };
+
+    auto w0 = tmc::spawn(make_waiter(sem, 0)).fork();
+    co_await tmc::reschedule();
+    auto w1 = tmc::spawn(make_waiter(sem, 1)).fork();
+    co_await tmc::reschedule();
+    auto w2 = tmc::spawn(make_waiter(sem, 2)).fork();
+    co_await tmc::reschedule();
+    auto w3 = tmc::spawn(make_waiter(sem, 3)).fork();
+    co_await tmc::reschedule();
+    auto w4 = tmc::spawn(make_waiter(sem, 4)).fork();
+    co_await tmc::reschedule();
+
+    sem.release();
+    EXPECT_EQ(co_await std::move(w0), 0u);
+    sem.release();
+    EXPECT_EQ(co_await std::move(w1), 1u);
+    sem.release();
+    EXPECT_EQ(co_await std::move(w2), 2u);
+    sem.release();
+    EXPECT_EQ(co_await std::move(w3), 3u);
+    sem.release();
+    EXPECT_EQ(co_await std::move(w4), 4u);
+  }());
+}
+
+TEST_F(CATEGORY, co_release_wakes_waiters_fifo) {
+  tmc::ex_cpu_st exec;
+  exec.init();
+  test_async_main(exec, []() -> tmc::task<void> {
+    tmc::semaphore sem(0);
+
+    auto make_waiter = [](tmc::semaphore& Sem, size_t Idx)
+      -> tmc::task<size_t> {
+      co_await Sem;
+      co_return Idx;
+    };
+
+    auto w0 = tmc::spawn(make_waiter(sem, 0)).fork();
+    co_await tmc::reschedule();
+    auto w1 = tmc::spawn(make_waiter(sem, 1)).fork();
+    co_await tmc::reschedule();
+    auto w2 = tmc::spawn(make_waiter(sem, 2)).fork();
+    co_await tmc::reschedule();
+    auto w3 = tmc::spawn(make_waiter(sem, 3)).fork();
+    co_await tmc::reschedule();
+    auto w4 = tmc::spawn(make_waiter(sem, 4)).fork();
+    co_await tmc::reschedule();
+
+    co_await sem.co_release();
+    EXPECT_EQ(co_await std::move(w0), 0u);
+    co_await sem.co_release();
+    EXPECT_EQ(co_await std::move(w1), 1u);
+    co_await sem.co_release();
+    EXPECT_EQ(co_await std::move(w2), 2u);
+    co_await sem.co_release();
+    EXPECT_EQ(co_await std::move(w3), 3u);
+    co_await sem.co_release();
+    EXPECT_EQ(co_await std::move(w4), 4u);
+  }());
+}
+
 TEST_F(CATEGORY, resume_in_destructor) {
   test_async_main(ex(), []() -> tmc::task<void> {
     atomic_awaitable<int> aa(1);
