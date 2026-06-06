@@ -135,6 +135,7 @@ make_exe_base(
   test_coro_functor.cpp
   test_qu_lockfree.cpp
   test_qu_mpsc_unbounded.cpp
+  test_qu_mpsc_bounded.cpp
   test_qu_spsc_unbounded.cpp
   test_qu_spsc_bounded.cpp
   test_thread_layout.cpp
