@@ -131,7 +131,7 @@ void do_chan_test(Executor& Exec) {
           for (size_t i = 0; i < NITEMS; ++i) {
             auto v = Chan.try_pull();
             while (!v) {
-              TMC_CPU_PAUSE();
+              co_await tmc::reschedule();
               v = Chan.try_pull();
             }
             ++count;
@@ -152,7 +152,7 @@ void do_chan_test(Executor& Exec) {
     }
     {
       // destroy chan with data remaining inside
-      std::atomic<size_t> count;
+      std::atomic<size_t> count{0};
       {
         auto chan = tmc::qu_spsc_unbounded<
           spsc_destructor_counter, qu_config<PackingLevel>>{};
