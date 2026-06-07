@@ -309,8 +309,8 @@ TEST_F(CATEGORY, co_unlock_return_value) {
     auto result = co_await [](tmc::mutex& Mut) -> tmc::task<int> {
       co_await Mut;
       EXPECT_EQ(Mut.is_locked(), true);
-      co_await Mut.co_unlock_return_value(42);
-      ADD_FAILURE() << "co_unlock_return_value should complete the coroutine";
+      co_await Mut.co_unlock_return(42);
+      ADD_FAILURE() << "co_unlock_return should complete the coroutine";
       co_return -1;
     }(mut);
 
@@ -328,8 +328,8 @@ TEST_F(CATEGORY, co_unlock_return_void) {
       co_await Mut;
       EXPECT_EQ(Mut.is_locked(), true);
       ReachedUnlock = true;
-      co_await Mut.co_unlock_return_void();
-      ADD_FAILURE() << "co_unlock_return_void should complete the coroutine";
+      co_await Mut.co_unlock_return();
+      ADD_FAILURE() << "co_unlock_return should complete the coroutine";
     }(mut, reached_unlock);
 
     EXPECT_EQ(reached_unlock, true);
@@ -399,8 +399,8 @@ TEST_F(CATEGORY, co_unlock_return_no_symmetric_awaiter) {
 
     co_await [](auto& Mut) -> tmc::task<void> {
       EXPECT_EQ(tmc::current_priority(), 0);
-      co_await Mut.co_unlock_return_void();
-      ADD_FAILURE() << "co_unlock_return_void should complete the coroutine";
+      co_await Mut.co_unlock_return();
+      ADD_FAILURE() << "co_unlock_return should complete the coroutine";
     }(mut);
 
     // The mutex should still be locked, but transferred to the other task.
@@ -439,8 +439,8 @@ TEST_F(CATEGORY, co_unlock_return_no_symmetric_parent) {
     // Parent ineligible for symmetric transfer due to different priorities.
     co_await tmc::spawn([](auto& Mut) -> tmc::task<void> {
       EXPECT_EQ(tmc::current_priority(), 1);
-      co_await Mut.co_unlock_return_void();
-      ADD_FAILURE() << "co_unlock_return_void should complete the coroutine";
+      co_await Mut.co_unlock_return();
+      ADD_FAILURE() << "co_unlock_return should complete the coroutine";
     }(mut))
       .with_priority(1);
 
@@ -489,8 +489,8 @@ TEST_F(CATEGORY, co_unlock_return_no_symmetric_either) {
     // Parent ineligible for symmetric transfer due to different priorities.
     co_await tmc::spawn([](auto& Mut) -> tmc::task<void> {
       EXPECT_EQ(tmc::current_priority(), 1);
-      co_await Mut.co_unlock_return_void();
-      ADD_FAILURE() << "co_unlock_return_void should complete the coroutine";
+      co_await Mut.co_unlock_return();
+      ADD_FAILURE() << "co_unlock_return should complete the coroutine";
     }(mut))
       .with_priority(1);
 
