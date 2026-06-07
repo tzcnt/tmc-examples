@@ -701,7 +701,7 @@ TEST_F(CATEGORY, co_unlock_return_no_awaiter_or_parent) {
   // detached task before executor destruction.
   tmc::ex_cpu_st exec;
   exec.init();
-  test_async_main(ex(), []() -> tmc::task<void> {
+  test_async_main(exec, []() -> tmc::task<void> {
     tmc::mutex mut;
     co_await mut;
     EXPECT_EQ(tmc::current_priority(), 0);
