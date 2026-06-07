@@ -182,7 +182,7 @@ void do_chan_test(
       }
       {
         // destroy chan with data remaining inside
-        std::atomic<size_t> count;
+        std::atomic<size_t> count{0};
         {
           auto chan =
             tmc::make_channel<destructor_counter, chan_config<PackingLevel>>()
@@ -710,13 +710,15 @@ TEST_F(CATEGORY, close_and_drain_wait_idempotent) {
     drainer.drain_wait();
   });
 
-  test_async_main(ex(), [consumer = chan.new_token()]() mutable -> tmc::task<void> {
-    size_t count = 0;
-    while (co_await consumer.pull()) {
-      ++count;
-    }
-    EXPECT_EQ(count, 3u);
-  }());
+  test_async_main(
+    ex(), [consumer = chan.new_token()]() mutable -> tmc::task<void> {
+      size_t count = 0;
+      while (co_await consumer.pull()) {
+        ++count;
+      }
+      EXPECT_EQ(count, 3u);
+    }()
+  );
 
   closer.join();
 }

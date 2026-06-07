@@ -129,7 +129,7 @@ void do_q_test(Executor& Exec) {
           for (size_t i = 0; i < NITEMS; ++i) {
             auto v = Q.try_pull();
             while (!v) {
-              TMC_CPU_PAUSE();
+              co_await tmc::reschedule();
               v = Q.try_pull();
             }
             ++count;
@@ -150,7 +150,7 @@ void do_q_test(Executor& Exec) {
     }
     {
       // destroy q with data remaining inside
-      std::atomic<size_t> count;
+      std::atomic<size_t> count{0};
       {
         auto q = tmc::qu_mpsc_unbounded<
           mpsc_destructor_counter, q_config<PackingLevel>>{};
