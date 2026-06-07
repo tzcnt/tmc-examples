@@ -854,6 +854,56 @@ TEST_F(CATEGORY, close_concurrent_post_bulk) {
   }());
 }
 
+// A type with no default, copy, or move constructor. Can only be created
+// in-place via post()'s emplace forwarding.
+struct non_movable {
+  int value;
+
+  non_movable(int X, int Y) noexcept : value{X + Y} {}
+
+  non_movable() = delete;
+  non_movable(non_movable const&) = delete;
+  non_movable(non_movable&&) = delete;
+  non_movable& operator=(non_movable const&) = delete;
+  non_movable& operator=(non_movable&&) = delete;
+};
+
+TEST_F(CATEGORY, non_movable_type) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    auto q = tmc::qu_mpsc_unbounded<non_movable, q_config<0>>{};
+
+    {
+      auto v = q.try_pull();
+      EXPECT_FALSE(static_cast<bool>(v));
+    }
+
+    EXPECT_TRUE(q.post(1, 2));
+    EXPECT_TRUE(q.post(3, 4));
+    EXPECT_TRUE(q.post(5, 6));
+
+    {
+      auto v = q.try_pull();
+      EXPECT_TRUE(static_cast<bool>(v));
+      EXPECT_EQ(3, v->value);
+    }
+    {
+      auto v = co_await q.pull();
+      EXPECT_EQ(7, v->value);
+    }
+    {
+      auto v = q.try_pull();
+      EXPECT_TRUE(static_cast<bool>(v));
+      EXPECT_EQ(11, v->value);
+    }
+    {
+      auto v = q.try_pull();
+      EXPECT_FALSE(static_cast<bool>(v));
+    }
+
+    co_return;
+  }());
+}
+
 // Type that requires multiple arguments to construct. Used to verify that
 // post() forwards a variadic argument pack and constructs T in-place.
 struct mpsc_multi_arg {
