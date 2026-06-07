@@ -4,6 +4,7 @@
 #include <gtest/gtest.h>
 
 #include <atomic>
+#include <ranges>
 
 #define CATEGORY test_ex_cpu_st
 
@@ -94,6 +95,59 @@ TEST_F(CATEGORY, set_spins_zero) {
   std::atomic<bool> ran = false;
   tmc::post_waitable(ex, [&]() { ran = true; }, 0).wait();
   EXPECT_EQ(ran.load(), true);
+}
+
+// Tests to exercise the internal tiny_stack of ex_cpu_st
+TEST_F(CATEGORY, private_queue_push_grows) {
+  constexpr int count = 70;
+  int ran = 0;
+
+  tmc::ex_cpu_st exec;
+  exec.init();
+  tmc::post_waitable(
+    exec,
+    [&]() -> tmc::task<void> {
+      auto fg = tmc::fork_group();
+      for (int i = 0; i < count; ++i) {
+        fg.fork([](int& v) -> tmc::task<void> {
+          ++v;
+          co_return;
+        }(ran));
+      }
+      co_await std::move(fg);
+    }(),
+    0
+  )
+    .wait();
+
+  EXPECT_EQ(ran, count);
+}
+
+TEST_F(CATEGORY, private_queue_push_bulk_range_grows) {
+  constexpr int count = 300; // large enough to cause doubling twice
+  int ran = 0;
+
+  tmc::ex_cpu_st exec;
+  exec.init();
+  tmc::post_waitable(
+    exec,
+    [&]() -> tmc::task<void> {
+      auto tasks =
+        std::ranges::views::iota(0, count) |
+        std::ranges::views::transform([&](int) { return [&]() { ++ran; }; });
+      // This specific construction ensures that the work gets posted as a range
+      // and not converted to a work_item* internally (as spawn_many would do)
+      // since there is a compile-time switch for it.
+      tmc::post_bulk(exec, tasks);
+      while (ran < count) {
+        co_await tmc::reschedule();
+      }
+    }(),
+    0
+  )
+    .wait();
+
+  EXPECT_EQ(ran, count);
 }
 
 #ifdef TMC_USE_HWLOC
