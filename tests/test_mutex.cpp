@@ -302,6 +302,39 @@ TEST_F(CATEGORY, co_unlock) {
   }());
 }
 
+// The task should not be symmetric transferred as it is scheduled with a
+// different priority.
+TEST_F(CATEGORY, co_unlock_no_symmetric) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    tmc::mutex mut;
+    co_await mut;
+    atomic_awaitable<int> aa(1);
+    auto t =
+      tmc::spawn(
+        [](tmc::mutex& Mut, atomic_awaitable<int>& AA) -> tmc::task<void> {
+          EXPECT_EQ(tmc::current_priority(), 1);
+          co_await Mut;
+          EXPECT_EQ(tmc::current_priority(), 1);
+          AA.inc();
+        }(mut, aa)
+      )
+        .with_priority(1)
+        .fork();
+    co_await waiter_count_accessor::wait_for_waiter_count(mut, 1);
+
+    EXPECT_EQ(mut.is_locked(), true);
+    EXPECT_EQ(aa.load(), 0);
+    EXPECT_EQ(tmc::current_priority(), 0);
+
+    co_await mut.co_unlock();
+
+    EXPECT_EQ(tmc::current_priority(), 0);
+
+    co_await aa;
+    co_await std::move(t);
+  }());
+}
+
 TEST_F(CATEGORY, co_unlock_return_value) {
   test_async_main(ex(), []() -> tmc::task<void> {
     tmc::mutex mut;
@@ -337,23 +370,25 @@ TEST_F(CATEGORY, co_unlock_return_void) {
   }());
 }
 
-// The task should not be symmetric transferred as it is scheduled with a
-// different priority.
-TEST_F(CATEGORY, co_unlock_no_symmetric) {
+// When both the awaiting task and the parent task are eligible for symmetric
+// transfer, co_unlock_return should prefer to symmetric transfer to the
+// awaiting task and repost the parent to its executor (although this is not
+// directly observable in tests, other than that both complete successfully).
+TEST_F(CATEGORY, co_unlock_return_both_eligible) {
   test_async_main(ex(), []() -> tmc::task<void> {
     tmc::mutex mut;
     co_await mut;
     atomic_awaitable<int> aa(1);
+
     auto t =
       tmc::spawn(
         [](tmc::mutex& Mut, atomic_awaitable<int>& AA) -> tmc::task<void> {
-          EXPECT_EQ(tmc::current_priority(), 1);
+          EXPECT_EQ(tmc::current_priority(), 0);
           co_await Mut;
-          EXPECT_EQ(tmc::current_priority(), 1);
+          EXPECT_EQ(tmc::current_priority(), 0);
           AA.inc();
         }(mut, aa)
       )
-        .with_priority(1)
         .fork();
     co_await waiter_count_accessor::wait_for_waiter_count(mut, 1);
 
@@ -361,8 +396,15 @@ TEST_F(CATEGORY, co_unlock_no_symmetric) {
     EXPECT_EQ(aa.load(), 0);
     EXPECT_EQ(tmc::current_priority(), 0);
 
-    co_await mut.co_unlock();
+    co_await [](auto& Mut) -> tmc::task<void> {
+      EXPECT_EQ(tmc::current_priority(), 0);
+      co_await Mut.co_unlock_return();
+      ADD_FAILURE() << "co_unlock_return should complete the coroutine";
+    }(mut);
 
+    // The mutex should still be locked, but transferred to the other task.
+    // This should be resumed with the correct priority.
+    EXPECT_EQ(mut.is_locked(), true);
     EXPECT_EQ(tmc::current_priority(), 0);
 
     co_await aa;
@@ -373,13 +415,13 @@ TEST_F(CATEGORY, co_unlock_no_symmetric) {
 // When the awaiting task is not eligible for symmetric transfer,
 // co_unlock_return should resume the parent task, and post the awaiting task to
 // its executor.
-TEST_F(CATEGORY, co_unlock_return_no_symmetric_awaiter) {
+TEST_F(CATEGORY, co_unlock_return_awaiter_ineligible) {
   test_async_main(ex(), []() -> tmc::task<void> {
     tmc::mutex mut;
     co_await mut;
     atomic_awaitable<int> aa(1);
 
-    // Ineligible for symmetric transfer due to different priorities.
+    // Ineligible for symmetric transfer due to different priority
     auto t =
       tmc::spawn(
         [](tmc::mutex& Mut, atomic_awaitable<int>& AA) -> tmc::task<void> {
@@ -415,7 +457,7 @@ TEST_F(CATEGORY, co_unlock_return_no_symmetric_awaiter) {
 
 // When the parent is not eligible for symmetric transfer, co_unlock_return
 // should resume the awaiting task, and post parent to its executor.
-TEST_F(CATEGORY, co_unlock_return_no_symmetric_parent) {
+TEST_F(CATEGORY, co_unlock_return_parent_ineligible) {
   test_async_main(ex(), []() -> tmc::task<void> {
     tmc::mutex mut;
     co_await mut;
@@ -436,7 +478,7 @@ TEST_F(CATEGORY, co_unlock_return_no_symmetric_parent) {
     EXPECT_EQ(aa.load(), 0);
     EXPECT_EQ(tmc::current_priority(), 0);
 
-    // Parent ineligible for symmetric transfer due to different priorities.
+    // Parent ineligible for symmetric transfer due to different priority
     co_await tmc::spawn([](auto& Mut) -> tmc::task<void> {
       EXPECT_EQ(tmc::current_priority(), 1);
       co_await Mut.co_unlock_return();
@@ -456,7 +498,7 @@ TEST_F(CATEGORY, co_unlock_return_no_symmetric_parent) {
 // When neither the parent nor the awaiting task is eligible for symmetric
 // transfer, co_unlock_return should return std::noop_coroutine() and both tasks
 // should be posted to their executors.
-TEST_F(CATEGORY, co_unlock_return_no_symmetric_either) {
+TEST_F(CATEGORY, co_unlock_return_both_ineligible) {
   test_async_main(ex(), []() -> tmc::task<void> {
     tmc::mutex mut;
     co_await mut;
@@ -465,7 +507,7 @@ TEST_F(CATEGORY, co_unlock_return_no_symmetric_either) {
     tmc::ex_cpu_st exec;
     exec.init();
 
-    // Ineligible for symmetric transfer due to different executors.
+    // Ineligible for symmetric transfer due to different executor
     auto t = tmc::spawn(
                [](
                  tmc::mutex& Mut, atomic_awaitable<int>& AA, tmc::ex_any* Exec
@@ -486,7 +528,7 @@ TEST_F(CATEGORY, co_unlock_return_no_symmetric_either) {
     EXPECT_EQ(aa.load(), 0);
     EXPECT_EQ(tmc::current_priority(), 0);
 
-    // Parent ineligible for symmetric transfer due to different priorities.
+    // Parent ineligible for symmetric transfer due to different priority
     co_await tmc::spawn([](auto& Mut) -> tmc::task<void> {
       EXPECT_EQ(tmc::current_priority(), 1);
       co_await Mut.co_unlock_return();
@@ -501,6 +543,182 @@ TEST_F(CATEGORY, co_unlock_return_no_symmetric_either) {
     EXPECT_EQ(tmc::current_priority(), 0);
     co_await aa;
     co_await std::move(t);
+  }());
+}
+
+// When there is no awaiting task, co_unlock_return should symmetric transfer to
+// parent if eligible.
+TEST_F(CATEGORY, co_unlock_return_no_awaiter_parent_eligible) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    tmc::mutex mut;
+    co_await mut;
+    EXPECT_EQ(tmc::current_priority(), 0);
+
+    co_await [](auto& Mut) -> tmc::task<void> {
+      EXPECT_EQ(tmc::current_priority(), 0);
+      co_await Mut.co_unlock_return();
+      ADD_FAILURE() << "co_unlock_return should complete the coroutine";
+    }(mut);
+
+    // The mutex should not be locked since there was no awaiting task.
+    // This should be resumed with the correct priority.
+    EXPECT_EQ(mut.is_locked(), false);
+    EXPECT_EQ(tmc::current_priority(), 0);
+  }());
+}
+
+// When there is no awaiting task, co_unlock_return should not symmetric
+// transfer (repost instead) to parent when it is ineligible.
+TEST_F(CATEGORY, co_unlock_return_no_awaiter_parent_ineligible) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    tmc::mutex mut;
+    co_await mut;
+    EXPECT_EQ(tmc::current_priority(), 0);
+
+    co_await tmc::spawn([](auto& Mut) -> tmc::task<void> {
+      EXPECT_EQ(tmc::current_priority(), 1);
+      co_await Mut.co_unlock_return();
+      ADD_FAILURE() << "co_unlock_return should complete the coroutine";
+    }(mut))
+      .with_priority(1);
+
+    // The mutex should not be locked since there was no awaiting task.
+    // This should be resumed with the correct priority.
+    EXPECT_EQ(mut.is_locked(), false);
+    EXPECT_EQ(tmc::current_priority(), 0);
+  }());
+}
+
+// When there is no parent task, co_unlock_return should symmetric transfer to
+// the awaiting task when it is eligible.
+TEST_F(CATEGORY, co_unlock_return_no_parent_waiter_eligible) {
+  // Use a single-threaded executor to safely force completion of unsynchronized
+  // detached task before executor destruction.
+  tmc::ex_cpu_st exec;
+  exec.init();
+  test_async_main(exec, []() -> tmc::task<void> {
+    tmc::mutex mut;
+    co_await mut;
+    atomic_awaitable<int> aa(1);
+
+    // Eligible for symmetric transfer
+    auto t =
+      tmc::spawn(
+        [](tmc::mutex& Mut, atomic_awaitable<int>& AA) -> tmc::task<void> {
+          EXPECT_EQ(tmc::current_priority(), 0);
+          co_await Mut;
+          EXPECT_EQ(tmc::current_priority(), 0);
+          AA.inc();
+        }(mut, aa)
+      )
+        .fork();
+    co_await tmc::reschedule();
+    co_await waiter_count_accessor::wait_for_waiter_count(mut, 1);
+
+    EXPECT_EQ(mut.is_locked(), true);
+    EXPECT_EQ(aa.load(), 0);
+    EXPECT_EQ(tmc::current_priority(), 0);
+
+    // Detach so there is no parent
+    tmc::spawn([](auto& Mut) -> tmc::task<void> {
+      EXPECT_EQ(tmc::current_priority(), 0);
+      co_await Mut.co_unlock_return();
+      ADD_FAILURE() << "co_unlock_return should complete the coroutine";
+    }(mut))
+      .detach();
+
+    co_await tmc::reschedule();
+
+    // The mutex should still be locked, but transferred to the other task.
+    // This should be resumed with the correct priority.
+    EXPECT_EQ(mut.is_locked(), true);
+    EXPECT_EQ(tmc::current_priority(), 0);
+    co_await aa;
+    co_await std::move(t);
+  }());
+}
+
+// When there is no parent task, co_unlock_return should not symmetric transfer
+// (repost instead) to the awaiting task when it is ineligible.
+TEST_F(CATEGORY, co_unlock_return_no_parent_waiter_ineligible) {
+  // Use a single-threaded executor to safely force completion of unsynchronized
+  // detached task before executor destruction.
+  tmc::ex_cpu_st exec;
+  exec.set_priority_count(2).init();
+  test_async_main(exec, []() -> tmc::task<void> {
+    tmc::mutex mut;
+    co_await mut;
+    atomic_awaitable<int> aa(1);
+
+    // This needs to become priority 1 so that reschedule() allows the forked
+    // task to run. Hacky but this is the best way to force certain sequences
+    // (that would normally be multi-threaded / racy) to reliably occur in
+    // tests.
+    co_await tmc::change_priority(1);
+
+    // Ineligible for symmetric transfer due to different priority
+    auto t =
+      tmc::spawn(
+        [](tmc::mutex& Mut, atomic_awaitable<int>& AA) -> tmc::task<void> {
+          EXPECT_EQ(tmc::current_priority(), 0);
+          co_await Mut;
+          EXPECT_EQ(tmc::current_priority(), 0);
+          AA.inc();
+        }(mut, aa)
+      )
+        .with_priority(0)
+        .fork();
+    co_await tmc::reschedule();
+    co_await waiter_count_accessor::wait_for_waiter_count(mut, 1);
+
+    EXPECT_EQ(mut.is_locked(), true);
+    EXPECT_EQ(aa.load(), 0);
+    EXPECT_EQ(tmc::current_priority(), 1);
+
+    // Detach so there is no parent
+    tmc::spawn([](auto& Mut) -> tmc::task<void> {
+      EXPECT_EQ(tmc::current_priority(), 1);
+      co_await Mut.co_unlock_return();
+      ADD_FAILURE() << "co_unlock_return should complete the coroutine";
+    }(mut))
+      .detach();
+
+    co_await tmc::reschedule();
+
+    // The mutex should still be locked, but transferred to the other task.
+    // This should be resumed with the correct priority.
+    EXPECT_EQ(mut.is_locked(), true);
+    EXPECT_EQ(tmc::current_priority(), 1);
+    co_await aa;
+    co_await std::move(t);
+  }());
+}
+
+// When there is no awaiting task or parent, co_unlock_return should return
+// std::noop_coroutine.
+TEST_F(CATEGORY, co_unlock_return_no_awaiter_or_parent) {
+  // Use a single-threaded executor to safely force completion of unsynchronized
+  // detached task before executor destruction.
+  tmc::ex_cpu_st exec;
+  exec.init();
+  test_async_main(ex(), []() -> tmc::task<void> {
+    tmc::mutex mut;
+    co_await mut;
+    EXPECT_EQ(tmc::current_priority(), 0);
+
+    tmc::spawn([](auto& Mut) -> tmc::task<void> {
+      EXPECT_EQ(tmc::current_priority(), 0);
+      co_await Mut.co_unlock_return();
+      ADD_FAILURE() << "co_unlock_return should complete the coroutine";
+    }(mut))
+      .detach();
+
+    co_await tmc::reschedule();
+
+    // The mutex should not be locked since there was no awaiting task.
+    // This should be resumed with the correct priority.
+    EXPECT_EQ(mut.is_locked(), false);
+    EXPECT_EQ(tmc::current_priority(), 0);
   }());
 }
 
