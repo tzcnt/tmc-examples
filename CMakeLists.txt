@@ -81,7 +81,7 @@ else()
     CPMAddPackage(
         NAME TooManyCooks
         GIT_REPOSITORY https://github.com/tzcnt/TooManyCooks.git
-        GIT_TAG v1.6)
+        GIT_TAG main)
 endif()
 
 # Since each new coroutine requires an allocation,
