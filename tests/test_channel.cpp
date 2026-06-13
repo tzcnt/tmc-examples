@@ -730,16 +730,33 @@ TEST_F(CATEGORY, try_pull_closed_after_failed_post) {
   auto chan = tmc::make_channel<size_t, chan_config<0>>();
 
   EXPECT_TRUE(chan.post(1u));
-  auto v1 = chan.try_pull();
-  EXPECT_EQ(v1.index(), tmc::chan_err::OK);
-  EXPECT_EQ(std::get<0>(v1), 1u);
+  {
+    auto v = chan.try_pull();
+    EXPECT_EQ(v.index(), tmc::chan_err::OK);
+    EXPECT_EQ(std::get<0>(v), 1u);
+  }
 
   chan.close();
   EXPECT_FALSE(chan.post(2u));
   chan.drain_wait();
 
-  auto v2 = chan.try_pull();
-  EXPECT_EQ(v2.index(), tmc::chan_err::CLOSED);
+  {
+    auto v = chan.try_pull();
+    EXPECT_EQ(v.index(), tmc::chan_err::CLOSED);
+  }
+  {
+    auto v = chan.try_pull();
+    EXPECT_EQ(v.index(), tmc::chan_err::CLOSED);
+  }
+  EXPECT_FALSE(chan.post(3u));
+  {
+    auto v = chan.try_pull();
+    EXPECT_EQ(v.index(), tmc::chan_err::CLOSED);
+  }
+  {
+    auto v = chan.try_pull();
+    EXPECT_EQ(v.index(), tmc::chan_err::CLOSED);
+  }
 }
 
 TEST_F(CATEGORY, close_wakes_waiting_consumers) {
