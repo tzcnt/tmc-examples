@@ -261,6 +261,90 @@ TEST_F(CATEGORY, try_pull_no_suspend) {
   }());
 }
 
+// BlockSize == 1 is the minimum allowed block size. Every element lives in
+// its own block, so every consumed element is a block-start and triggers the
+// block reclaim path in finish_read.
+struct chan_config_block1 : tmc::qu_spsc_unbounded_default_config {
+  static inline constexpr size_t BlockSize = 1;
+};
+
+TEST_F(CATEGORY, block_size_one) {
+  // Single-threaded: post then drain, exercising reclaim on every pull.
+  {
+    tmc::ex_cpu ex1;
+    ex1.set_thread_count(1).init();
+    test_async_main(ex1, []() -> tmc::task<void> {
+      auto chan = tmc::qu_spsc_unbounded<size_t, chan_config_block1>{};
+
+      static constexpr size_t NITEMS = 10;
+      for (size_t i = 0; i < NITEMS; ++i) {
+        chan.post(i);
+      }
+      size_t sum = 0;
+      size_t count = 0;
+      for (size_t i = 0; i < NITEMS; ++i) {
+        auto v = chan.try_pull();
+        EXPECT_TRUE(static_cast<bool>(v));
+        sum += *v;
+        ++count;
+      }
+      EXPECT_EQ(NITEMS, count);
+      size_t expectedSum = 0;
+      for (size_t i = 0; i < NITEMS; ++i) {
+        expectedSum += i;
+      }
+      EXPECT_EQ(expectedSum, sum);
+
+      auto v = chan.try_pull();
+      EXPECT_FALSE(static_cast<bool>(v));
+      co_return;
+    }());
+  }
+  // Concurrent producer and consumer racing block alloc / reclaim.
+  test_async_main(ex(), []() -> tmc::task<void> {
+    static constexpr size_t NITEMS = 1000;
+    struct result {
+      size_t count;
+      size_t sum;
+    };
+
+    auto chan = tmc::qu_spsc_unbounded<size_t, chan_config_block1>{};
+
+    auto results = co_await tmc::spawn_tuple(
+      [](auto& Chan) -> tmc::task<size_t> {
+        size_t i = 0;
+        for (; i < NITEMS; ++i) {
+          Chan.post(i);
+        }
+        Chan.post(SPSC_TEST_SENTINEL);
+        co_return i;
+      }(chan),
+      [](auto& Chan) -> tmc::task<result> {
+        size_t count = 0;
+        size_t sum = 0;
+        while (true) {
+          auto v = co_await Chan.pull();
+          if (*v == SPSC_TEST_SENTINEL) {
+            co_return result{count, sum};
+          }
+          ++count;
+          sum += *v;
+        }
+      }(chan)
+    );
+    auto& prod = std::get<0>(results);
+    auto& cons = std::get<1>(results);
+    EXPECT_EQ(NITEMS, prod);
+    EXPECT_EQ(NITEMS, cons.count);
+    size_t expectedSum = 0;
+    for (size_t i = 0; i < NITEMS; ++i) {
+      expectedSum += i;
+    }
+    EXPECT_EQ(expectedSum, cons.sum);
+    co_return;
+  }());
+}
+
 // A type with no default, copy, or move constructor. Can only be created
 // in-place via post()'s emplace forwarding.
 struct non_movable {
