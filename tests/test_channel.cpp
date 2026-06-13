@@ -723,6 +723,42 @@ TEST_F(CATEGORY, close_and_drain_wait_idempotent) {
   closer.join();
 }
 
+// A post() that fails due to the channel being closed still consumes a
+// write_offset slot. try_pull() must still report CLOSED (not EMPTY) on a
+// fully-drained channel afterwards, or a polling consumer would spin forever.
+TEST_F(CATEGORY, try_pull_closed_after_failed_post) {
+  auto chan = tmc::make_channel<size_t, chan_config<0>>();
+
+  EXPECT_TRUE(chan.post(1u));
+  {
+    auto v = chan.try_pull();
+    EXPECT_EQ(v.index(), tmc::chan_err::OK);
+    EXPECT_EQ(std::get<0>(v), 1u);
+  }
+
+  chan.close();
+  EXPECT_FALSE(chan.post(2u));
+  chan.drain_wait();
+
+  {
+    auto v = chan.try_pull();
+    EXPECT_EQ(v.index(), tmc::chan_err::CLOSED);
+  }
+  {
+    auto v = chan.try_pull();
+    EXPECT_EQ(v.index(), tmc::chan_err::CLOSED);
+  }
+  EXPECT_FALSE(chan.post(3u));
+  {
+    auto v = chan.try_pull();
+    EXPECT_EQ(v.index(), tmc::chan_err::CLOSED);
+  }
+  {
+    auto v = chan.try_pull();
+    EXPECT_EQ(v.index(), tmc::chan_err::CLOSED);
+  }
+}
+
 TEST_F(CATEGORY, close_wakes_waiting_consumers) {
   test_async_main(ex(), []() -> tmc::task<void> {
     auto chan = tmc::make_channel<size_t, chan_config<0>>();
