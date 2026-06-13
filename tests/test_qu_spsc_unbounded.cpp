@@ -413,11 +413,40 @@ TEST_F(CATEGORY, try_pull_closed_empty) {
   test_async_main(ex, []() -> tmc::task<void> {
     using qerr = tmc::qu_spsc_unbounded_err;
     auto chan = tmc::qu_spsc_unbounded<size_t, qu_config<0>>{};
+    EXPECT_TRUE(chan.empty());
     chan.close();
+
+    // A closed-and-drained queue is not considered empty; the consumer should
+    // pull and observe the CLOSED status.
+    EXPECT_FALSE(chan.empty());
 
     auto v = chan.try_pull();
     EXPECT_EQ(qerr::CLOSED, v.status());
     EXPECT_FALSE(static_cast<bool>(v));
+    co_return;
+  }());
+}
+
+// empty() returns true on a fresh queue, false when data is waiting, true
+// again after draining, and false once the CLOSED sentinel is visible.
+TEST_F(CATEGORY, empty) {
+  tmc::ex_cpu ex;
+  ex.set_thread_count(1).init();
+  test_async_main(ex, []() -> tmc::task<void> {
+    auto chan = tmc::qu_spsc_unbounded<size_t, qu_config<0>>{};
+    EXPECT_TRUE(chan.empty());
+
+    chan.post(1u);
+    EXPECT_FALSE(chan.empty());
+
+    {
+      auto v = chan.try_pull();
+      EXPECT_TRUE(static_cast<bool>(v));
+    }
+    EXPECT_TRUE(chan.empty());
+
+    chan.close();
+    EXPECT_FALSE(chan.empty());
     co_return;
   }());
 }
