@@ -304,7 +304,12 @@ TEST_F(CATEGORY, try_pull_closed_empty) {
   test_async_main(ex, []() -> tmc::task<void> {
     using qerr = tmc::qu_mpsc_bounded_err;
     auto chan = tmc::qu_mpsc_bounded<size_t, qu_config<0>>{TEST_CAPACITY};
+    EXPECT_TRUE(chan.empty());
     chan.close();
+
+    // A closed-and-drained queue is not considered empty; the consumer should
+    // pull and observe the CLOSED status.
+    EXPECT_FALSE(chan.empty());
 
     auto v = chan.try_pull();
     EXPECT_EQ(qerr::CLOSED, v.status());
@@ -671,6 +676,35 @@ TEST_F(CATEGORY, empty_method) {
       EXPECT_EQ(7u, *v);
     }
     EXPECT_TRUE(chan.empty());
+
+    // After close(), the drained queue reports non-empty so the consumer will
+    // pull and observe the CLOSED status.
+    chan.close();
+    EXPECT_FALSE(chan.empty());
+    co_return;
+  }());
+}
+
+TEST_F(CATEGORY, empty_when_drained) {
+  tmc::ex_cpu ex;
+  ex.set_thread_count(1).init();
+  test_async_main(ex, []() -> tmc::task<void> {
+    auto chan = tmc::qu_mpsc_bounded<size_t, qu_config<0>>{TEST_CAPACITY};
+
+    bool ok = co_await chan.push(size_t{7});
+    EXPECT_TRUE(ok);
+    EXPECT_FALSE(chan.empty());
+
+    chan.close();
+    EXPECT_FALSE(chan.empty());
+
+    {
+      auto v = chan.try_pull();
+      EXPECT_TRUE(static_cast<bool>(v));
+      EXPECT_EQ(7u, *v);
+    }
+    // closed-and-drained == non-empty
+    EXPECT_FALSE(chan.empty());
     co_return;
   }());
 }
