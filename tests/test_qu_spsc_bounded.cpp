@@ -832,6 +832,29 @@ TEST_F(CATEGORY, empty_method) {
   }());
 }
 
+TEST_F(CATEGORY, empty_when_drained) {
+  tmc::ex_cpu ex;
+  ex.set_thread_count(1).init();
+  test_async_main(ex, []() -> tmc::task<void> {
+    auto chan = tmc::qu_spsc_bounded<size_t, qu_config<0>>{TEST_CAPACITY};
+
+    co_await chan.push(7u);
+    EXPECT_FALSE(chan.empty());
+
+    chan.close();
+    EXPECT_FALSE(chan.empty());
+
+    {
+      auto v = chan.try_pull();
+      EXPECT_TRUE(static_cast<bool>(v));
+      EXPECT_EQ(7u, *v);
+    }
+    // closed-and-drained == non-empty
+    EXPECT_FALSE(chan.empty());
+    co_return;
+  }());
+}
+
 // push_bulk(Range) with an empty range must be a no-op.
 TEST_F(CATEGORY, push_bulk_range_empty) {
   tmc::ex_cpu ex;

@@ -293,6 +293,27 @@ TEST_F(CATEGORY, empty_method) {
   }());
 }
 
+TEST_F(CATEGORY, empty_when_drained) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    auto q = tmc::qu_mpsc_unbounded<size_t, q_config<0>>{};
+
+    EXPECT_TRUE(q.post(static_cast<size_t>(7)));
+    EXPECT_FALSE(q.empty());
+
+    q.close();
+    EXPECT_FALSE(q.empty());
+
+    {
+      auto v = q.try_pull();
+      EXPECT_TRUE(static_cast<bool>(v));
+      EXPECT_EQ(7u, *v);
+    }
+    // closed-and-drained == non-empty
+    EXPECT_FALSE(q.empty());
+    co_return;
+  }());
+}
+
 // close() is idempotent.
 TEST_F(CATEGORY, close_idempotent) {
   test_async_main(ex(), []() -> tmc::task<void> {

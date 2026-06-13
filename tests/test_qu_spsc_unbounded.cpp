@@ -451,6 +451,29 @@ TEST_F(CATEGORY, empty) {
   }());
 }
 
+TEST_F(CATEGORY, empty_when_drained) {
+  tmc::ex_cpu ex;
+  ex.set_thread_count(1).init();
+  test_async_main(ex, []() -> tmc::task<void> {
+    auto chan = tmc::qu_spsc_unbounded<size_t, qu_config<0>>{};
+
+    chan.post(7u);
+    EXPECT_FALSE(chan.empty());
+
+    chan.close();
+    EXPECT_FALSE(chan.empty());
+
+    {
+      auto v = chan.try_pull();
+      EXPECT_TRUE(static_cast<bool>(v));
+      EXPECT_EQ(7u, *v);
+    }
+    // closed-and-drained == non-empty
+    EXPECT_FALSE(chan.empty());
+    co_return;
+  }());
+}
+
 // close() is idempotent: a second call must be a no-op.
 TEST_F(CATEGORY, close_idempotent) {
   tmc::ex_cpu ex;
