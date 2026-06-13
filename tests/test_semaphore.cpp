@@ -382,4 +382,416 @@ TEST_F(CATEGORY, co_release_no_symmetric) {
   }());
 }
 
+TEST_F(CATEGORY, co_release_return_value) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    tmc::semaphore sem(1);
+
+    auto result = co_await [](tmc::semaphore& Sem) -> tmc::task<int> {
+      co_await Sem;
+      EXPECT_EQ(Sem.count(), 0);
+      co_await Sem.co_release_return(42);
+      ADD_FAILURE() << "co_release_return should complete the coroutine";
+      co_return -1;
+    }(sem);
+
+    EXPECT_EQ(result, 42);
+    EXPECT_EQ(sem.count(), 1);
+  }());
+}
+
+TEST_F(CATEGORY, co_release_return_value_destroys_locals) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    tmc::semaphore sem(1);
+    std::atomic<size_t> destructor_count{0};
+    std::atomic<size_t> parameter_destructor_count{0};
+
+    auto result =
+      co_await [](
+                 tmc::semaphore& Sem, std::atomic<size_t>* DestructorCount,
+                 std::atomic<size_t>* ParameterDestructorCount,
+                 destructor_counter ParameterCounter
+               ) -> tmc::task<int> {
+      (void)ParameterCounter;
+      co_await Sem;
+      EXPECT_EQ(Sem.count(), 0);
+      destructor_counter counter{DestructorCount};
+      EXPECT_EQ(DestructorCount->load(), 0u);
+      EXPECT_EQ(ParameterDestructorCount->load(), 0u);
+      co_await Sem.co_release_return(42);
+      ADD_FAILURE() << "co_release_return should complete the coroutine";
+      co_return -1;
+    }(
+        sem, &destructor_count, &parameter_destructor_count,
+        destructor_counter{&parameter_destructor_count}
+      );
+
+    EXPECT_EQ(result, 42);
+    EXPECT_EQ(destructor_count.load(), 1u);
+    EXPECT_EQ(parameter_destructor_count.load(), 1u);
+    EXPECT_EQ(sem.count(), 1);
+  }());
+}
+
+TEST_F(CATEGORY, co_release_return_void) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    tmc::semaphore sem(1);
+    bool reached_release = false;
+
+    co_await [](tmc::semaphore& Sem, bool& ReachedRelease) -> tmc::task<void> {
+      co_await Sem;
+      EXPECT_EQ(Sem.count(), 0);
+      ReachedRelease = true;
+      co_await Sem.co_release_return();
+      ADD_FAILURE() << "co_release_return should complete the coroutine";
+    }(sem, reached_release);
+
+    EXPECT_EQ(reached_release, true);
+    EXPECT_EQ(sem.count(), 1);
+  }());
+}
+
+// When both the awaiting task and the parent task are eligible for symmetric
+// transfer, co_release_return should prefer to symmetric transfer to the
+// awaiting task and repost the parent to its executor (although this is not
+// directly observable in tests, other than that both complete successfully).
+TEST_F(CATEGORY, co_release_return_both_eligible) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    tmc::semaphore sem(0);
+    atomic_awaitable<int> aa(1);
+
+    auto t =
+      tmc::spawn(
+        [](tmc::semaphore& Sem, atomic_awaitable<int>& AA) -> tmc::task<void> {
+          EXPECT_EQ(tmc::current_priority(), 0);
+          co_await Sem;
+          EXPECT_EQ(tmc::current_priority(), 0);
+          AA.inc();
+        }(sem, aa)
+      )
+        .fork();
+    co_await waiter_count_accessor::wait_for_waiter_count(sem, 1);
+
+    EXPECT_EQ(sem.count(), 0);
+    EXPECT_EQ(aa.load(), 0);
+    EXPECT_EQ(tmc::current_priority(), 0);
+
+    co_await [](auto& Sem) -> tmc::task<void> {
+      EXPECT_EQ(tmc::current_priority(), 0);
+      co_await Sem.co_release_return();
+      ADD_FAILURE() << "co_release_return should complete the coroutine";
+    }(sem);
+
+    // The resource should have been transferred to the other task.
+    // This should be resumed with the correct priority.
+    EXPECT_EQ(sem.count(), 0);
+    EXPECT_EQ(tmc::current_priority(), 0);
+
+    co_await aa;
+    co_await std::move(t);
+  }());
+}
+
+// When the awaiting task is not eligible for symmetric transfer,
+// co_release_return should resume the parent task, and post the awaiting task
+// to its executor.
+TEST_F(CATEGORY, co_release_return_awaiter_ineligible) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    tmc::semaphore sem(0);
+    atomic_awaitable<int> aa(1);
+
+    // Ineligible for symmetric transfer due to different priority
+    auto t =
+      tmc::spawn(
+        [](tmc::semaphore& Sem, atomic_awaitable<int>& AA) -> tmc::task<void> {
+          EXPECT_EQ(tmc::current_priority(), 1);
+          co_await Sem;
+          EXPECT_EQ(tmc::current_priority(), 1);
+          AA.inc();
+        }(sem, aa)
+      )
+        .with_priority(1)
+        .fork();
+    co_await waiter_count_accessor::wait_for_waiter_count(sem, 1);
+
+    EXPECT_EQ(sem.count(), 0);
+    EXPECT_EQ(aa.load(), 0);
+    EXPECT_EQ(tmc::current_priority(), 0);
+
+    co_await [](auto& Sem) -> tmc::task<void> {
+      EXPECT_EQ(tmc::current_priority(), 0);
+      co_await Sem.co_release_return();
+      ADD_FAILURE() << "co_release_return should complete the coroutine";
+    }(sem);
+
+    // The resource should have been transferred to the other task.
+    // This should be resumed with the correct priority.
+    EXPECT_EQ(sem.count(), 0);
+    EXPECT_EQ(tmc::current_priority(), 0);
+
+    co_await aa;
+    co_await std::move(t);
+  }());
+}
+
+// When the parent is not eligible for symmetric transfer, co_release_return
+// should resume the awaiting task, and post parent to its executor.
+TEST_F(CATEGORY, co_release_return_parent_ineligible) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    tmc::semaphore sem(0);
+    atomic_awaitable<int> aa(1);
+    auto t =
+      tmc::spawn(
+        [](tmc::semaphore& Sem, atomic_awaitable<int>& AA) -> tmc::task<void> {
+          EXPECT_EQ(tmc::current_priority(), 0);
+          co_await Sem;
+          EXPECT_EQ(tmc::current_priority(), 0);
+          AA.inc();
+        }(sem, aa)
+      )
+        .fork();
+    co_await waiter_count_accessor::wait_for_waiter_count(sem, 1);
+
+    EXPECT_EQ(sem.count(), 0);
+    EXPECT_EQ(aa.load(), 0);
+    EXPECT_EQ(tmc::current_priority(), 0);
+
+    // Parent ineligible for symmetric transfer due to different priority
+    co_await tmc::spawn([](auto& Sem) -> tmc::task<void> {
+      EXPECT_EQ(tmc::current_priority(), 1);
+      co_await Sem.co_release_return();
+      ADD_FAILURE() << "co_release_return should complete the coroutine";
+    }(sem))
+      .with_priority(1);
+
+    // The resource should have been transferred to the other task.
+    // This should be resumed with the correct priority.
+    EXPECT_EQ(sem.count(), 0);
+    EXPECT_EQ(tmc::current_priority(), 0);
+    co_await aa;
+    co_await std::move(t);
+  }());
+}
+
+// When neither the parent nor the awaiting task is eligible for symmetric
+// transfer, co_release_return should return std::noop_coroutine() and both
+// tasks should be posted to their executors.
+TEST_F(CATEGORY, co_release_return_both_ineligible) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    tmc::semaphore sem(0);
+    atomic_awaitable<int> aa(1);
+
+    tmc::ex_cpu_st exec;
+    exec.init();
+
+    // Ineligible for symmetric transfer due to different executor
+    auto t = tmc::spawn(
+               [](
+                 tmc::semaphore& Sem, atomic_awaitable<int>& AA,
+                 tmc::ex_any* Exec
+               ) -> tmc::task<void> {
+                 EXPECT_EQ(tmc::current_executor(), Exec);
+                 EXPECT_EQ(tmc::current_priority(), 0);
+                 co_await Sem;
+                 EXPECT_EQ(tmc::current_executor(), Exec);
+                 EXPECT_EQ(tmc::current_priority(), 0);
+                 AA.inc();
+               }(sem, aa, exec.type_erased())
+    )
+               .run_on(exec)
+               .fork();
+    co_await waiter_count_accessor::wait_for_waiter_count(sem, 1);
+
+    EXPECT_EQ(sem.count(), 0);
+    EXPECT_EQ(aa.load(), 0);
+    EXPECT_EQ(tmc::current_priority(), 0);
+
+    // Parent ineligible for symmetric transfer due to different priority
+    co_await tmc::spawn([](auto& Sem) -> tmc::task<void> {
+      EXPECT_EQ(tmc::current_priority(), 1);
+      co_await Sem.co_release_return();
+      ADD_FAILURE() << "co_release_return should complete the coroutine";
+    }(sem))
+      .with_priority(1);
+
+    // The resource should have been transferred to the other task.
+    // This should be resumed with the correct executor and priority.
+    EXPECT_EQ(sem.count(), 0);
+    EXPECT_EQ(tmc::current_executor(), ex().type_erased());
+    EXPECT_EQ(tmc::current_priority(), 0);
+    co_await aa;
+    co_await std::move(t);
+  }());
+}
+
+// When there is no awaiting task, co_release_return should symmetric transfer
+// to parent if eligible.
+TEST_F(CATEGORY, co_release_return_no_awaiter_parent_eligible) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    tmc::semaphore sem(0);
+    EXPECT_EQ(tmc::current_priority(), 0);
+
+    co_await [](auto& Sem) -> tmc::task<void> {
+      EXPECT_EQ(tmc::current_priority(), 0);
+      co_await Sem.co_release_return();
+      ADD_FAILURE() << "co_release_return should complete the coroutine";
+    }(sem);
+
+    // The resource should be available since there was no awaiting task.
+    // This should be resumed with the correct priority.
+    EXPECT_EQ(sem.count(), 1);
+    EXPECT_EQ(tmc::current_priority(), 0);
+  }());
+}
+
+// When there is no awaiting task, co_release_return should not symmetric
+// transfer (repost instead) to parent when it is ineligible.
+TEST_F(CATEGORY, co_release_return_no_awaiter_parent_ineligible) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    tmc::semaphore sem(0);
+    EXPECT_EQ(tmc::current_priority(), 0);
+
+    co_await tmc::spawn([](auto& Sem) -> tmc::task<void> {
+      EXPECT_EQ(tmc::current_priority(), 1);
+      co_await Sem.co_release_return();
+      ADD_FAILURE() << "co_release_return should complete the coroutine";
+    }(sem))
+      .with_priority(1);
+
+    // The resource should be available since there was no awaiting task.
+    // This should be resumed with the correct priority.
+    EXPECT_EQ(sem.count(), 1);
+    EXPECT_EQ(tmc::current_priority(), 0);
+  }());
+}
+
+// When there is no parent task, co_release_return should symmetric transfer to
+// the awaiting task when it is eligible.
+TEST_F(CATEGORY, co_release_return_no_parent_waiter_eligible) {
+  // Use a single-threaded executor to safely force completion of unsynchronized
+  // detached task before executor destruction.
+  tmc::ex_cpu_st exec;
+  exec.init();
+  test_async_main(exec, []() -> tmc::task<void> {
+    tmc::semaphore sem(0);
+    atomic_awaitable<int> aa(1);
+
+    // Eligible for symmetric transfer
+    auto t =
+      tmc::spawn(
+        [](tmc::semaphore& Sem, atomic_awaitable<int>& AA) -> tmc::task<void> {
+          EXPECT_EQ(tmc::current_priority(), 0);
+          co_await Sem;
+          EXPECT_EQ(tmc::current_priority(), 0);
+          AA.inc();
+        }(sem, aa)
+      )
+        .fork();
+    co_await tmc::reschedule();
+    co_await waiter_count_accessor::wait_for_waiter_count(sem, 1);
+
+    EXPECT_EQ(sem.count(), 0);
+    EXPECT_EQ(aa.load(), 0);
+    EXPECT_EQ(tmc::current_priority(), 0);
+
+    // Detach so there is no parent
+    tmc::spawn([](auto& Sem) -> tmc::task<void> {
+      EXPECT_EQ(tmc::current_priority(), 0);
+      co_await Sem.co_release_return();
+      ADD_FAILURE() << "co_release_return should complete the coroutine";
+    }(sem))
+      .detach();
+
+    co_await tmc::reschedule();
+
+    // The resource should have been transferred to the other task.
+    // This should be resumed with the correct priority.
+    EXPECT_EQ(sem.count(), 0);
+    EXPECT_EQ(tmc::current_priority(), 0);
+    co_await aa;
+    co_await std::move(t);
+  }());
+}
+
+// When there is no parent task, co_release_return should not symmetric
+// transfer (repost instead) to the awaiting task when it is ineligible.
+TEST_F(CATEGORY, co_release_return_no_parent_waiter_ineligible) {
+  // Use a single-threaded executor to safely force completion of unsynchronized
+  // detached task before executor destruction.
+  tmc::ex_cpu_st exec;
+  exec.set_priority_count(2).init();
+  test_async_main(exec, []() -> tmc::task<void> {
+    tmc::semaphore sem(0);
+    atomic_awaitable<int> aa(1);
+
+    // This needs to become priority 1 so that reschedule() allows the forked
+    // task to run. Hacky but this is the best way to force certain sequences
+    // (that would normally be multi-threaded / racy) to reliably occur in
+    // tests.
+    co_await tmc::change_priority(1);
+
+    // Ineligible for symmetric transfer due to different priority
+    auto t =
+      tmc::spawn(
+        [](tmc::semaphore& Sem, atomic_awaitable<int>& AA) -> tmc::task<void> {
+          EXPECT_EQ(tmc::current_priority(), 0);
+          co_await Sem;
+          EXPECT_EQ(tmc::current_priority(), 0);
+          AA.inc();
+        }(sem, aa)
+      )
+        .with_priority(0)
+        .fork();
+    co_await tmc::reschedule();
+    co_await waiter_count_accessor::wait_for_waiter_count(sem, 1);
+
+    EXPECT_EQ(sem.count(), 0);
+    EXPECT_EQ(aa.load(), 0);
+    EXPECT_EQ(tmc::current_priority(), 1);
+
+    // Detach so there is no parent
+    tmc::spawn([](auto& Sem) -> tmc::task<void> {
+      EXPECT_EQ(tmc::current_priority(), 1);
+      co_await Sem.co_release_return();
+      ADD_FAILURE() << "co_release_return should complete the coroutine";
+    }(sem))
+      .detach();
+
+    co_await tmc::reschedule();
+
+    // The resource should have been transferred to the other task.
+    // This should be resumed with the correct priority.
+    EXPECT_EQ(sem.count(), 0);
+    EXPECT_EQ(tmc::current_priority(), 1);
+    co_await aa;
+    co_await std::move(t);
+  }());
+}
+
+// When there is no awaiting task or parent, co_release_return should return
+// std::noop_coroutine.
+TEST_F(CATEGORY, co_release_return_no_awaiter_or_parent) {
+  // Use a single-threaded executor to safely force completion of unsynchronized
+  // detached task before executor destruction.
+  tmc::ex_cpu_st exec;
+  exec.init();
+  test_async_main(exec, []() -> tmc::task<void> {
+    tmc::semaphore sem(0);
+    EXPECT_EQ(tmc::current_priority(), 0);
+
+    tmc::spawn([](auto& Sem) -> tmc::task<void> {
+      EXPECT_EQ(tmc::current_priority(), 0);
+      co_await Sem.co_release_return();
+      ADD_FAILURE() << "co_release_return should complete the coroutine";
+    }(sem))
+      .detach();
+
+    co_await tmc::reschedule();
+
+    // The resource should be available since there was no awaiting task.
+    // This should be resumed with the correct priority.
+    EXPECT_EQ(sem.count(), 1);
+    EXPECT_EQ(tmc::current_priority(), 0);
+  }());
+}
+
 #undef CATEGORY
