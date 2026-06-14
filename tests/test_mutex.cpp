@@ -352,6 +352,39 @@ TEST_F(CATEGORY, co_unlock_return_value) {
   }());
 }
 
+// ensure that co_unlock_return runs the destructor for locals exactly once, as
+// if by the co_return statement
+TEST_F(CATEGORY, co_unlock_return_value_destroys_locals) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    tmc::mutex mut;
+    std::atomic<size_t> destructor_count{0};
+    std::atomic<size_t> parameter_destructor_count{0};
+
+    auto result =
+      co_await [](
+                 tmc::mutex& Mut, std::atomic<size_t>* DestructorCount,
+                 std::atomic<size_t>* ParameterDestructorCount,
+                 destructor_counter ParameterCounter
+               ) -> tmc::task<int> {
+      (void)ParameterCounter;
+      co_await Mut;
+      EXPECT_EQ(Mut.is_locked(), true);
+      destructor_counter counter{DestructorCount};
+      EXPECT_EQ(DestructorCount->load(), 0u);
+      EXPECT_EQ(ParameterDestructorCount->load(), 0u);
+      co_await Mut.co_unlock_return(42);
+      ADD_FAILURE() << "co_unlock_return should complete the coroutine";
+      co_return -1;
+    }(mut, &destructor_count, &parameter_destructor_count,
+                 destructor_counter{&parameter_destructor_count});
+
+    EXPECT_EQ(result, 42);
+    EXPECT_EQ(destructor_count.load(), 1u);
+    EXPECT_EQ(parameter_destructor_count.load(), 1u);
+    EXPECT_EQ(mut.is_locked(), false);
+  }());
+}
+
 TEST_F(CATEGORY, co_unlock_return_void) {
   test_async_main(ex(), []() -> tmc::task<void> {
     tmc::mutex mut;
