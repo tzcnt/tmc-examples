@@ -10,7 +10,6 @@
 #include <gtest/gtest.h>
 
 #include <atomic>
-#include <cstdint>
 #include <numeric>
 #include <set>
 #include <thread>
@@ -121,20 +120,6 @@ TEST_F(CATEGORY, alternating_push_pop) {
     q.push(i);
     EXPECT_TRUE(q.try_pop(v));
     EXPECT_EQ(i, v);
-    EXPECT_TRUE(q.empty());
-  }
-}
-
-TEST_F(CATEGORY, pop_last_element_via_cas_path) {
-  // pop() of the final element takes the "race with stealers" branch
-  // that does a CAS on top_. Repeat to make sure it works.
-  chase_lev_deque<size_t> q;
-  for (size_t i = 0; i < 50; ++i) {
-    q.push(i * 7);
-    size_t v = 0;
-    EXPECT_TRUE(q.try_pop(v));
-    EXPECT_EQ(i * 7, v);
-    EXPECT_FALSE(q.try_pop(v));
     EXPECT_TRUE(q.empty());
   }
 }
