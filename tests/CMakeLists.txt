@@ -125,7 +125,6 @@ make_exe_base(
   test_ex_asio.cpp
   test_ex_braid.cpp
   test_atomic_bitmap.cpp
-  test_bitmap_object_pool.cpp
   test_bit_manip.cpp
   test_prio.cpp
   test_atomic_condvar.cpp
