@@ -43,6 +43,44 @@ TEST_F(CATEGORY, nonblocking) {
   }());
 }
 
+TEST_F(CATEGORY, try_lock) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    tmc::mutex mut;
+    // Succeeds when the mutex is free.
+    EXPECT_EQ(mut.try_lock(), true);
+    EXPECT_EQ(mut.is_locked(), true);
+    // Fails when already locked (not re-entrant).
+    EXPECT_EQ(mut.try_lock(), false);
+    mut.unlock();
+    EXPECT_EQ(mut.is_locked(), false);
+
+    // Lock via try_lock, then queue a waiter behind it.
+    EXPECT_EQ(mut.try_lock(), true);
+    atomic_awaitable<int> aa(1);
+    auto t =
+      tmc::spawn(
+        [](tmc::mutex& Mut, atomic_awaitable<int>& AA) -> tmc::task<void> {
+          co_await Mut;
+          AA.inc();
+          Mut.unlock();
+        }(mut, aa)
+      )
+        .fork();
+    co_await waiter_count_accessor::wait_for_waiter_count(mut, 1);
+    // Cannot acquire while the lock is held and a waiter is queued.
+    EXPECT_EQ(mut.try_lock(), false);
+
+    // Unlock transfers ownership to the waiter, which acquires and releases.
+    mut.unlock();
+    co_await aa;
+    co_await std::move(t);
+
+    // The waiter has released, so try_lock succeeds again.
+    EXPECT_EQ(mut.try_lock(), true);
+    mut.unlock();
+  }());
+}
+
 TEST_F(CATEGORY, one_waiter) {
   test_async_main(ex(), []() -> tmc::task<void> {
     tmc::mutex mut;

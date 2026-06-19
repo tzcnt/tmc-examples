@@ -73,6 +73,44 @@ TEST_F(CATEGORY, nonblocking) {
   }());
 }
 
+TEST_F(CATEGORY, try_acquire) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    tmc::semaphore sem(2);
+    // Succeeds while resources are available, draining the count.
+    EXPECT_EQ(sem.try_acquire(), true);
+    EXPECT_EQ(sem.count(), 1);
+    EXPECT_EQ(sem.try_acquire(), true);
+    EXPECT_EQ(sem.count(), 0);
+    // Fails when no resources are available.
+    EXPECT_EQ(sem.try_acquire(), false);
+    EXPECT_EQ(sem.count(), 0);
+
+    // Releasing makes a resource available again.
+    sem.release();
+    EXPECT_EQ(sem.count(), 1);
+    EXPECT_EQ(sem.try_acquire(), true);
+    EXPECT_EQ(sem.count(), 0);
+
+    // With a waiter queued, try_acquire cannot barge ahead of it. Releasing
+    // transfers the resource to the waiter, leaving count at 0.
+    atomic_awaitable<int> aa(1);
+    auto t =
+      tmc::spawn(
+        [](tmc::semaphore& Sem, atomic_awaitable<int>& AA) -> tmc::task<void> {
+          co_await Sem;
+          AA.inc();
+        }(sem, aa)
+      )
+        .fork();
+    co_await waiter_count_accessor::wait_for_waiter_count(sem, 1);
+    EXPECT_EQ(sem.try_acquire(), false);
+    sem.release();
+    co_await aa;
+    co_await std::move(t);
+    EXPECT_EQ(sem.count(), 0);
+  }());
+}
+
 TEST_F(CATEGORY, one_waiter) {
   test_async_main(ex(), []() -> tmc::task<void> {
     tmc::semaphore sem(1);
