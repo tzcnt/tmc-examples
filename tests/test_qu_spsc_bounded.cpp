@@ -416,41 +416,49 @@ TEST_F(CATEGORY, pull_after_close_returns_empty) {
   }());
 }
 
-// Move-assignment of try_pull_zc_scope when the destination already holds a
-// value. Two distinct queues are used because the API requires that at most
-// one scope from a given queue be live at a time. The destination scope's
-// element must be released (destroyed + slot freed) before adopting the
-// source's element.
-TEST_F(CATEGORY, try_pull_zc_scope_move_assign_over_nonempty) {
+// Exhaustively exercise try_pull_zc_scope::operator=(&&): over-nonempty,
+// move-into-empty, and self-move. Distinct queues are used because the API
+// requires that at most one scope from a given queue be live at a time.
+TEST_F(CATEGORY, try_pull_zc_scope_move_assign_branches) {
   test_async_main(ex(), []() -> tmc::task<void> {
     std::atomic<size_t> count1{0};
     std::atomic<size_t> count2{0};
+    std::atomic<size_t> count3{0};
     {
       auto q1 =
         tmc::qu_spsc_bounded<spsc_destructor_counter, qu_config<0>>{TEST_CAPACITY};
       auto q2 =
         tmc::qu_spsc_bounded<spsc_destructor_counter, qu_config<0>>{TEST_CAPACITY};
+      auto q3 =
+        tmc::qu_spsc_bounded<spsc_destructor_counter, qu_config<0>>{TEST_CAPACITY};
       co_await q1.push(spsc_destructor_counter{&count1});
       co_await q2.push(spsc_destructor_counter{&count2});
+      co_await q3.push(spsc_destructor_counter{&count3});
 
-      auto v1 = q1.try_pull();
-      EXPECT_TRUE(static_cast<bool>(v1));
-      auto v2 = q2.try_pull();
-      EXPECT_TRUE(static_cast<bool>(v2));
-      EXPECT_EQ(0u, count1.load());
+      auto a = q1.try_pull();
+      EXPECT_TRUE(static_cast<bool>(a));
+
+      // Over-nonempty: a's existing element (from q1) must be destroyed and its
+      // slot released; a then takes ownership of q2's element.
+      a = q2.try_pull();
+      EXPECT_EQ(1u, count1.load());
       EXPECT_EQ(0u, count2.load());
 
-      // Move-assign over a non-empty scope. v1's existing element (from q1)
-      // must be destroyed and its slot released; v1 then takes ownership of
-      // v2's element (from q2).
-      v1 = std::move(v2);
-      EXPECT_FALSE(static_cast<bool>(v2));
-      EXPECT_TRUE(static_cast<bool>(v1));
-      EXPECT_EQ(1u, count1.load()); // q1's slot was destroyed by the assign
-      EXPECT_EQ(0u, count2.load()); // q2's element now lives in v1
-    } // ~v1 destroys q2's element (count2 -> 1); both queues then destruct.
+      auto b = std::move(a);
+      EXPECT_FALSE(static_cast<bool>(a));
+      a = q3.try_pull(); // into-empty
+      EXPECT_TRUE(static_cast<bool>(a));
+      EXPECT_EQ(0u, count2.load()); // q2's element still alive in b
+      EXPECT_EQ(0u, count3.load());
+
+      auto& aref = a;
+      a = std::move(aref); // self-move
+      EXPECT_TRUE(static_cast<bool>(a));
+      EXPECT_EQ(0u, count3.load());
+    } // ~b releases q2's element, ~a releases q3's element.
     EXPECT_EQ(1u, count1.load());
     EXPECT_EQ(1u, count2.load());
+    EXPECT_EQ(1u, count3.load());
     co_return;
   }());
 }
@@ -1085,21 +1093,82 @@ TEST_F(CATEGORY, scope_value_accessor) {
   test_async_main(ex, []() -> tmc::task<void> {
     auto queue = tmc::qu_spsc_bounded<size_t, qu_config<0>>{TEST_CAPACITY};
 
-    // try_pull scope: value()
+    // try_pull scope: default ctor (empty), value(), move ctor.
+    {
+      decltype(queue.try_pull()) empty{};
+      EXPECT_FALSE(empty.has_value());
+    }
     co_await queue.push(static_cast<size_t>(11));
     {
       auto v = queue.try_pull();
       EXPECT_TRUE(v.has_value());
       EXPECT_EQ(11u, v.value());
+      auto moved = std::move(v);
+      EXPECT_FALSE(v.has_value());
+      EXPECT_EQ(11u, moved.value());
     }
 
-    // pull scope: value()
+    // pull scope: default ctor (empty), value(), move ctor.
     co_await queue.push(static_cast<size_t>(22));
     {
       auto v = co_await queue.pull();
       EXPECT_TRUE(v.has_value());
       EXPECT_EQ(22u, v.value());
+
+      decltype(v) empty{};
+      EXPECT_FALSE(empty.has_value());
+
+      auto moved = std::move(v);
+      EXPECT_FALSE(v.has_value());
+      EXPECT_EQ(22u, moved.value());
     }
+    co_return;
+  }());
+}
+
+// Exhaustively exercise pull_zc_scope::operator=(&&): over-nonempty,
+// move-into-empty, and self-move. (try_pull_zc_scope::operator= is covered by
+// try_pull_zc_scope_move_assign_branches above.)
+TEST_F(CATEGORY, pull_zc_scope_move_assign_branches) {
+  tmc::ex_cpu ex;
+  ex.set_thread_count(1).init();
+  test_async_main(ex, []() -> tmc::task<void> {
+    std::atomic<size_t> count1{0};
+    std::atomic<size_t> count2{0};
+    std::atomic<size_t> count3{0};
+    {
+      auto q1 =
+        tmc::qu_spsc_bounded<spsc_destructor_counter, qu_config<0>>{TEST_CAPACITY};
+      auto q2 =
+        tmc::qu_spsc_bounded<spsc_destructor_counter, qu_config<0>>{TEST_CAPACITY};
+      auto q3 =
+        tmc::qu_spsc_bounded<spsc_destructor_counter, qu_config<0>>{TEST_CAPACITY};
+      co_await q1.push(spsc_destructor_counter{&count1});
+      co_await q2.push(spsc_destructor_counter{&count2});
+      co_await q3.push(spsc_destructor_counter{&count3});
+
+      auto a = co_await q1.pull();
+      EXPECT_TRUE(a.has_value());
+
+      a = co_await q2.pull(); // over-nonempty
+      EXPECT_EQ(1u, count1.load());
+      EXPECT_EQ(0u, count2.load());
+
+      auto b = std::move(a);
+      EXPECT_FALSE(a.has_value());
+      a = co_await q3.pull(); // into-empty
+      EXPECT_TRUE(a.has_value());
+      EXPECT_EQ(0u, count2.load());
+      EXPECT_EQ(0u, count3.load());
+
+      auto& aref = a;
+      a = std::move(aref); // self-move
+      EXPECT_TRUE(a.has_value());
+      EXPECT_EQ(0u, count3.load());
+    }
+    EXPECT_EQ(1u, count1.load());
+    EXPECT_EQ(1u, count2.load());
+    EXPECT_EQ(1u, count3.load());
     co_return;
   }());
 }

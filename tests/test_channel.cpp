@@ -996,6 +996,54 @@ TEST_F(CATEGORY, zc_scope_move) {
   }());
 }
 
+// Exhaustively exercise chan_zc_scope::operator=(&&) (the raw scope returned by
+// pull_zc(), unwrapped from its optional): over-nonempty, move-into-empty, and
+// self-move. Separate channels are used because a zc scope shares its token's
+// single hazard pointer, so at most one live scope per channel is allowed.
+TEST_F(CATEGORY, zc_scope_move_assign) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    std::atomic<size_t> count1{0};
+    std::atomic<size_t> count2{0};
+    std::atomic<size_t> count3{0};
+    {
+      auto c1 = tmc::make_channel<destructor_counter, chan_config<0>>();
+      auto c2 = tmc::make_channel<destructor_counter, chan_config<0>>();
+      auto c3 = tmc::make_channel<destructor_counter, chan_config<0>>();
+      c1.post(destructor_counter{&count1});
+      c2.post(destructor_counter{&count2});
+      c3.post(destructor_counter{&count3});
+
+      auto oa = co_await c1.pull_zc();
+      EXPECT_TRUE(oa.has_value());
+      auto a = std::move(oa.value()); // raw chan_zc_scope holding c1's element
+
+      // Over-nonempty: assigning c2's scope destroys c1's element first.
+      auto ob = co_await c2.pull_zc();
+      EXPECT_TRUE(ob.has_value());
+      a = std::move(ob.value());
+      EXPECT_EQ(1u, count1.load());
+      EXPECT_EQ(0u, count2.load());
+
+      // Move-into-empty: move a into b (a's data becomes null), then assign c3
+      // into the now-empty a -> release() takes its data == nullptr arm.
+      auto b = std::move(a);
+      auto oc = co_await c3.pull_zc();
+      EXPECT_TRUE(oc.has_value());
+      a = std::move(oc.value());
+      EXPECT_EQ(0u, count2.load()); // c2's element still alive in b
+      EXPECT_EQ(0u, count3.load());
+
+      // Self-move: the `this != &Other` guard takes its false arm; value kept.
+      auto& aref = a;
+      a = std::move(aref);
+      EXPECT_EQ(0u, count3.load());
+    } // ~b releases c2's element, ~a releases c3's element.
+    EXPECT_EQ(1u, count1.load());
+    EXPECT_EQ(1u, count2.load());
+    EXPECT_EQ(1u, count3.load());
+  }());
+}
+
 TEST_F(CATEGORY, drain_empty_channel) {
   test_async_main(ex(), []() -> tmc::task<void> {
     auto chan = tmc::make_channel<size_t, chan_config<0>>();

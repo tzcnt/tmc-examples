@@ -784,6 +784,12 @@ TEST_F(CATEGORY, scope_accessors) {
   test_async_main(ex, []() -> tmc::task<void> {
     auto queue = tmc::qu_spsc_unbounded<size_t, qu_config<0>>{};
 
+    // try_pull scope: default ctor (empty)
+    {
+      decltype(queue.try_pull()) empty{};
+      EXPECT_FALSE(empty.has_value());
+    }
+
     // try_pull scope: has_value() + value()
     queue.post(static_cast<size_t>(11));
     {
@@ -792,12 +798,15 @@ TEST_F(CATEGORY, scope_accessors) {
       EXPECT_EQ(11u, v.value());
     }
 
-    // pull scope: has_value() + value()
+    // pull scope: default ctor (empty), has_value() + value()
     queue.post(static_cast<size_t>(22));
     {
       auto v = co_await queue.pull();
       EXPECT_TRUE(v.has_value());
       EXPECT_EQ(22u, v.value());
+
+      decltype(v) empty{};
+      EXPECT_FALSE(empty.has_value());
     }
     co_return;
   }());

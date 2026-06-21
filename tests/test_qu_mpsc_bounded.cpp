@@ -703,29 +703,128 @@ TEST_F(CATEGORY, empty_when_drained) {
   }());
 }
 
-// Exercise has_value() and value() on both the try_pull and pull scopes. The
-// other tests reach these scopes only via operator bool / operator* / status().
+// Exercise the default constructor, has_value()/value(), and move constructor
+// on both the try_pull and pull scopes. The other tests reach these scopes only
+// via operator bool / operator* / status() and never default-construct or
+// explicitly move them (the returned value is elided).
 TEST_F(CATEGORY, scope_accessors) {
   tmc::ex_cpu ex;
   ex.set_thread_count(1).init();
   test_async_main(ex, []() -> tmc::task<void> {
     auto queue = tmc::qu_mpsc_bounded<size_t, qu_config<0>>{TEST_CAPACITY};
 
-    // try_pull scope: has_value() + value()
+    // try_pull scope: default ctor (empty), accessors, move ctor.
+    {
+      decltype(queue.try_pull()) empty{};
+      EXPECT_FALSE(empty.has_value());
+    }
     EXPECT_TRUE(co_await queue.push(static_cast<size_t>(11)));
     {
       auto v = queue.try_pull();
       EXPECT_TRUE(v.has_value());
       EXPECT_EQ(11u, v.value());
+      auto moved = std::move(v);
+      EXPECT_FALSE(v.has_value());
+      EXPECT_EQ(11u, moved.value());
     }
 
-    // pull scope: has_value() + value()
+    // pull scope: accessors, move ctor.
     EXPECT_TRUE(co_await queue.push(static_cast<size_t>(22)));
     {
       auto v = co_await queue.pull();
       EXPECT_TRUE(v.has_value());
       EXPECT_EQ(22u, v.value());
+      auto moved = std::move(v);
+      EXPECT_FALSE(v.has_value());
+      EXPECT_EQ(22u, moved.value());
     }
+    co_return;
+  }());
+}
+
+// Exhaustively exercise try_pull_zc_scope::operator=(&&): over-nonempty,
+// move-into-empty, and self-move. Separate queues are used so at most one scope
+// per queue is live at a time.
+TEST_F(CATEGORY, try_pull_zc_scope_move_assign_branches) {
+  tmc::ex_cpu ex;
+  ex.set_thread_count(1).init();
+  test_async_main(ex, []() -> tmc::task<void> {
+    std::atomic<size_t> count1{0};
+    std::atomic<size_t> count2{0};
+    std::atomic<size_t> count3{0};
+    {
+      auto q1 = tmc::qu_mpsc_bounded<destructor_counter, qu_config<0>>{TEST_CAPACITY};
+      auto q2 = tmc::qu_mpsc_bounded<destructor_counter, qu_config<0>>{TEST_CAPACITY};
+      auto q3 = tmc::qu_mpsc_bounded<destructor_counter, qu_config<0>>{TEST_CAPACITY};
+      EXPECT_TRUE(co_await q1.push(destructor_counter{&count1}));
+      EXPECT_TRUE(co_await q2.push(destructor_counter{&count2}));
+      EXPECT_TRUE(co_await q3.push(destructor_counter{&count3}));
+
+      auto a = q1.try_pull();
+      EXPECT_TRUE(a.has_value());
+
+      a = q2.try_pull(); // over-nonempty
+      EXPECT_EQ(1u, count1.load());
+      EXPECT_EQ(0u, count2.load());
+
+      auto b = std::move(a);
+      EXPECT_FALSE(a.has_value());
+      a = q3.try_pull(); // into-empty
+      EXPECT_TRUE(a.has_value());
+      EXPECT_EQ(0u, count2.load());
+      EXPECT_EQ(0u, count3.load());
+
+      auto& aref = a;
+      a = std::move(aref); // self-move
+      EXPECT_TRUE(a.has_value());
+      EXPECT_EQ(0u, count3.load());
+    }
+    EXPECT_EQ(1u, count1.load());
+    EXPECT_EQ(1u, count2.load());
+    EXPECT_EQ(1u, count3.load());
+    co_return;
+  }());
+}
+
+// Exhaustively exercise pull_zc_scope::operator=(&&): over-nonempty,
+// move-into-empty, and self-move.
+TEST_F(CATEGORY, pull_zc_scope_move_assign_branches) {
+  tmc::ex_cpu ex;
+  ex.set_thread_count(1).init();
+  test_async_main(ex, []() -> tmc::task<void> {
+    std::atomic<size_t> count1{0};
+    std::atomic<size_t> count2{0};
+    std::atomic<size_t> count3{0};
+    {
+      auto q1 = tmc::qu_mpsc_bounded<destructor_counter, qu_config<0>>{TEST_CAPACITY};
+      auto q2 = tmc::qu_mpsc_bounded<destructor_counter, qu_config<0>>{TEST_CAPACITY};
+      auto q3 = tmc::qu_mpsc_bounded<destructor_counter, qu_config<0>>{TEST_CAPACITY};
+      EXPECT_TRUE(co_await q1.push(destructor_counter{&count1}));
+      EXPECT_TRUE(co_await q2.push(destructor_counter{&count2}));
+      EXPECT_TRUE(co_await q3.push(destructor_counter{&count3}));
+
+      auto a = co_await q1.pull();
+      EXPECT_TRUE(a.has_value());
+
+      a = co_await q2.pull(); // over-nonempty
+      EXPECT_EQ(1u, count1.load());
+      EXPECT_EQ(0u, count2.load());
+
+      auto b = std::move(a);
+      EXPECT_FALSE(a.has_value());
+      a = co_await q3.pull(); // into-empty
+      EXPECT_TRUE(a.has_value());
+      EXPECT_EQ(0u, count2.load());
+      EXPECT_EQ(0u, count3.load());
+
+      auto& aref = a;
+      a = std::move(aref); // self-move
+      EXPECT_TRUE(a.has_value());
+      EXPECT_EQ(0u, count3.load());
+    }
+    EXPECT_EQ(1u, count1.load());
+    EXPECT_EQ(1u, count2.load());
+    EXPECT_EQ(1u, count3.load());
     co_return;
   }());
 }
