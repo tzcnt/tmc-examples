@@ -1076,6 +1076,34 @@ TEST_F(CATEGORY, try_push_full_does_not_construct) {
   }());
 }
 
+// Exercise value() on both the try_pull and pull scopes. The other tests reach
+// the held value only via operator* (has_value() is already covered, but only
+// for the empty/false case).
+TEST_F(CATEGORY, scope_value_accessor) {
+  tmc::ex_cpu ex;
+  ex.set_thread_count(1).init();
+  test_async_main(ex, []() -> tmc::task<void> {
+    auto queue = tmc::qu_spsc_bounded<size_t, qu_config<0>>{TEST_CAPACITY};
+
+    // try_pull scope: value()
+    co_await queue.push(static_cast<size_t>(11));
+    {
+      auto v = queue.try_pull();
+      EXPECT_TRUE(v.has_value());
+      EXPECT_EQ(11u, v.value());
+    }
+
+    // pull scope: value()
+    co_await queue.push(static_cast<size_t>(22));
+    {
+      auto v = co_await queue.pull();
+      EXPECT_TRUE(v.has_value());
+      EXPECT_EQ(22u, v.value());
+    }
+    co_return;
+  }());
+}
+
 } // namespace
 
 #undef CATEGORY

@@ -703,4 +703,31 @@ TEST_F(CATEGORY, empty_when_drained) {
   }());
 }
 
+// Exercise has_value() and value() on both the try_pull and pull scopes. The
+// other tests reach these scopes only via operator bool / operator* / status().
+TEST_F(CATEGORY, scope_accessors) {
+  tmc::ex_cpu ex;
+  ex.set_thread_count(1).init();
+  test_async_main(ex, []() -> tmc::task<void> {
+    auto queue = tmc::qu_mpsc_bounded<size_t, qu_config<0>>{TEST_CAPACITY};
+
+    // try_pull scope: has_value() + value()
+    EXPECT_TRUE(co_await queue.push(static_cast<size_t>(11)));
+    {
+      auto v = queue.try_pull();
+      EXPECT_TRUE(v.has_value());
+      EXPECT_EQ(11u, v.value());
+    }
+
+    // pull scope: has_value() + value()
+    EXPECT_TRUE(co_await queue.push(static_cast<size_t>(22)));
+    {
+      auto v = co_await queue.pull();
+      EXPECT_TRUE(v.has_value());
+      EXPECT_EQ(22u, v.value());
+    }
+    co_return;
+  }());
+}
+
 } // namespace
