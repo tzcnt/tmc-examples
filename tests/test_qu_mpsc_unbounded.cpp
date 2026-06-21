@@ -9,11 +9,11 @@
 
 #define CATEGORY test_qu_mpsc_unbounded
 
+namespace {
+
 class CATEGORY : public testing::Test {
 protected:
-  static void SetUpTestSuite() {
-    tmc::cpu_executor().set_thread_count(4).init();
-  }
+  static void SetUpTestSuite() { tmc::cpu_executor().set_thread_count(4).init(); }
 
   static void TearDownTestSuite() { tmc::cpu_executor().teardown(); }
 
@@ -32,17 +32,17 @@ template <size_t Pack> struct q_config : tmc::qu_mpsc_unbounded_default_config {
 // This version has to be default constructible
 struct mpsc_destructor_counter {
   std::atomic<size_t>* count;
-  mpsc_destructor_counter() noexcept : count{nullptr} {}
+  [[maybe_unused]] mpsc_destructor_counter() noexcept : count{nullptr} {}
   mpsc_destructor_counter(std::atomic<size_t>* C) noexcept : count{C} {}
   mpsc_destructor_counter(mpsc_destructor_counter const& Other) = delete;
-  mpsc_destructor_counter&
-  operator=(mpsc_destructor_counter const& Other) = delete;
+  mpsc_destructor_counter& operator=(mpsc_destructor_counter const& Other) = delete;
 
   mpsc_destructor_counter(mpsc_destructor_counter&& Other) noexcept {
     count = Other.count;
     Other.count = nullptr;
   }
-  mpsc_destructor_counter& operator=(mpsc_destructor_counter&& Other) noexcept {
+  [[maybe_unused]] mpsc_destructor_counter&
+  operator=(mpsc_destructor_counter&& Other) noexcept {
     count = Other.count;
     Other.count = nullptr;
     return *this;
@@ -56,8 +56,7 @@ struct mpsc_destructor_counter {
 };
 
 // multiple tests in one to leverage the configuration options in one place
-template <size_t PackingLevel, typename Executor>
-void do_q_test(Executor& Exec) {
+template <size_t PackingLevel, typename Executor> void do_q_test(Executor& Exec) {
   test_async_main(Exec, []() -> tmc::task<void> {
     {
       // general test - single push
@@ -152,8 +151,8 @@ void do_q_test(Executor& Exec) {
       // destroy q with data remaining inside
       std::atomic<size_t> count{0};
       {
-        auto q = tmc::qu_mpsc_unbounded<
-          mpsc_destructor_counter, q_config<PackingLevel>>{};
+        auto q =
+          tmc::qu_mpsc_unbounded<mpsc_destructor_counter, q_config<PackingLevel>>{};
         for (size_t i = 0; i < 12; ++i) {
           q.post(mpsc_destructor_counter{&count});
         }
@@ -554,9 +553,7 @@ TEST_F(CATEGORY, close_resume_inline_wakes_suspended_consumer) {
     q.close_resume_inline();
 
     bool got_value = co_await std::move(consumer);
-    EXPECT_FALSE(
-      got_value
-    ); // consumer was woken by close_resume_inline with empty
+    EXPECT_FALSE(got_value); // consumer was woken by close_resume_inline with empty
     co_return;
   }());
 }
@@ -648,8 +645,7 @@ TEST_F(CATEGORY, embed_first_block) {
   {
     std::atomic<size_t> count{0};
     {
-      auto q =
-        tmc::qu_mpsc_unbounded<mpsc_destructor_counter, q_config_embed>{};
+      auto q = tmc::qu_mpsc_unbounded<mpsc_destructor_counter, q_config_embed>{};
       // 2 items fit in the embedded block (BlockSize=2). Add more to also
       // exercise heap blocks alongside the embedded block.
       for (size_t i = 0; i < 5; ++i) {
@@ -685,8 +681,7 @@ TEST_F(CATEGORY, multi_producer) {
             co_return produced;
           }(Q, p * PER_PRODUCER));
         }
-        auto counts =
-          co_await tmc::spawn_many(producers.data(), producers.size());
+        auto counts = co_await tmc::spawn_many(producers.data(), producers.size());
         size_t totalProduced = 0;
         for (auto c : counts) {
           totalProduced += c;
@@ -972,9 +967,9 @@ TEST_F(CATEGORY, post_variadic_args) {
     // Two-argument form.
     EXPECT_TRUE(q.post(static_cast<size_t>(4), static_cast<size_t>(5)));
     // Three-argument form: construct in-place from (size_t, size_t, size_t).
-    EXPECT_TRUE(q.post(
-      static_cast<size_t>(6), static_cast<size_t>(7), static_cast<size_t>(8)
-    ));
+    EXPECT_TRUE(
+      q.post(static_cast<size_t>(6), static_cast<size_t>(7), static_cast<size_t>(8))
+    );
 
     {
       auto v = q.try_pull();
@@ -1085,5 +1080,7 @@ TEST_F(CATEGORY, post_bulk_empty_all_forms) {
     co_return;
   }());
 }
+
+} // namespace
 
 #undef CATEGORY

@@ -10,11 +10,11 @@
 
 #define CATEGORY test_qu_spsc_unbounded
 
+namespace {
+
 class CATEGORY : public testing::Test {
 protected:
-  static void SetUpTestSuite() {
-    tmc::cpu_executor().set_thread_count(2).init();
-  }
+  static void SetUpTestSuite() { tmc::cpu_executor().set_thread_count(2).init(); }
 
   static void TearDownTestSuite() { tmc::cpu_executor().teardown(); }
 
@@ -23,8 +23,7 @@ protected:
 
 static constexpr size_t SPSC_TEST_SENTINEL = static_cast<size_t>(-1);
 
-template <size_t Pack>
-struct qu_config : tmc::qu_spsc_unbounded_default_config {
+template <size_t Pack> struct qu_config : tmc::qu_spsc_unbounded_default_config {
   // Use a small block size to ensure that alloc / reclaim is triggered.
   static inline constexpr size_t BlockSize = 2;
   static inline constexpr size_t PackingLevel = Pack;
@@ -34,17 +33,17 @@ struct qu_config : tmc::qu_spsc_unbounded_default_config {
 // This version has to be default constructible
 struct spsc_destructor_counter {
   std::atomic<size_t>* count;
-  spsc_destructor_counter() noexcept : count{nullptr} {}
+  [[maybe_unused]] spsc_destructor_counter() noexcept : count{nullptr} {}
   spsc_destructor_counter(std::atomic<size_t>* C) noexcept : count{C} {}
   spsc_destructor_counter(spsc_destructor_counter const& Other) = delete;
-  spsc_destructor_counter&
-  operator=(spsc_destructor_counter const& Other) = delete;
+  spsc_destructor_counter& operator=(spsc_destructor_counter const& Other) = delete;
 
   spsc_destructor_counter(spsc_destructor_counter&& Other) noexcept {
     count = Other.count;
     Other.count = nullptr;
   }
-  spsc_destructor_counter& operator=(spsc_destructor_counter&& Other) noexcept {
+  [[maybe_unused]] spsc_destructor_counter&
+  operator=(spsc_destructor_counter&& Other) noexcept {
     count = Other.count;
     Other.count = nullptr;
     return *this;
@@ -58,8 +57,7 @@ struct spsc_destructor_counter {
 };
 
 // multiple tests in one to leverage the configuration options in one place
-template <size_t PackingLevel, typename Executor>
-void do_chan_test(Executor& Exec) {
+template <size_t PackingLevel, typename Executor> void do_chan_test(Executor& Exec) {
   test_async_main(Exec, []() -> tmc::task<void> {
     {
       // general test - single push
@@ -154,8 +152,8 @@ void do_chan_test(Executor& Exec) {
       // destroy chan with data remaining inside
       std::atomic<size_t> count{0};
       {
-        auto chan = tmc::qu_spsc_unbounded<
-          spsc_destructor_counter, qu_config<PackingLevel>>{};
+        auto chan =
+          tmc::qu_spsc_unbounded<spsc_destructor_counter, qu_config<PackingLevel>>{};
         for (size_t i = 0; i < 12; ++i) {
           chan.post(spsc_destructor_counter{&count});
         }
@@ -669,9 +667,7 @@ TEST_F(CATEGORY, close_resume_inline_wakes_suspended_consumer) {
     chan.close_resume_inline();
 
     bool got_value = co_await std::move(consumer);
-    EXPECT_FALSE(
-      got_value
-    ); // consumer was woken by close_resume_inline with empty scope
+    EXPECT_FALSE(got_value); // consumer was woken by close_resume_inline with empty scope
     co_return;
   }());
 }
@@ -779,5 +775,7 @@ TEST_F(CATEGORY, post_bulk_range_empty) {
     co_return;
   }());
 }
+
+} // namespace
 
 #undef CATEGORY

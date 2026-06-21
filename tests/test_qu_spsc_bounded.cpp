@@ -10,11 +10,11 @@
 
 #define CATEGORY test_qu_spsc_bounded
 
+namespace {
+
 class CATEGORY : public testing::Test {
 protected:
-  static void SetUpTestSuite() {
-    tmc::cpu_executor().set_thread_count(2).init();
-  }
+  static void SetUpTestSuite() { tmc::cpu_executor().set_thread_count(2).init(); }
 
   static void TearDownTestSuite() { tmc::cpu_executor().teardown(); }
 
@@ -35,17 +35,17 @@ template <size_t Pack> struct qu_config : tmc::qu_spsc_bounded_default_config {
 // This version has to be default constructible
 struct spsc_destructor_counter {
   std::atomic<size_t>* count;
-  spsc_destructor_counter() noexcept : count{nullptr} {}
+  [[maybe_unused]] spsc_destructor_counter() noexcept : count{nullptr} {}
   spsc_destructor_counter(std::atomic<size_t>* C) noexcept : count{C} {}
   spsc_destructor_counter(spsc_destructor_counter const& Other) = delete;
-  spsc_destructor_counter&
-  operator=(spsc_destructor_counter const& Other) = delete;
+  spsc_destructor_counter& operator=(spsc_destructor_counter const& Other) = delete;
 
   spsc_destructor_counter(spsc_destructor_counter&& Other) noexcept {
     count = Other.count;
     Other.count = nullptr;
   }
-  spsc_destructor_counter& operator=(spsc_destructor_counter&& Other) noexcept {
+  [[maybe_unused]] spsc_destructor_counter&
+  operator=(spsc_destructor_counter&& Other) noexcept {
     count = Other.count;
     Other.count = nullptr;
     return *this;
@@ -59,8 +59,7 @@ struct spsc_destructor_counter {
 };
 
 // multiple tests in one to leverage the configuration options in one place
-template <size_t PackingLevel, typename Executor>
-void do_chan_test(Executor& Exec) {
+template <size_t PackingLevel, typename Executor> void do_chan_test(Executor& Exec) {
   test_async_main(Exec, []() -> tmc::task<void> {
     {
       // general test - single push
@@ -70,8 +69,7 @@ void do_chan_test(Executor& Exec) {
         size_t sum;
       };
 
-      auto chan =
-        tmc::qu_spsc_bounded<size_t, qu_config<PackingLevel>>{TEST_CAPACITY};
+      auto chan = tmc::qu_spsc_bounded<size_t, qu_config<PackingLevel>>{TEST_CAPACITY};
 
       auto results = co_await tmc::spawn_tuple(
         [](auto& Chan) -> tmc::task<size_t> {
@@ -113,8 +111,7 @@ void do_chan_test(Executor& Exec) {
         size_t sum;
       };
 
-      auto chan =
-        tmc::qu_spsc_bounded<size_t, qu_config<PackingLevel>>{TEST_CAPACITY};
+      auto chan = tmc::qu_spsc_bounded<size_t, qu_config<PackingLevel>>{TEST_CAPACITY};
 
       auto results = co_await tmc::spawn_tuple(
         [](auto& Chan) -> tmc::task<size_t> {
@@ -157,8 +154,10 @@ void do_chan_test(Executor& Exec) {
       // destroy chan with data remaining inside
       std::atomic<size_t> count{0};
       {
-        auto chan = tmc::qu_spsc_bounded<
-          spsc_destructor_counter, qu_config<PackingLevel>>{TEST_CAPACITY};
+        auto chan =
+          tmc::qu_spsc_bounded<spsc_destructor_counter, qu_config<PackingLevel>>{
+            TEST_CAPACITY
+          };
         for (size_t i = 0; i < 12; ++i) {
           co_await chan.push(spsc_destructor_counter{&count});
         }
@@ -225,8 +224,7 @@ TEST_F(CATEGORY, try_pull_no_suspend) {
   tmc::ex_cpu ex;
   ex.set_thread_count(1).init();
   test_async_main(ex, []() -> tmc::task<void> {
-    auto chan =
-      tmc::qu_spsc_bounded<size_t, chan_config_no_suspend>{TEST_CAPACITY};
+    auto chan = tmc::qu_spsc_bounded<size_t, chan_config_no_suspend>{TEST_CAPACITY};
 
     // Empty queue: try_pull yields an empty scope.
     {
@@ -346,6 +344,46 @@ TEST_F(CATEGORY, try_pull_closed_empty) {
   }());
 }
 
+// Closing while the queue is exactly full makes the cutoff slot
+// (write_offset % capacity) coincide with the oldest unread, DATA-bearing slot,
+// so close() marks it DATA_BIT|CLOSED_BIT. Draining that slot must re-publish
+// CLOSED_BIT alone so a later wraparound to the same physical slot observes the
+// closed sentinel. This exercises the CLOSED_BIT branch of finish_read().
+TEST_F(CATEGORY, close_while_full_republishes_closed_sentinel) {
+  tmc::ex_cpu ex;
+  ex.set_thread_count(1).init();
+  test_async_main(ex, []() -> tmc::task<void> {
+    using qerr = tmc::qu_spsc_bounded_err;
+    static constexpr size_t CAP = 4;
+    auto chan = tmc::qu_spsc_bounded<size_t, qu_config<true>>{CAP};
+
+    // Fill the queue exactly to capacity. None of these pushes suspend, and
+    // every slot now holds DATA_BIT.
+    for (size_t i = 0; i < CAP; ++i) {
+      co_await chan.push(i);
+    }
+
+    // Close while full: the cutoff slot is write_offset % capacity == 0, which
+    // still holds item 0's data, so it becomes DATA_BIT|CLOSED_BIT.
+    chan.close();
+
+    // Drain all items in order. The first try_pull drains the cutoff slot and
+    // takes the re-publish-CLOSED_BIT branch in finish_read().
+    for (size_t i = 0; i < CAP; ++i) {
+      auto v = chan.try_pull();
+      EXPECT_EQ(qerr::OK, v.status());
+      EXPECT_TRUE(static_cast<bool>(v));
+      EXPECT_EQ(i, *v);
+    }
+
+    // Wrapping around to the cutoff slot now observes the CLOSED sentinel.
+    auto v = chan.try_pull();
+    EXPECT_EQ(qerr::CLOSED, v.status());
+    EXPECT_FALSE(static_cast<bool>(v));
+    co_return;
+  }());
+}
+
 // close() is idempotent: a second call must be a no-op.
 TEST_F(CATEGORY, close_idempotent) {
   tmc::ex_cpu ex;
@@ -388,12 +426,10 @@ TEST_F(CATEGORY, try_pull_zc_scope_move_assign_over_nonempty) {
     std::atomic<size_t> count1{0};
     std::atomic<size_t> count2{0};
     {
-      auto q1 = tmc::qu_spsc_bounded<spsc_destructor_counter, qu_config<0>>{
-        TEST_CAPACITY
-      };
-      auto q2 = tmc::qu_spsc_bounded<spsc_destructor_counter, qu_config<0>>{
-        TEST_CAPACITY
-      };
+      auto q1 =
+        tmc::qu_spsc_bounded<spsc_destructor_counter, qu_config<0>>{TEST_CAPACITY};
+      auto q2 =
+        tmc::qu_spsc_bounded<spsc_destructor_counter, qu_config<0>>{TEST_CAPACITY};
       co_await q1.push(spsc_destructor_counter{&count1});
       co_await q2.push(spsc_destructor_counter{&count2});
 
@@ -547,9 +583,7 @@ TEST_F(CATEGORY, close_resume_inline_wakes_suspended_consumer) {
     chan.close_resume_inline();
 
     bool got_value = co_await std::move(consumer);
-    EXPECT_FALSE(
-      got_value
-    ); // consumer was woken by close_resume_inline with empty scope
+    EXPECT_FALSE(got_value); // consumer was woken by close_resume_inline with empty scope
     co_return;
   }());
 }
@@ -1018,8 +1052,7 @@ TEST_F(CATEGORY, try_push_full_does_not_construct) {
     static constexpr size_t CAP = 2;
     std::atomic<size_t> count{0};
     {
-      auto chan =
-        tmc::qu_spsc_bounded<spsc_destructor_counter, qu_config<0>>{CAP};
+      auto chan = tmc::qu_spsc_bounded<spsc_destructor_counter, qu_config<0>>{CAP};
 
       // Fill the queue.
       EXPECT_TRUE(chan.try_push(spsc_destructor_counter{&count}));
@@ -1042,5 +1075,7 @@ TEST_F(CATEGORY, try_push_full_does_not_construct) {
     co_return;
   }());
 }
+
+} // namespace
 
 #undef CATEGORY
