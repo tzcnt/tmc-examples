@@ -12,6 +12,8 @@
 
 #define CATEGORY test_channel
 
+namespace {
+
 class CATEGORY : public testing::Test {
 protected:
   static void SetUpTestSuite() { tmc::cpu_executor().init(); }
@@ -32,210 +34,207 @@ template <size_t PackingLevel, typename Executor>
 void do_chan_test(
   Executor& Exec, size_t HeavyLoadThreshold, bool ReuseBlocks, bool TryPull
 ) {
-  test_async_main(
-    Exec, [](size_t Threshold, bool Reuse, bool Try) -> tmc::task<void> {
-      {
-        // general test - single push
-        static constexpr size_t NITEMS = 1000;
-        struct result {
-          size_t count;
-          size_t sum;
-        };
+  test_async_main(Exec, [](size_t Threshold, bool Reuse, bool Try) -> tmc::task<void> {
+    {
+      // general test - single push
+      static constexpr size_t NITEMS = 1000;
+      struct result {
+        size_t count;
+        size_t sum;
+      };
 
-        auto chan = tmc::make_channel<size_t, chan_config<PackingLevel>>()
-                      .set_reuse_blocks(Reuse)
-                      .set_heavy_load_threshold(Threshold);
+      auto chan = tmc::make_channel<size_t, chan_config<PackingLevel>>()
+                    .set_reuse_blocks(Reuse)
+                    .set_heavy_load_threshold(Threshold);
 
-        auto results = co_await tmc::spawn_tuple(
-          [](auto Chan) -> tmc::task<size_t> {
-            size_t i = 0;
-            for (; i < NITEMS; ++i) {
-              bool ok = co_await Chan.push(i);
-              EXPECT_EQ(true, ok);
-            }
-            co_await Chan.drain();
-            co_return i;
-          }(chan),
-          [](auto Chan, bool DoTry) -> tmc::task<result> {
-            size_t count = 0;
-            size_t sum = 0;
-            while (true) {
-              if (!DoTry) {
-                auto data = co_await Chan.pull();
-                if (data.has_value()) {
-                  ++count;
-                  sum += data.value();
-                } else {
-                  co_return result{count, sum};
-                }
-              } else {
-                auto data = Chan.try_pull();
-                switch (data.index()) {
-                case tmc::chan_err::OK:
-                  ++count;
-                  sum += std::get<0>(data);
-                  break;
-                case tmc::chan_err::EMPTY:
-                  co_await tmc::reschedule();
-                  break;
-                case tmc::chan_err::CLOSED:
-                  co_return result{count, sum};
-                default:
-                  break;
-                }
-              }
-            }
-          }(chan, Try)
-        );
-        auto& prod = std::get<0>(results);
-        auto& cons = std::get<1>(results);
-        EXPECT_EQ(NITEMS, prod);
-        EXPECT_EQ(NITEMS, cons.count);
-        size_t expectedSum = 0;
-        for (size_t i = 0; i < NITEMS; ++i) {
-          expectedSum += i;
-        }
-        EXPECT_EQ(expectedSum, cons.sum);
-      }
-      {
-        // general test - post_bulk
-        static constexpr size_t NITEMS = 1000;
-        struct result {
-          size_t count;
-          size_t sum;
-        };
-
-        auto chan = tmc::make_channel<size_t, chan_config<PackingLevel>>()
-                      .set_reuse_blocks(Reuse)
-                      .set_heavy_load_threshold(Threshold);
-
-        auto results = co_await tmc::spawn_tuple(
-          [](auto Chan) -> tmc::task<size_t> {
-            size_t i = 0;
-            for (; i < NITEMS; i += (NITEMS / 10)) {
-              size_t j = i + (NITEMS / 10);
-              if (j > NITEMS) {
-                j = NITEMS;
-              }
-              bool ok = Chan.post_bulk(std::ranges::views::iota(i, j));
-              EXPECT_EQ(true, ok);
-            }
-            co_await Chan.drain();
-            co_return i;
-          }(chan),
-          [](auto Chan, bool DoTry) -> tmc::task<result> {
-            size_t count = 0;
-            size_t sum = 0;
-            while (true) {
-              if (!DoTry) {
-                auto data = co_await Chan.pull();
-                if (data.has_value()) {
-                  ++count;
-                  sum += data.value();
-                } else {
-                  co_return result{count, sum};
-                }
-              } else {
-                auto data = Chan.try_pull();
-                switch (data.index()) {
-                case tmc::chan_err::OK:
-                  ++count;
-                  sum += std::get<0>(data);
-                  break;
-                case tmc::chan_err::EMPTY:
-                  co_await tmc::reschedule();
-                  break;
-                case tmc::chan_err::CLOSED:
-                  co_return result{count, sum};
-                default:
-                  break;
-                }
-              }
-            }
-          }(chan, Try)
-        );
-        auto& prod = std::get<0>(results);
-        auto& cons = std::get<1>(results);
-        EXPECT_EQ(NITEMS, prod);
-        EXPECT_EQ(NITEMS, cons.count);
-        size_t expectedSum = 0;
-        for (size_t i = 0; i < NITEMS; ++i) {
-          expectedSum += i;
-        }
-        EXPECT_EQ(expectedSum, cons.sum);
-      }
-      {
-        // make consumer spin wait
-        auto chan = tmc::make_channel<size_t, chan_config<PackingLevel>>()
-                      .set_reuse_blocks(Reuse)
-                      .set_heavy_load_threshold(Threshold)
-                      .set_consumer_spins(TMC_ALL_ONES);
-        auto cons = tmc::spawn([](auto Chan) -> tmc::task<void> {
-                      auto v = co_await Chan.pull();
-                      EXPECT_TRUE(v.has_value());
-                      EXPECT_EQ(v.value(), 5);
-                    }(chan))
-                      .fork();
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
-        chan.post(5u);
-        co_await std::move(cons);
-      }
-      {
-        // destroy chan with data remaining inside
-        std::atomic<size_t> count{0};
-        {
-          auto chan =
-            tmc::make_channel<destructor_counter, chan_config<PackingLevel>>()
-              .set_reuse_blocks(Reuse)
-              .set_heavy_load_threshold(Threshold);
-          for (size_t i = 0; i < 12; ++i) {
-            chan.post(destructor_counter{&count});
+      auto results = co_await tmc::spawn_tuple(
+        [](auto Chan) -> tmc::task<size_t> {
+          size_t i = 0;
+          for (; i < NITEMS; ++i) {
+            bool ok = co_await Chan.push(i);
+            EXPECT_EQ(true, ok);
           }
-
-          for (size_t i = 0; i < 7; ++i) {
-            co_await chan.pull();
+          co_await Chan.drain();
+          co_return i;
+        }(chan),
+        [](auto Chan, bool DoTry) -> tmc::task<result> {
+          size_t count = 0;
+          size_t sum = 0;
+          while (true) {
+            if (!DoTry) {
+              auto data = co_await Chan.pull();
+              if (data.has_value()) {
+                ++count;
+                sum += data.value();
+              } else {
+                co_return result{count, sum};
+              }
+            } else {
+              auto data = Chan.try_pull();
+              switch (data.index()) {
+              case tmc::chan_err::OK:
+                ++count;
+                sum += std::get<0>(data);
+                break;
+              case tmc::chan_err::EMPTY:
+                co_await tmc::reschedule();
+                break;
+              case tmc::chan_err::CLOSED:
+                co_return result{count, sum};
+              default:
+                break;
+              }
+            }
           }
+        }(chan, Try)
+      );
+      auto& prod = std::get<0>(results);
+      auto& cons = std::get<1>(results);
+      EXPECT_EQ(NITEMS, prod);
+      EXPECT_EQ(NITEMS, cons.count);
+      size_t expectedSum = 0;
+      for (size_t i = 0; i < NITEMS; ++i) {
+        expectedSum += i;
+      }
+      EXPECT_EQ(expectedSum, cons.sum);
+    }
+    {
+      // general test - post_bulk
+      static constexpr size_t NITEMS = 1000;
+      struct result {
+        size_t count;
+        size_t sum;
+      };
 
-          EXPECT_EQ(count.load(), 7);
-        }
-        // Now chan goes out of scope; remaining data's destructors are called
-        EXPECT_EQ(count.load(), 12);
+      auto chan = tmc::make_channel<size_t, chan_config<PackingLevel>>()
+                    .set_reuse_blocks(Reuse)
+                    .set_heavy_load_threshold(Threshold);
+
+      auto results = co_await tmc::spawn_tuple(
+        [](auto Chan) -> tmc::task<size_t> {
+          size_t i = 0;
+          for (; i < NITEMS; i += (NITEMS / 10)) {
+            size_t j = i + (NITEMS / 10);
+            if (j > NITEMS) {
+              j = NITEMS;
+            }
+            bool ok = Chan.post_bulk(std::ranges::views::iota(i, j));
+            EXPECT_EQ(true, ok);
+          }
+          co_await Chan.drain();
+          co_return i;
+        }(chan),
+        [](auto Chan, bool DoTry) -> tmc::task<result> {
+          size_t count = 0;
+          size_t sum = 0;
+          while (true) {
+            if (!DoTry) {
+              auto data = co_await Chan.pull();
+              if (data.has_value()) {
+                ++count;
+                sum += data.value();
+              } else {
+                co_return result{count, sum};
+              }
+            } else {
+              auto data = Chan.try_pull();
+              switch (data.index()) {
+              case tmc::chan_err::OK:
+                ++count;
+                sum += std::get<0>(data);
+                break;
+              case tmc::chan_err::EMPTY:
+                co_await tmc::reschedule();
+                break;
+              case tmc::chan_err::CLOSED:
+                co_return result{count, sum};
+              default:
+                break;
+              }
+            }
+          }
+        }(chan, Try)
+      );
+      auto& prod = std::get<0>(results);
+      auto& cons = std::get<1>(results);
+      EXPECT_EQ(NITEMS, prod);
+      EXPECT_EQ(NITEMS, cons.count);
+      size_t expectedSum = 0;
+      for (size_t i = 0; i < NITEMS; ++i) {
+        expectedSum += i;
       }
+      EXPECT_EQ(expectedSum, cons.sum);
+    }
+    {
+      // make consumer spin wait
+      auto chan = tmc::make_channel<size_t, chan_config<PackingLevel>>()
+                    .set_reuse_blocks(Reuse)
+                    .set_heavy_load_threshold(Threshold)
+                    .set_consumer_spins(TMC_ALL_ONES);
+      auto cons = tmc::spawn([](auto Chan) -> tmc::task<void> {
+                    auto v = co_await Chan.pull();
+                    EXPECT_TRUE(v.has_value());
+                    EXPECT_EQ(v.value(), 5);
+                  }(chan))
+                    .fork();
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+      chan.post(5u);
+      co_await std::move(cons);
+    }
+    {
+      // destroy chan with data remaining inside
+      std::atomic<size_t> count{0};
       {
-        // producer post / post_bulk after chan closed
-        auto chan = tmc::make_channel<size_t, chan_config<PackingLevel>>()
+        auto chan = tmc::make_channel<destructor_counter, chan_config<PackingLevel>>()
                       .set_reuse_blocks(Reuse)
                       .set_heavy_load_threshold(Threshold);
-        chan.close();
-        auto p = chan.post(5u);
-        EXPECT_FALSE(p);
-        std::vector<size_t> vs{0, 1, 2, 3, 4};
-        auto p1 = chan.post_bulk(vs.begin(), 5);
-        EXPECT_FALSE(p1);
-        auto p2 = chan.post_bulk(vs.begin(), vs.end());
-        EXPECT_FALSE(p2);
-        auto p3 = chan.post_bulk(std::ranges::views::iota(0u, 5u));
-        EXPECT_FALSE(p3);
-      }
-      {
-        // drain while there is a waiting consumer
-        auto chan = tmc::make_channel<size_t, chan_config<PackingLevel>>()
-                      .set_reuse_blocks(Reuse)
-                      .set_heavy_load_threshold(Threshold);
-        std::array<tmc::task<void>, 5> cons;
-        for (size_t i = 0; i < 5; ++i) {
-          cons[i] = [](auto Chan) -> tmc::task<void> {
-            auto v = co_await Chan.pull();
-            EXPECT_FALSE(v.has_value());
-          }(chan);
+        for (size_t i = 0; i < 12; ++i) {
+          chan.post(destructor_counter{&count});
         }
-        auto t = tmc::spawn_many<5>(cons.data()).fork();
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
-        co_await chan.drain();
-        co_await std::move(t);
+
+        for (size_t i = 0; i < 7; ++i) {
+          co_await chan.pull();
+        }
+
+        EXPECT_EQ(count.load(), 7);
       }
-    }(HeavyLoadThreshold, ReuseBlocks, TryPull)
-  );
+      // Now chan goes out of scope; remaining data's destructors are called
+      EXPECT_EQ(count.load(), 12);
+    }
+    {
+      // producer post / post_bulk after chan closed
+      auto chan = tmc::make_channel<size_t, chan_config<PackingLevel>>()
+                    .set_reuse_blocks(Reuse)
+                    .set_heavy_load_threshold(Threshold);
+      chan.close();
+      auto p = chan.post(5u);
+      EXPECT_FALSE(p);
+      std::vector<size_t> vs{0, 1, 2, 3, 4};
+      auto p1 = chan.post_bulk(vs.begin(), 5);
+      EXPECT_FALSE(p1);
+      auto p2 = chan.post_bulk(vs.begin(), vs.end());
+      EXPECT_FALSE(p2);
+      auto p3 = chan.post_bulk(std::ranges::views::iota(0u, 5u));
+      EXPECT_FALSE(p3);
+    }
+    {
+      // drain while there is a waiting consumer
+      auto chan = tmc::make_channel<size_t, chan_config<PackingLevel>>()
+                    .set_reuse_blocks(Reuse)
+                    .set_heavy_load_threshold(Threshold);
+      std::array<tmc::task<void>, 5> cons;
+      for (size_t i = 0; i < 5; ++i) {
+        cons[i] = [](auto Chan) -> tmc::task<void> {
+          auto v = co_await Chan.pull();
+          EXPECT_FALSE(v.has_value());
+        }(chan);
+      }
+      auto t = tmc::spawn_many<5>(cons.data()).fork();
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+      co_await chan.drain();
+      co_await std::move(t);
+    }
+  }(HeavyLoadThreshold, ReuseBlocks, TryPull));
 }
 
 TEST_F(CATEGORY, config_sweep) {
@@ -372,9 +371,9 @@ struct move_only_type {
   int value;
 
   move_only_type(int input) : value(input) {}
-  move_only_type& operator=(move_only_type&&) = default;
+  [[maybe_unused]] move_only_type& operator=(move_only_type&&) = default;
   move_only_type(move_only_type&&) = default;
-  ~move_only_type() = default;
+  [[maybe_unused]] ~move_only_type() = default;
 
   // No default or copy constructor
   move_only_type() = delete;
@@ -420,15 +419,14 @@ struct move_counter {
 
   move_counter(int v, std::atomic<size_t>* c) noexcept : value(v), count(c) {}
 
-  move_counter(move_counter&& Other) noexcept
-      : value(Other.value), count(Other.count) {
+  move_counter(move_counter&& Other) noexcept : value(Other.value), count(Other.count) {
     Other.count = nullptr;
     if (count != nullptr) {
       ++(*count);
     }
   }
 
-  move_counter& operator=(move_counter&& Other) noexcept {
+  [[maybe_unused]] move_counter& operator=(move_counter&& Other) noexcept {
     value = Other.value;
     count = Other.count;
     Other.count = nullptr;
@@ -438,7 +436,7 @@ struct move_counter {
     return *this;
   }
 
-  ~move_counter() = default;
+  [[maybe_unused]] ~move_counter() = default;
 
   move_counter() = delete;
   move_counter(const move_counter&) = delete;
@@ -551,18 +549,15 @@ struct immovable_destructor_counter {
   immovable_destructor_counter() = delete;
 
   immovable_destructor_counter(const immovable_destructor_counter&) = delete;
-  immovable_destructor_counter&
-  operator=(const immovable_destructor_counter&) = delete;
+  immovable_destructor_counter& operator=(const immovable_destructor_counter&) = delete;
 
   immovable_destructor_counter(immovable_destructor_counter&& Other) = delete;
-  immovable_destructor_counter&
-  operator=(immovable_destructor_counter&& Other) = delete;
+  immovable_destructor_counter& operator=(immovable_destructor_counter&& Other) = delete;
 };
 
 TEST_F(CATEGORY, pull_zc_immovable) {
   test_async_main(ex(), []() -> tmc::task<void> {
-    auto chan =
-      tmc::make_channel<immovable_destructor_counter, chan_config<0>>();
+    auto chan = tmc::make_channel<immovable_destructor_counter, chan_config<0>>();
     std::array<std::atomic<size_t>, 100> destroys{};
 
     for (size_t i = 0; i < destroys.size(); ++i) {
@@ -710,15 +705,13 @@ TEST_F(CATEGORY, close_and_drain_wait_idempotent) {
     drainer.drain_wait();
   });
 
-  test_async_main(
-    ex(), [consumer = chan.new_token()]() mutable -> tmc::task<void> {
-      size_t count = 0;
-      while (co_await consumer.pull()) {
-        ++count;
-      }
-      EXPECT_EQ(count, 3u);
-    }()
-  );
+  test_async_main(ex(), [consumer = chan.new_token()]() mutable -> tmc::task<void> {
+    size_t count = 0;
+    while (co_await consumer.pull()) {
+      ++count;
+    }
+    EXPECT_EQ(count, 3u);
+  }());
 
   closer.join();
 }
@@ -840,6 +833,54 @@ TEST_F(CATEGORY, token_copy_move) {
     v = co_await chan5.pull();
     EXPECT_TRUE(v.has_value());
     EXPECT_EQ(v.value(), 4);
+
+    // Test move assignment between two tokens of the SAME channel, where the
+    // destination already holds its own hazard pointer. The more-efficient path
+    // keeps the destination's hazptr and releases the source's.
+    {
+      auto tokA = chan1.new_token();
+      auto tokB = chan1.new_token();
+      chan1.post(5u);
+      {
+        auto tv = co_await tokA.pull(); // tokA acquires its own hazard pointer
+        EXPECT_TRUE(tv.has_value());
+        EXPECT_EQ(tv.value(), 5);
+      }
+      chan1.post(6u);
+      {
+        auto tv = co_await tokB.pull(); // tokB acquires its own hazard pointer
+        EXPECT_TRUE(tv.has_value());
+        EXPECT_EQ(tv.value(), 6);
+      }
+      tokA = std::move(tokB); // same channel: tokA keeps its hazptr, frees tokB's
+      chan1.post(7u);
+      {
+        auto tv = co_await tokA.pull();
+        EXPECT_TRUE(tv.has_value());
+        EXPECT_EQ(tv.value(), 7);
+      }
+    }
+
+    // Test move assignment between two tokens of the SAME channel, where the
+    // destination has not yet acquired a hazard pointer (a fresh token), so it
+    // adopts the source's.
+    {
+      auto tokC = chan1.new_token(); // no operations yet: haz_ptr is null
+      auto tokD = chan1.new_token();
+      chan1.post(8u);
+      {
+        auto tv = co_await tokD.pull(); // tokD acquires its own hazard pointer
+        EXPECT_TRUE(tv.has_value());
+        EXPECT_EQ(tv.value(), 8);
+      }
+      tokC = std::move(tokD); // same channel: tokC adopts tokD's hazptr
+      chan1.post(9u);
+      {
+        auto tv = co_await tokC.pull();
+        EXPECT_TRUE(tv.has_value());
+        EXPECT_EQ(tv.value(), 9);
+      }
+    }
   }());
 }
 
@@ -858,8 +899,7 @@ TEST_F(CATEGORY, mpmc) {
     std::array<tmc::task<void>, NPRODUCERS> producers;
     for (size_t p = 0; p < NPRODUCERS; ++p) {
       producers[p] = [](
-                       auto Chan, std::atomic<size_t>* Produced,
-                       size_t ProducerId
+                       auto Chan, std::atomic<size_t>* Produced, size_t ProducerId
                      ) -> tmc::task<void> {
         for (size_t i = 0; i < ITEMS_PER_PRODUCER; ++i) {
           size_t val = ProducerId * ITEMS_PER_PRODUCER + i;
@@ -872,8 +912,7 @@ TEST_F(CATEGORY, mpmc) {
     std::array<tmc::task<void>, NCONSUMERS> consumers;
     for (size_t c = 0; c < NCONSUMERS; ++c) {
       consumers[c] = [](
-                       auto Chan, std::atomic<size_t>* Consumed,
-                       std::atomic<size_t>* Sum
+                       auto Chan, std::atomic<size_t>* Consumed, std::atomic<size_t>* Sum
                      ) -> tmc::task<void> {
         while (auto v = co_await Chan.pull()) {
           Consumed->fetch_add(1, std::memory_order_relaxed);
@@ -957,6 +996,54 @@ TEST_F(CATEGORY, zc_scope_move) {
   }());
 }
 
+// Exhaustively exercise chan_zc_scope::operator=(&&) (the raw scope returned by
+// pull_zc(), unwrapped from its optional): over-nonempty, move-into-empty, and
+// self-move. Separate channels are used because a zc scope shares its token's
+// single hazard pointer, so at most one live scope per channel is allowed.
+TEST_F(CATEGORY, zc_scope_move_assign) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    std::atomic<size_t> count1{0};
+    std::atomic<size_t> count2{0};
+    std::atomic<size_t> count3{0};
+    {
+      auto c1 = tmc::make_channel<destructor_counter, chan_config<0>>();
+      auto c2 = tmc::make_channel<destructor_counter, chan_config<0>>();
+      auto c3 = tmc::make_channel<destructor_counter, chan_config<0>>();
+      c1.post(destructor_counter{&count1});
+      c2.post(destructor_counter{&count2});
+      c3.post(destructor_counter{&count3});
+
+      auto oa = co_await c1.pull_zc();
+      EXPECT_TRUE(oa.has_value());
+      auto a = std::move(oa.value()); // raw chan_zc_scope holding c1's element
+
+      // Over-nonempty: assigning c2's scope destroys c1's element first.
+      auto ob = co_await c2.pull_zc();
+      EXPECT_TRUE(ob.has_value());
+      a = std::move(ob.value());
+      EXPECT_EQ(1u, count1.load());
+      EXPECT_EQ(0u, count2.load());
+
+      // Move-into-empty: move a into b (a's data becomes null), then assign c3
+      // into the now-empty a -> release() takes its data == nullptr arm.
+      auto b = std::move(a);
+      auto oc = co_await c3.pull_zc();
+      EXPECT_TRUE(oc.has_value());
+      a = std::move(oc.value());
+      EXPECT_EQ(0u, count2.load()); // c2's element still alive in b
+      EXPECT_EQ(0u, count3.load());
+
+      // Self-move: the `this != &Other` guard takes its false arm; value kept.
+      auto& aref = a;
+      a = std::move(aref);
+      EXPECT_EQ(0u, count3.load());
+    } // ~b releases c2's element, ~a releases c3's element.
+    EXPECT_EQ(1u, count1.load());
+    EXPECT_EQ(1u, count2.load());
+    EXPECT_EQ(1u, count3.load());
+  }());
+}
+
 TEST_F(CATEGORY, drain_empty_channel) {
   test_async_main(ex(), []() -> tmc::task<void> {
     auto chan = tmc::make_channel<size_t, chan_config<0>>();
@@ -968,5 +1055,7 @@ TEST_F(CATEGORY, drain_wait_empty_channel) {
   auto chan = tmc::make_channel<size_t, chan_config<0>>();
   chan.drain_wait();
 }
+
+} // namespace
 
 #undef CATEGORY

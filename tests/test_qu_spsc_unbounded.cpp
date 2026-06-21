@@ -10,11 +10,11 @@
 
 #define CATEGORY test_qu_spsc_unbounded
 
+namespace {
+
 class CATEGORY : public testing::Test {
 protected:
-  static void SetUpTestSuite() {
-    tmc::cpu_executor().set_thread_count(2).init();
-  }
+  static void SetUpTestSuite() { tmc::cpu_executor().set_thread_count(2).init(); }
 
   static void TearDownTestSuite() { tmc::cpu_executor().teardown(); }
 
@@ -23,8 +23,7 @@ protected:
 
 static constexpr size_t SPSC_TEST_SENTINEL = static_cast<size_t>(-1);
 
-template <size_t Pack>
-struct qu_config : tmc::qu_spsc_unbounded_default_config {
+template <size_t Pack> struct qu_config : tmc::qu_spsc_unbounded_default_config {
   // Use a small block size to ensure that alloc / reclaim is triggered.
   static inline constexpr size_t BlockSize = 2;
   static inline constexpr size_t PackingLevel = Pack;
@@ -34,17 +33,17 @@ struct qu_config : tmc::qu_spsc_unbounded_default_config {
 // This version has to be default constructible
 struct spsc_destructor_counter {
   std::atomic<size_t>* count;
-  spsc_destructor_counter() noexcept : count{nullptr} {}
+  [[maybe_unused]] spsc_destructor_counter() noexcept : count{nullptr} {}
   spsc_destructor_counter(std::atomic<size_t>* C) noexcept : count{C} {}
   spsc_destructor_counter(spsc_destructor_counter const& Other) = delete;
-  spsc_destructor_counter&
-  operator=(spsc_destructor_counter const& Other) = delete;
+  spsc_destructor_counter& operator=(spsc_destructor_counter const& Other) = delete;
 
   spsc_destructor_counter(spsc_destructor_counter&& Other) noexcept {
     count = Other.count;
     Other.count = nullptr;
   }
-  spsc_destructor_counter& operator=(spsc_destructor_counter&& Other) noexcept {
+  [[maybe_unused]] spsc_destructor_counter&
+  operator=(spsc_destructor_counter&& Other) noexcept {
     count = Other.count;
     Other.count = nullptr;
     return *this;
@@ -58,8 +57,7 @@ struct spsc_destructor_counter {
 };
 
 // multiple tests in one to leverage the configuration options in one place
-template <size_t PackingLevel, typename Executor>
-void do_chan_test(Executor& Exec) {
+template <size_t PackingLevel, typename Executor> void do_chan_test(Executor& Exec) {
   test_async_main(Exec, []() -> tmc::task<void> {
     {
       // general test - single push
@@ -154,8 +152,8 @@ void do_chan_test(Executor& Exec) {
       // destroy chan with data remaining inside
       std::atomic<size_t> count{0};
       {
-        auto chan = tmc::qu_spsc_unbounded<
-          spsc_destructor_counter, qu_config<PackingLevel>>{};
+        auto chan =
+          tmc::qu_spsc_unbounded<spsc_destructor_counter, qu_config<PackingLevel>>{};
         for (size_t i = 0; i < 12; ++i) {
           chan.post(spsc_destructor_counter{&count});
         }
@@ -669,9 +667,7 @@ TEST_F(CATEGORY, close_resume_inline_wakes_suspended_consumer) {
     chan.close_resume_inline();
 
     bool got_value = co_await std::move(consumer);
-    EXPECT_FALSE(
-      got_value
-    ); // consumer was woken by close_resume_inline with empty scope
+    EXPECT_FALSE(got_value); // consumer was woken by close_resume_inline with empty scope
     co_return;
   }());
 }
@@ -779,5 +775,129 @@ TEST_F(CATEGORY, post_bulk_range_empty) {
     co_return;
   }());
 }
+
+// Exercise has_value() and value() on both the try_pull and pull scopes. The
+// other tests reach these scopes only via operator bool / operator*.
+TEST_F(CATEGORY, scope_accessors) {
+  tmc::ex_cpu ex;
+  ex.set_thread_count(1).init();
+  test_async_main(ex, []() -> tmc::task<void> {
+    auto queue = tmc::qu_spsc_unbounded<size_t, qu_config<0>>{};
+
+    // try_pull scope: default ctor (empty)
+    {
+      decltype(queue.try_pull()) empty{};
+      EXPECT_FALSE(empty.has_value());
+    }
+
+    // try_pull scope: has_value() + value()
+    queue.post(static_cast<size_t>(11));
+    {
+      auto v = queue.try_pull();
+      EXPECT_TRUE(v.has_value());
+      EXPECT_EQ(11u, v.value());
+    }
+
+    // pull scope: default ctor (empty), has_value() + value()
+    queue.post(static_cast<size_t>(22));
+    {
+      auto v = co_await queue.pull();
+      EXPECT_TRUE(v.has_value());
+      EXPECT_EQ(22u, v.value());
+
+      decltype(v) empty{};
+      EXPECT_FALSE(empty.has_value());
+    }
+    co_return;
+  }());
+}
+
+// Exhaustively exercise try_pull_zc_scope::operator=(&&): the over-nonempty
+// case is covered by try_pull_zc_scope_move_assign_over_nonempty above; here we
+// cover the move-into-empty case (elem == nullptr guard's false arm) and the
+// self-move case (this == &Other guard's false arm).
+TEST_F(CATEGORY, try_pull_zc_scope_move_assign_branches) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    std::atomic<size_t> count1{0};
+    std::atomic<size_t> count2{0};
+    {
+      auto q1 = tmc::qu_spsc_unbounded<spsc_destructor_counter, qu_config<0>>{};
+      auto q2 = tmc::qu_spsc_unbounded<spsc_destructor_counter, qu_config<0>>{};
+      q1.post(spsc_destructor_counter{&count1});
+      q2.post(spsc_destructor_counter{&count2});
+
+      auto a = q1.try_pull();
+      EXPECT_TRUE(a.has_value());
+
+      // Move-into-empty: move a's element into b, leaving a empty, then assign
+      // q2 into the empty a. The `elem != nullptr` guard takes its false arm.
+      auto b = std::move(a);
+      EXPECT_FALSE(a.has_value());
+      a = q2.try_pull();
+      EXPECT_TRUE(a.has_value());
+      EXPECT_EQ(0u, count1.load()); // q1's element still alive in b
+      EXPECT_EQ(0u, count2.load());
+
+      // Self-move: the `this != &Other` guard takes its false arm; value kept.
+      // Launder through a reference so -Wself-move does not fire.
+      auto& aref = a;
+      a = std::move(aref);
+      EXPECT_TRUE(a.has_value());
+      EXPECT_EQ(0u, count2.load());
+    } // ~b releases q1's element, ~a releases q2's element.
+    EXPECT_EQ(1u, count1.load());
+    EXPECT_EQ(1u, count2.load());
+    co_return;
+  }());
+}
+
+// Exhaustively exercise pull_zc_scope::operator=(&&) (returned by co_await
+// pull()): over-nonempty, move-into-empty, and self-move. Three queues are
+// used because at most one scope from a given queue may be live at a time.
+TEST_F(CATEGORY, pull_zc_scope_move_assign_branches) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    std::atomic<size_t> count1{0};
+    std::atomic<size_t> count2{0};
+    std::atomic<size_t> count3{0};
+    {
+      auto q1 = tmc::qu_spsc_unbounded<spsc_destructor_counter, qu_config<0>>{};
+      auto q2 = tmc::qu_spsc_unbounded<spsc_destructor_counter, qu_config<0>>{};
+      auto q3 = tmc::qu_spsc_unbounded<spsc_destructor_counter, qu_config<0>>{};
+      q1.post(spsc_destructor_counter{&count1});
+      q2.post(spsc_destructor_counter{&count2});
+      q3.post(spsc_destructor_counter{&count3});
+
+      auto a = co_await q1.pull(); // value already posted -> resolves inline
+      EXPECT_TRUE(a.has_value());
+
+      // Over-nonempty: a holds q1; assigning q2 destroys q1's element first,
+      // then a adopts q2's element. (`elem != nullptr` guard's true arm.)
+      a = co_await q2.pull();
+      EXPECT_EQ(1u, count1.load());
+      EXPECT_EQ(0u, count2.load());
+
+      // Move-into-empty: b adopts q2 from a (move-ctor), leaving a empty; then
+      // assigning q3 into the empty a skips the release path.
+      auto b = std::move(a);
+      EXPECT_FALSE(a.has_value());
+      a = co_await q3.pull();
+      EXPECT_TRUE(a.has_value());
+      EXPECT_EQ(0u, count2.load()); // q2 still alive in b
+      EXPECT_EQ(0u, count3.load());
+
+      // Self-move: the `this != &Other` guard takes its false arm; value kept.
+      auto& aref = a;
+      a = std::move(aref);
+      EXPECT_TRUE(a.has_value());
+      EXPECT_EQ(0u, count3.load());
+    } // ~b releases q2's element, ~a releases q3's element.
+    EXPECT_EQ(1u, count1.load());
+    EXPECT_EQ(1u, count2.load());
+    EXPECT_EQ(1u, count3.load());
+    co_return;
+  }());
+}
+
+} // namespace
 
 #undef CATEGORY

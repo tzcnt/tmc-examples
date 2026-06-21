@@ -9,11 +9,11 @@
 
 #define CATEGORY test_qu_mpsc_bounded
 
+namespace {
+
 class CATEGORY : public testing::Test {
 protected:
-  static void SetUpTestSuite() {
-    tmc::cpu_executor().set_thread_count(4).init();
-  }
+  static void SetUpTestSuite() { tmc::cpu_executor().set_thread_count(4).init(); }
   static void TearDownTestSuite() { tmc::cpu_executor().teardown(); }
   static tmc::ex_cpu& ex() { return tmc::cpu_executor(); }
 };
@@ -31,8 +31,7 @@ template <size_t Pack> struct qu_config : tmc::qu_mpsc_bounded_default_config {
 // Basic single-producer / single-consumer behavior. This is the simplest
 // configuration of an MPSC queue (no producer contention) and verifies the
 // fast paths work end-to-end.
-template <size_t PackingLevel, typename Executor>
-void do_basic_test(Executor& Exec) {
+template <size_t PackingLevel, typename Executor> void do_basic_test(Executor& Exec) {
   test_async_main(Exec, []() -> tmc::task<void> {
     {
       // general test - single push/pull
@@ -42,8 +41,7 @@ void do_basic_test(Executor& Exec) {
         size_t sum;
       };
 
-      auto chan =
-        tmc::qu_mpsc_bounded<size_t, qu_config<PackingLevel>>{TEST_CAPACITY};
+      auto chan = tmc::qu_mpsc_bounded<size_t, qu_config<PackingLevel>>{TEST_CAPACITY};
 
       auto results = co_await tmc::spawn_tuple(
         [](auto& Chan) -> tmc::task<size_t> {
@@ -83,10 +81,9 @@ void do_basic_test(Executor& Exec) {
       // destroy queue with data remaining inside (consumer never drained)
       std::atomic<size_t> count{0};
       {
-        auto chan =
-          tmc::qu_mpsc_bounded<destructor_counter, qu_config<PackingLevel>>{
-            TEST_CAPACITY
-          };
+        auto chan = tmc::qu_mpsc_bounded<destructor_counter, qu_config<PackingLevel>>{
+          TEST_CAPACITY
+        };
         for (size_t i = 0; i < 12; ++i) {
           bool ok = co_await chan.push(destructor_counter{&count});
           EXPECT_TRUE(ok);
@@ -517,8 +514,7 @@ TEST_F(CATEGORY, try_pull_no_suspend) {
   tmc::ex_cpu ex;
   ex.set_thread_count(1).init();
   test_async_main(ex, []() -> tmc::task<void> {
-    auto chan =
-      tmc::qu_mpsc_bounded<size_t, chan_config_no_suspend>{TEST_CAPACITY};
+    auto chan = tmc::qu_mpsc_bounded<size_t, chan_config_no_suspend>{TEST_CAPACITY};
 
     {
       auto v = chan.try_pull();
@@ -614,9 +610,7 @@ TEST_F(CATEGORY, push_race_with_close) {
     producers.reserve(NPRODUCERS);
     for (size_t p = 0; p < NPRODUCERS; ++p) {
       producers.emplace_back(
-        [](
-          auto& Chan, size_t Base, std::atomic<size_t>& Total
-        ) -> tmc::task<void> {
+        [](auto& Chan, size_t Base, std::atomic<size_t>& Total) -> tmc::task<void> {
           for (size_t i = 0; i < ITEMS_PER_PRODUCER; ++i) {
             bool ok = co_await Chan.push(Base + i);
             if (ok) {
@@ -708,3 +702,131 @@ TEST_F(CATEGORY, empty_when_drained) {
     co_return;
   }());
 }
+
+// Exercise the default constructor, has_value()/value(), and move constructor
+// on both the try_pull and pull scopes. The other tests reach these scopes only
+// via operator bool / operator* / status() and never default-construct or
+// explicitly move them (the returned value is elided).
+TEST_F(CATEGORY, scope_accessors) {
+  tmc::ex_cpu ex;
+  ex.set_thread_count(1).init();
+  test_async_main(ex, []() -> tmc::task<void> {
+    auto queue = tmc::qu_mpsc_bounded<size_t, qu_config<0>>{TEST_CAPACITY};
+
+    // try_pull scope: default ctor (empty), accessors, move ctor.
+    {
+      decltype(queue.try_pull()) empty{};
+      EXPECT_FALSE(empty.has_value());
+    }
+    EXPECT_TRUE(co_await queue.push(static_cast<size_t>(11)));
+    {
+      auto v = queue.try_pull();
+      EXPECT_TRUE(v.has_value());
+      EXPECT_EQ(11u, v.value());
+      auto moved = std::move(v);
+      EXPECT_FALSE(v.has_value());
+      EXPECT_EQ(11u, moved.value());
+    }
+
+    // pull scope: accessors, move ctor.
+    EXPECT_TRUE(co_await queue.push(static_cast<size_t>(22)));
+    {
+      auto v = co_await queue.pull();
+      EXPECT_TRUE(v.has_value());
+      EXPECT_EQ(22u, v.value());
+      auto moved = std::move(v);
+      EXPECT_FALSE(v.has_value());
+      EXPECT_EQ(22u, moved.value());
+    }
+    co_return;
+  }());
+}
+
+// Exhaustively exercise try_pull_zc_scope::operator=(&&): over-nonempty,
+// move-into-empty, and self-move. Separate queues are used so at most one scope
+// per queue is live at a time.
+TEST_F(CATEGORY, try_pull_zc_scope_move_assign_branches) {
+  tmc::ex_cpu ex;
+  ex.set_thread_count(1).init();
+  test_async_main(ex, []() -> tmc::task<void> {
+    std::atomic<size_t> count1{0};
+    std::atomic<size_t> count2{0};
+    std::atomic<size_t> count3{0};
+    {
+      auto q1 = tmc::qu_mpsc_bounded<destructor_counter, qu_config<0>>{TEST_CAPACITY};
+      auto q2 = tmc::qu_mpsc_bounded<destructor_counter, qu_config<0>>{TEST_CAPACITY};
+      auto q3 = tmc::qu_mpsc_bounded<destructor_counter, qu_config<0>>{TEST_CAPACITY};
+      EXPECT_TRUE(co_await q1.push(destructor_counter{&count1}));
+      EXPECT_TRUE(co_await q2.push(destructor_counter{&count2}));
+      EXPECT_TRUE(co_await q3.push(destructor_counter{&count3}));
+
+      auto a = q1.try_pull();
+      EXPECT_TRUE(a.has_value());
+
+      a = q2.try_pull(); // over-nonempty
+      EXPECT_EQ(1u, count1.load());
+      EXPECT_EQ(0u, count2.load());
+
+      auto b = std::move(a);
+      EXPECT_FALSE(a.has_value());
+      a = q3.try_pull(); // into-empty
+      EXPECT_TRUE(a.has_value());
+      EXPECT_EQ(0u, count2.load());
+      EXPECT_EQ(0u, count3.load());
+
+      auto& aref = a;
+      a = std::move(aref); // self-move
+      EXPECT_TRUE(a.has_value());
+      EXPECT_EQ(0u, count3.load());
+    }
+    EXPECT_EQ(1u, count1.load());
+    EXPECT_EQ(1u, count2.load());
+    EXPECT_EQ(1u, count3.load());
+    co_return;
+  }());
+}
+
+// Exhaustively exercise pull_zc_scope::operator=(&&): over-nonempty,
+// move-into-empty, and self-move.
+TEST_F(CATEGORY, pull_zc_scope_move_assign_branches) {
+  tmc::ex_cpu ex;
+  ex.set_thread_count(1).init();
+  test_async_main(ex, []() -> tmc::task<void> {
+    std::atomic<size_t> count1{0};
+    std::atomic<size_t> count2{0};
+    std::atomic<size_t> count3{0};
+    {
+      auto q1 = tmc::qu_mpsc_bounded<destructor_counter, qu_config<0>>{TEST_CAPACITY};
+      auto q2 = tmc::qu_mpsc_bounded<destructor_counter, qu_config<0>>{TEST_CAPACITY};
+      auto q3 = tmc::qu_mpsc_bounded<destructor_counter, qu_config<0>>{TEST_CAPACITY};
+      EXPECT_TRUE(co_await q1.push(destructor_counter{&count1}));
+      EXPECT_TRUE(co_await q2.push(destructor_counter{&count2}));
+      EXPECT_TRUE(co_await q3.push(destructor_counter{&count3}));
+
+      auto a = co_await q1.pull();
+      EXPECT_TRUE(a.has_value());
+
+      a = co_await q2.pull(); // over-nonempty
+      EXPECT_EQ(1u, count1.load());
+      EXPECT_EQ(0u, count2.load());
+
+      auto b = std::move(a);
+      EXPECT_FALSE(a.has_value());
+      a = co_await q3.pull(); // into-empty
+      EXPECT_TRUE(a.has_value());
+      EXPECT_EQ(0u, count2.load());
+      EXPECT_EQ(0u, count3.load());
+
+      auto& aref = a;
+      a = std::move(aref); // self-move
+      EXPECT_TRUE(a.has_value());
+      EXPECT_EQ(0u, count3.load());
+    }
+    EXPECT_EQ(1u, count1.load());
+    EXPECT_EQ(1u, count2.load());
+    EXPECT_EQ(1u, count3.load());
+    co_return;
+  }());
+}
+
+} // namespace
