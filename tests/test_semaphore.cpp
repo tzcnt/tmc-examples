@@ -95,12 +95,10 @@ TEST_F(CATEGORY, try_acquire) {
     // transfers the resource to the waiter, leaving count at 0.
     atomic_awaitable<int> aa(1);
     auto t =
-      tmc::spawn(
-        [](tmc::semaphore& Sem, atomic_awaitable<int>& AA) -> tmc::task<void> {
-          co_await Sem;
-          AA.inc();
-        }(sem, aa)
-      )
+      tmc::spawn([](tmc::semaphore& Sem, atomic_awaitable<int>& AA) -> tmc::task<void> {
+        co_await Sem;
+        AA.inc();
+      }(sem, aa))
         .fork();
     co_await waiter_count_accessor::wait_for_waiter_count(sem, 1);
     EXPECT_EQ(sem.try_acquire(), false);
@@ -118,12 +116,10 @@ TEST_F(CATEGORY, one_waiter) {
 
     atomic_awaitable<int> aa(1);
     auto t =
-      tmc::spawn(
-        [](tmc::semaphore& Sem, atomic_awaitable<int>& AA) -> tmc::task<void> {
-          co_await Sem;
-          AA.inc();
-        }(sem, aa)
-      )
+      tmc::spawn([](tmc::semaphore& Sem, atomic_awaitable<int>& AA) -> tmc::task<void> {
+        co_await Sem;
+        AA.inc();
+      }(sem, aa))
         .fork();
     co_await waiter_count_accessor::wait_for_waiter_count(sem, 1);
     EXPECT_EQ(sem.count(), 0);
@@ -140,8 +136,7 @@ TEST_F(CATEGORY, multi_waiter) {
     atomic_awaitable<int> aa(5);
     std::array<tmc::task<void>, 5> tasks;
     for (size_t i = 0; i < 5; ++i) {
-      tasks[i] =
-        [](tmc::semaphore& Sem, atomic_awaitable<int>& AA) -> tmc::task<void> {
+      tasks[i] = [](tmc::semaphore& Sem, atomic_awaitable<int>& AA) -> tmc::task<void> {
         co_await Sem;
         AA.inc();
       }(sem, aa);
@@ -164,8 +159,7 @@ TEST_F(CATEGORY, multi_waiter_co_release) {
     atomic_awaitable<int> aa(5);
     std::array<tmc::task<void>, 5> tasks;
     for (size_t i = 0; i < 5; ++i) {
-      tasks[i] =
-        [](tmc::semaphore& Sem, atomic_awaitable<int>& AA) -> tmc::task<void> {
+      tasks[i] = [](tmc::semaphore& Sem, atomic_awaitable<int>& AA) -> tmc::task<void> {
         co_await Sem;
         AA.inc();
       }(sem, aa);
@@ -191,8 +185,7 @@ TEST_F(CATEGORY, release_wakes_waiters_fifo) {
   test_async_main(exec, []() -> tmc::task<void> {
     tmc::semaphore sem(0);
 
-    auto make_waiter = [](tmc::semaphore& Sem, size_t Idx)
-      -> tmc::task<size_t> {
+    auto make_waiter = [](tmc::semaphore& Sem, size_t Idx) -> tmc::task<size_t> {
       co_await Sem;
       co_return Idx;
     };
@@ -227,8 +220,7 @@ TEST_F(CATEGORY, co_release_wakes_waiters_fifo) {
   test_async_main(exec, []() -> tmc::task<void> {
     tmc::semaphore sem(0);
 
-    auto make_waiter = [](tmc::semaphore& Sem, size_t Idx)
-      -> tmc::task<size_t> {
+    auto make_waiter = [](tmc::semaphore& Sem, size_t Idx) -> tmc::task<size_t> {
       co_await Sem;
       co_return Idx;
     };
@@ -263,12 +255,10 @@ TEST_F(CATEGORY, resume_in_destructor) {
     std::optional<tmc::semaphore> sem;
     sem.emplace(0);
     auto t =
-      tmc::spawn(
-        [](tmc::semaphore& Sem, atomic_awaitable<int>& AA) -> tmc::task<void> {
-          co_await Sem;
-          AA.inc();
-        }(*sem, aa)
-      )
+      tmc::spawn([](tmc::semaphore& Sem, atomic_awaitable<int>& AA) -> tmc::task<void> {
+        co_await Sem;
+        AA.inc();
+      }(*sem, aa))
         .fork();
     co_await waiter_count_accessor::wait_for_waiter_count(*sem, 1);
     EXPECT_EQ(aa.load(), 0);
@@ -286,12 +276,10 @@ TEST_F(CATEGORY, move_scope) {
     sem.emplace(1);
     std::optional<tmc::semaphore_scope> scope{co_await sem->acquire_scope()};
     auto t =
-      tmc::spawn(
-        [](tmc::semaphore& Sem, atomic_awaitable<int>& AA) -> tmc::task<void> {
-          co_await Sem;
-          AA.inc();
-        }(*sem, aa)
-      )
+      tmc::spawn([](tmc::semaphore& Sem, atomic_awaitable<int>& AA) -> tmc::task<void> {
+        co_await Sem;
+        AA.inc();
+      }(*sem, aa))
         .fork();
     {
       co_await waiter_count_accessor::wait_for_waiter_count(*sem, 1);
@@ -338,20 +326,19 @@ TEST_F(CATEGORY, access_control_scope) {
     size_t count = 0;
     tmc::semaphore sem(0);
 
-    auto ts =
-      tmc::spawn_many(
-        tmc::iter_adapter(
-          0,
-          [&sem, &count](int) -> tmc::task<void> {
-            return [](tmc::semaphore& Sem, size_t& Count) -> tmc::task<void> {
-              auto s = co_await Sem.acquire_scope();
-              ++Count;
-            }(sem, count);
-          }
-        ),
-        1000
-      )
-        .fork();
+    auto ts = tmc::spawn_many(
+                tmc::iter_adapter(
+                  0,
+                  [&sem, &count](int) -> tmc::task<void> {
+                    return [](tmc::semaphore& Sem, size_t& Count) -> tmc::task<void> {
+                      auto s = co_await Sem.acquire_scope();
+                      ++Count;
+                    }(sem, count);
+                  }
+                ),
+                1000
+    )
+                .fork();
     co_await waiter_count_accessor::wait_for_waiter_count(sem, 1000);
     sem.release();
     co_await std::move(ts);
@@ -373,15 +360,12 @@ TEST_F(CATEGORY, co_release) {
     }
     {
       atomic_awaitable<int> aa(1);
-      auto t = tmc::spawn(
-                 [](
-                   tmc::semaphore& Sem, atomic_awaitable<int>& AA
-                 ) -> tmc::task<void> {
-                   co_await Sem;
-                   AA.inc();
-                 }(sem, aa)
-      )
-                 .fork();
+      auto t =
+        tmc::spawn([](tmc::semaphore& Sem, atomic_awaitable<int>& AA) -> tmc::task<void> {
+          co_await Sem;
+          AA.inc();
+        }(sem, aa))
+          .fork();
       co_await waiter_count_accessor::wait_for_waiter_count(sem, 1);
       EXPECT_EQ(sem.count(), 0);
       EXPECT_EQ(aa.load(), 0);
@@ -398,23 +382,25 @@ TEST_F(CATEGORY, co_release_no_symmetric) {
   test_async_main(ex(), []() -> tmc::task<void> {
     tmc::semaphore sem(0);
     atomic_awaitable<int> aa(1);
+
+    // Run at a lower priority so we can't starve the waiter while spinning.
+    co_await tmc::change_priority(1);
+
     auto t =
-      tmc::spawn(
-        [](tmc::semaphore& Sem, atomic_awaitable<int>& AA) -> tmc::task<void> {
-          EXPECT_EQ(tmc::current_priority(), 1);
-          co_await Sem;
-          EXPECT_EQ(tmc::current_priority(), 1);
-          AA.inc();
-        }(sem, aa)
-      )
-        .with_priority(1)
+      tmc::spawn([](tmc::semaphore& Sem, atomic_awaitable<int>& AA) -> tmc::task<void> {
+        EXPECT_EQ(tmc::current_priority(), 0);
+        co_await Sem;
+        EXPECT_EQ(tmc::current_priority(), 0);
+        AA.inc();
+      }(sem, aa))
+        .with_priority(0)
         .fork();
     co_await waiter_count_accessor::wait_for_waiter_count(sem, 1);
     EXPECT_EQ(sem.count(), 0);
     EXPECT_EQ(aa.load(), 0);
-    EXPECT_EQ(tmc::current_priority(), 0);
+    EXPECT_EQ(tmc::current_priority(), 1);
     co_await sem.co_release();
-    EXPECT_EQ(tmc::current_priority(), 0);
+    EXPECT_EQ(tmc::current_priority(), 1);
     co_await aa;
     co_await std::move(t);
   }());
@@ -443,12 +429,11 @@ TEST_F(CATEGORY, co_release_return_value_destroys_locals) {
     std::atomic<size_t> destructor_count{0};
     std::atomic<size_t> parameter_destructor_count{0};
 
-    auto result =
-      co_await [](
-                 tmc::semaphore& Sem, std::atomic<size_t>* DestructorCount,
-                 std::atomic<size_t>* ParameterDestructorCount,
-                 destructor_counter ParameterCounter
-               ) -> tmc::task<int> {
+    auto result = co_await
+      [](
+        tmc::semaphore& Sem, std::atomic<size_t>* DestructorCount,
+        std::atomic<size_t>* ParameterDestructorCount, destructor_counter ParameterCounter
+      ) -> tmc::task<int> {
       (void)ParameterCounter;
       co_await Sem;
       EXPECT_EQ(Sem.count(), 0);
@@ -458,10 +443,8 @@ TEST_F(CATEGORY, co_release_return_value_destroys_locals) {
       co_await Sem.co_release_return(42);
       ADD_FAILURE() << "co_release_return should complete the coroutine";
       co_return -1;
-    }(
-        sem, &destructor_count, &parameter_destructor_count,
-        destructor_counter{&parameter_destructor_count}
-      );
+    }(sem, &destructor_count, &parameter_destructor_count,
+        destructor_counter{&parameter_destructor_count});
 
     EXPECT_EQ(result, 42);
     EXPECT_EQ(destructor_count.load(), 1u);
@@ -498,14 +481,12 @@ TEST_F(CATEGORY, co_release_return_both_eligible) {
     atomic_awaitable<int> aa(1);
 
     auto t =
-      tmc::spawn(
-        [](tmc::semaphore& Sem, atomic_awaitable<int>& AA) -> tmc::task<void> {
-          EXPECT_EQ(tmc::current_priority(), 0);
-          co_await Sem;
-          EXPECT_EQ(tmc::current_priority(), 0);
-          AA.inc();
-        }(sem, aa)
-      )
+      tmc::spawn([](tmc::semaphore& Sem, atomic_awaitable<int>& AA) -> tmc::task<void> {
+        EXPECT_EQ(tmc::current_priority(), 0);
+        co_await Sem;
+        EXPECT_EQ(tmc::current_priority(), 0);
+        AA.inc();
+      }(sem, aa))
         .fork();
     co_await waiter_count_accessor::wait_for_waiter_count(sem, 1);
 
@@ -537,26 +518,27 @@ TEST_F(CATEGORY, co_release_return_awaiter_ineligible) {
     tmc::semaphore sem(0);
     atomic_awaitable<int> aa(1);
 
+    // Run at a lower priority so we can't starve the waiter while spinning.
+    co_await tmc::change_priority(1);
+
     // Ineligible for symmetric transfer due to different priority
     auto t =
-      tmc::spawn(
-        [](tmc::semaphore& Sem, atomic_awaitable<int>& AA) -> tmc::task<void> {
-          EXPECT_EQ(tmc::current_priority(), 1);
-          co_await Sem;
-          EXPECT_EQ(tmc::current_priority(), 1);
-          AA.inc();
-        }(sem, aa)
-      )
-        .with_priority(1)
+      tmc::spawn([](tmc::semaphore& Sem, atomic_awaitable<int>& AA) -> tmc::task<void> {
+        EXPECT_EQ(tmc::current_priority(), 0);
+        co_await Sem;
+        EXPECT_EQ(tmc::current_priority(), 0);
+        AA.inc();
+      }(sem, aa))
+        .with_priority(0)
         .fork();
     co_await waiter_count_accessor::wait_for_waiter_count(sem, 1);
 
     EXPECT_EQ(sem.count(), 0);
     EXPECT_EQ(aa.load(), 0);
-    EXPECT_EQ(tmc::current_priority(), 0);
+    EXPECT_EQ(tmc::current_priority(), 1);
 
     co_await [](auto& Sem) -> tmc::task<void> {
-      EXPECT_EQ(tmc::current_priority(), 0);
+      EXPECT_EQ(tmc::current_priority(), 1);
       co_await Sem.co_release_return();
       ADD_FAILURE() << "co_release_return should complete the coroutine";
     }(sem);
@@ -564,7 +546,7 @@ TEST_F(CATEGORY, co_release_return_awaiter_ineligible) {
     // The resource should have been transferred to the other task.
     // This should be resumed with the correct priority.
     EXPECT_EQ(sem.count(), 0);
-    EXPECT_EQ(tmc::current_priority(), 0);
+    EXPECT_EQ(tmc::current_priority(), 1);
 
     co_await aa;
     co_await std::move(t);
@@ -578,14 +560,12 @@ TEST_F(CATEGORY, co_release_return_parent_ineligible) {
     tmc::semaphore sem(0);
     atomic_awaitable<int> aa(1);
     auto t =
-      tmc::spawn(
-        [](tmc::semaphore& Sem, atomic_awaitable<int>& AA) -> tmc::task<void> {
-          EXPECT_EQ(tmc::current_priority(), 0);
-          co_await Sem;
-          EXPECT_EQ(tmc::current_priority(), 0);
-          AA.inc();
-        }(sem, aa)
-      )
+      tmc::spawn([](tmc::semaphore& Sem, atomic_awaitable<int>& AA) -> tmc::task<void> {
+        EXPECT_EQ(tmc::current_priority(), 0);
+        co_await Sem;
+        EXPECT_EQ(tmc::current_priority(), 0);
+        AA.inc();
+      }(sem, aa))
         .fork();
     co_await waiter_count_accessor::wait_for_waiter_count(sem, 1);
 
@@ -624,8 +604,7 @@ TEST_F(CATEGORY, co_release_return_both_ineligible) {
     // Ineligible for symmetric transfer due to different executor
     auto t = tmc::spawn(
                [](
-                 tmc::semaphore& Sem, atomic_awaitable<int>& AA,
-                 tmc::ex_any* Exec
+                 tmc::semaphore& Sem, atomic_awaitable<int>& AA, tmc::ex_any* Exec
                ) -> tmc::task<void> {
                  EXPECT_EQ(tmc::current_executor(), Exec);
                  EXPECT_EQ(tmc::current_priority(), 0);
@@ -715,14 +694,12 @@ TEST_F(CATEGORY, co_release_return_no_parent_waiter_eligible) {
 
     // Eligible for symmetric transfer
     auto t =
-      tmc::spawn(
-        [](tmc::semaphore& Sem, atomic_awaitable<int>& AA) -> tmc::task<void> {
-          EXPECT_EQ(tmc::current_priority(), 0);
-          co_await Sem;
-          EXPECT_EQ(tmc::current_priority(), 0);
-          AA.inc();
-        }(sem, aa)
-      )
+      tmc::spawn([](tmc::semaphore& Sem, atomic_awaitable<int>& AA) -> tmc::task<void> {
+        EXPECT_EQ(tmc::current_priority(), 0);
+        co_await Sem;
+        EXPECT_EQ(tmc::current_priority(), 0);
+        AA.inc();
+      }(sem, aa))
         .fork();
     co_await tmc::reschedule();
     co_await waiter_count_accessor::wait_for_waiter_count(sem, 1);
@@ -769,14 +746,12 @@ TEST_F(CATEGORY, co_release_return_no_parent_waiter_ineligible) {
 
     // Ineligible for symmetric transfer due to different priority
     auto t =
-      tmc::spawn(
-        [](tmc::semaphore& Sem, atomic_awaitable<int>& AA) -> tmc::task<void> {
-          EXPECT_EQ(tmc::current_priority(), 0);
-          co_await Sem;
-          EXPECT_EQ(tmc::current_priority(), 0);
-          AA.inc();
-        }(sem, aa)
-      )
+      tmc::spawn([](tmc::semaphore& Sem, atomic_awaitable<int>& AA) -> tmc::task<void> {
+        EXPECT_EQ(tmc::current_priority(), 0);
+        co_await Sem;
+        EXPECT_EQ(tmc::current_priority(), 0);
+        AA.inc();
+      }(sem, aa))
         .with_priority(0)
         .fork();
     co_await tmc::reschedule();

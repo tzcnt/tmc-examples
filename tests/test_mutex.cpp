@@ -58,13 +58,11 @@ TEST_F(CATEGORY, try_lock) {
     EXPECT_EQ(mut.try_lock(), true);
     atomic_awaitable<int> aa(1);
     auto t =
-      tmc::spawn(
-        [](tmc::mutex& Mut, atomic_awaitable<int>& AA) -> tmc::task<void> {
-          co_await Mut;
-          AA.inc();
-          Mut.unlock();
-        }(mut, aa)
-      )
+      tmc::spawn([](tmc::mutex& Mut, atomic_awaitable<int>& AA) -> tmc::task<void> {
+        co_await Mut;
+        AA.inc();
+        Mut.unlock();
+      }(mut, aa))
         .fork();
     co_await waiter_count_accessor::wait_for_waiter_count(mut, 1);
     // Cannot acquire while the lock is held and a waiter is queued.
@@ -89,12 +87,10 @@ TEST_F(CATEGORY, one_waiter) {
 
     atomic_awaitable<int> aa(1);
     auto t =
-      tmc::spawn(
-        [](tmc::mutex& Mut, atomic_awaitable<int>& AA) -> tmc::task<void> {
-          co_await Mut;
-          AA.inc();
-        }(mut, aa)
-      )
+      tmc::spawn([](tmc::mutex& Mut, atomic_awaitable<int>& AA) -> tmc::task<void> {
+        co_await Mut;
+        AA.inc();
+      }(mut, aa))
         .fork();
     co_await waiter_count_accessor::wait_for_waiter_count(mut, 1);
     EXPECT_EQ(mut.is_locked(), true);
@@ -114,8 +110,7 @@ TEST_F(CATEGORY, multi_waiter) {
     atomic_awaitable<int> aa(5);
     std::array<tmc::task<void>, 5> tasks;
     for (size_t i = 0; i < 5; ++i) {
-      tasks[i] =
-        [](tmc::mutex& Mut, atomic_awaitable<int>& AA) -> tmc::task<void> {
+      tasks[i] = [](tmc::mutex& Mut, atomic_awaitable<int>& AA) -> tmc::task<void> {
         co_await Mut;
         AA.inc();
         Mut.unlock();
@@ -213,12 +208,10 @@ TEST_F(CATEGORY, resume_in_destructor) {
     mut.emplace();
     co_await *mut;
     auto t =
-      tmc::spawn(
-        [](tmc::mutex& Mut, atomic_awaitable<int>& AA) -> tmc::task<void> {
-          co_await Mut;
-          AA.inc();
-        }(*mut, aa)
-      )
+      tmc::spawn([](tmc::mutex& Mut, atomic_awaitable<int>& AA) -> tmc::task<void> {
+        co_await Mut;
+        AA.inc();
+      }(*mut, aa))
         .fork();
     co_await waiter_count_accessor::wait_for_waiter_count(*mut, 1);
     EXPECT_EQ(aa.load(), 0);
@@ -236,12 +229,10 @@ TEST_F(CATEGORY, move_scope) {
     mut.emplace();
     std::optional<tmc::mutex_scope> scope{co_await mut->lock_scope()};
     auto t =
-      tmc::spawn(
-        [](tmc::mutex& Mut, atomic_awaitable<int>& AA) -> tmc::task<void> {
-          co_await Mut;
-          AA.inc();
-        }(*mut, aa)
-      )
+      tmc::spawn([](tmc::mutex& Mut, atomic_awaitable<int>& AA) -> tmc::task<void> {
+        co_await Mut;
+        AA.inc();
+      }(*mut, aa))
         .fork();
     {
       co_await waiter_count_accessor::wait_for_waiter_count(*mut, 1);
@@ -287,20 +278,19 @@ TEST_F(CATEGORY, access_control_scope) {
     tmc::mutex mut;
     co_await mut;
 
-    auto ts =
-      tmc::spawn_many(
-        tmc::iter_adapter(
-          0,
-          [&mut, &count](int) -> tmc::task<void> {
-            return [](tmc::mutex& Mut, size_t& Count) -> tmc::task<void> {
-              auto s = co_await Mut.lock_scope();
-              ++Count;
-            }(mut, count);
-          }
-        ),
-        1000
-      )
-        .fork();
+    auto ts = tmc::spawn_many(
+                tmc::iter_adapter(
+                  0,
+                  [&mut, &count](int) -> tmc::task<void> {
+                    return [](tmc::mutex& Mut, size_t& Count) -> tmc::task<void> {
+                      auto s = co_await Mut.lock_scope();
+                      ++Count;
+                    }(mut, count);
+                  }
+                ),
+                1000
+    )
+                .fork();
     co_await waiter_count_accessor::wait_for_waiter_count(mut, 1000);
     mut.unlock();
     co_await std::move(ts);
@@ -323,12 +313,10 @@ TEST_F(CATEGORY, co_unlock) {
     {
       atomic_awaitable<int> aa(1);
       auto t =
-        tmc::spawn(
-          [](tmc::mutex& Mut, atomic_awaitable<int>& AA) -> tmc::task<void> {
-            co_await Mut;
-            AA.inc();
-          }(mut, aa)
-        )
+        tmc::spawn([](tmc::mutex& Mut, atomic_awaitable<int>& AA) -> tmc::task<void> {
+          co_await Mut;
+          AA.inc();
+        }(mut, aa))
           .fork();
       co_await waiter_count_accessor::wait_for_waiter_count(mut, 1);
       EXPECT_EQ(mut.is_locked(), true);
@@ -347,26 +335,28 @@ TEST_F(CATEGORY, co_unlock_no_symmetric) {
     tmc::mutex mut;
     co_await mut;
     atomic_awaitable<int> aa(1);
+
+    // Run at a lower priority so we can't starve the waiter while spinning.
+    co_await tmc::change_priority(1);
+
     auto t =
-      tmc::spawn(
-        [](tmc::mutex& Mut, atomic_awaitable<int>& AA) -> tmc::task<void> {
-          EXPECT_EQ(tmc::current_priority(), 1);
-          co_await Mut;
-          EXPECT_EQ(tmc::current_priority(), 1);
-          AA.inc();
-        }(mut, aa)
-      )
-        .with_priority(1)
+      tmc::spawn([](tmc::mutex& Mut, atomic_awaitable<int>& AA) -> tmc::task<void> {
+        EXPECT_EQ(tmc::current_priority(), 0);
+        co_await Mut;
+        EXPECT_EQ(tmc::current_priority(), 0);
+        AA.inc();
+      }(mut, aa))
+        .with_priority(0)
         .fork();
     co_await waiter_count_accessor::wait_for_waiter_count(mut, 1);
 
     EXPECT_EQ(mut.is_locked(), true);
     EXPECT_EQ(aa.load(), 0);
-    EXPECT_EQ(tmc::current_priority(), 0);
+    EXPECT_EQ(tmc::current_priority(), 1);
 
     co_await mut.co_unlock();
 
-    EXPECT_EQ(tmc::current_priority(), 0);
+    EXPECT_EQ(tmc::current_priority(), 1);
 
     co_await aa;
     co_await std::move(t);
@@ -398,12 +388,11 @@ TEST_F(CATEGORY, co_unlock_return_value_destroys_locals) {
     std::atomic<size_t> destructor_count{0};
     std::atomic<size_t> parameter_destructor_count{0};
 
-    auto result =
-      co_await [](
-                 tmc::mutex& Mut, std::atomic<size_t>* DestructorCount,
-                 std::atomic<size_t>* ParameterDestructorCount,
-                 destructor_counter ParameterCounter
-               ) -> tmc::task<int> {
+    auto result = co_await
+      [](
+        tmc::mutex& Mut, std::atomic<size_t>* DestructorCount,
+        std::atomic<size_t>* ParameterDestructorCount, destructor_counter ParameterCounter
+      ) -> tmc::task<int> {
       (void)ParameterCounter;
       co_await Mut;
       EXPECT_EQ(Mut.is_locked(), true);
@@ -414,7 +403,7 @@ TEST_F(CATEGORY, co_unlock_return_value_destroys_locals) {
       ADD_FAILURE() << "co_unlock_return should complete the coroutine";
       co_return -1;
     }(mut, &destructor_count, &parameter_destructor_count,
-                 destructor_counter{&parameter_destructor_count});
+        destructor_counter{&parameter_destructor_count});
 
     EXPECT_EQ(result, 42);
     EXPECT_EQ(destructor_count.load(), 1u);
@@ -452,14 +441,12 @@ TEST_F(CATEGORY, co_unlock_return_both_eligible) {
     atomic_awaitable<int> aa(1);
 
     auto t =
-      tmc::spawn(
-        [](tmc::mutex& Mut, atomic_awaitable<int>& AA) -> tmc::task<void> {
-          EXPECT_EQ(tmc::current_priority(), 0);
-          co_await Mut;
-          EXPECT_EQ(tmc::current_priority(), 0);
-          AA.inc();
-        }(mut, aa)
-      )
+      tmc::spawn([](tmc::mutex& Mut, atomic_awaitable<int>& AA) -> tmc::task<void> {
+        EXPECT_EQ(tmc::current_priority(), 0);
+        co_await Mut;
+        EXPECT_EQ(tmc::current_priority(), 0);
+        AA.inc();
+      }(mut, aa))
         .fork();
     co_await waiter_count_accessor::wait_for_waiter_count(mut, 1);
 
@@ -492,26 +479,27 @@ TEST_F(CATEGORY, co_unlock_return_awaiter_ineligible) {
     co_await mut;
     atomic_awaitable<int> aa(1);
 
+    // Run at a lower priority so we can't starve the waiter while spinning.
+    co_await tmc::change_priority(1);
+
     // Ineligible for symmetric transfer due to different priority
     auto t =
-      tmc::spawn(
-        [](tmc::mutex& Mut, atomic_awaitable<int>& AA) -> tmc::task<void> {
-          EXPECT_EQ(tmc::current_priority(), 1);
-          co_await Mut;
-          EXPECT_EQ(tmc::current_priority(), 1);
-          AA.inc();
-        }(mut, aa)
-      )
-        .with_priority(1)
+      tmc::spawn([](tmc::mutex& Mut, atomic_awaitable<int>& AA) -> tmc::task<void> {
+        EXPECT_EQ(tmc::current_priority(), 0);
+        co_await Mut;
+        EXPECT_EQ(tmc::current_priority(), 0);
+        AA.inc();
+      }(mut, aa))
+        .with_priority(0)
         .fork();
     co_await waiter_count_accessor::wait_for_waiter_count(mut, 1);
 
     EXPECT_EQ(mut.is_locked(), true);
     EXPECT_EQ(aa.load(), 0);
-    EXPECT_EQ(tmc::current_priority(), 0);
+    EXPECT_EQ(tmc::current_priority(), 1);
 
     co_await [](auto& Mut) -> tmc::task<void> {
-      EXPECT_EQ(tmc::current_priority(), 0);
+      EXPECT_EQ(tmc::current_priority(), 1);
       co_await Mut.co_unlock_return();
       ADD_FAILURE() << "co_unlock_return should complete the coroutine";
     }(mut);
@@ -519,7 +507,7 @@ TEST_F(CATEGORY, co_unlock_return_awaiter_ineligible) {
     // The mutex should still be locked, but transferred to the other task.
     // This should be resumed with the correct priority.
     EXPECT_EQ(mut.is_locked(), true);
-    EXPECT_EQ(tmc::current_priority(), 0);
+    EXPECT_EQ(tmc::current_priority(), 1);
 
     co_await aa;
     co_await std::move(t);
@@ -534,14 +522,12 @@ TEST_F(CATEGORY, co_unlock_return_parent_ineligible) {
     co_await mut;
     atomic_awaitable<int> aa(1);
     auto t =
-      tmc::spawn(
-        [](tmc::mutex& Mut, atomic_awaitable<int>& AA) -> tmc::task<void> {
-          EXPECT_EQ(tmc::current_priority(), 0);
-          co_await Mut;
-          EXPECT_EQ(tmc::current_priority(), 0);
-          AA.inc();
-        }(mut, aa)
-      )
+      tmc::spawn([](tmc::mutex& Mut, atomic_awaitable<int>& AA) -> tmc::task<void> {
+        EXPECT_EQ(tmc::current_priority(), 0);
+        co_await Mut;
+        EXPECT_EQ(tmc::current_priority(), 0);
+        AA.inc();
+      }(mut, aa))
         .fork();
     co_await waiter_count_accessor::wait_for_waiter_count(mut, 1);
 
@@ -674,14 +660,12 @@ TEST_F(CATEGORY, co_unlock_return_no_parent_waiter_eligible) {
 
     // Eligible for symmetric transfer
     auto t =
-      tmc::spawn(
-        [](tmc::mutex& Mut, atomic_awaitable<int>& AA) -> tmc::task<void> {
-          EXPECT_EQ(tmc::current_priority(), 0);
-          co_await Mut;
-          EXPECT_EQ(tmc::current_priority(), 0);
-          AA.inc();
-        }(mut, aa)
-      )
+      tmc::spawn([](tmc::mutex& Mut, atomic_awaitable<int>& AA) -> tmc::task<void> {
+        EXPECT_EQ(tmc::current_priority(), 0);
+        co_await Mut;
+        EXPECT_EQ(tmc::current_priority(), 0);
+        AA.inc();
+      }(mut, aa))
         .fork();
     co_await tmc::reschedule();
     co_await waiter_count_accessor::wait_for_waiter_count(mut, 1);
@@ -729,14 +713,12 @@ TEST_F(CATEGORY, co_unlock_return_no_parent_waiter_ineligible) {
 
     // Ineligible for symmetric transfer due to different priority
     auto t =
-      tmc::spawn(
-        [](tmc::mutex& Mut, atomic_awaitable<int>& AA) -> tmc::task<void> {
-          EXPECT_EQ(tmc::current_priority(), 0);
-          co_await Mut;
-          EXPECT_EQ(tmc::current_priority(), 0);
-          AA.inc();
-        }(mut, aa)
-      )
+      tmc::spawn([](tmc::mutex& Mut, atomic_awaitable<int>& AA) -> tmc::task<void> {
+        EXPECT_EQ(tmc::current_priority(), 0);
+        co_await Mut;
+        EXPECT_EQ(tmc::current_priority(), 0);
+        AA.inc();
+      }(mut, aa))
         .with_priority(0)
         .fork();
     co_await tmc::reschedule();

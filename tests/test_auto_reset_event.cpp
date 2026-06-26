@@ -77,15 +77,14 @@ TEST_F(CATEGORY, one_waiter) {
 
     {
       atomic_awaitable<int> aa(1);
-      auto t = tmc::spawn(
-                 [](
-                   tmc::auto_reset_event& Event, atomic_awaitable<int>& AA
-                 ) -> tmc::task<void> {
-                   co_await Event;
-                   AA.inc();
-                 }(event, aa)
-      )
-                 .fork();
+      auto t =
+        tmc::spawn(
+          [](tmc::auto_reset_event& Event, atomic_awaitable<int>& AA) -> tmc::task<void> {
+            co_await Event;
+            AA.inc();
+          }(event, aa)
+        )
+          .fork();
       co_await waiter_count_accessor::wait_for_waiter_count(event, 1);
       EXPECT_EQ(event.is_set(), false);
       EXPECT_EQ(aa.load(), 0);
@@ -97,15 +96,14 @@ TEST_F(CATEGORY, one_waiter) {
     event.reset();
     {
       atomic_awaitable<int> aa(1);
-      auto t = tmc::spawn(
-                 [](
-                   tmc::auto_reset_event& Event, atomic_awaitable<int>& AA
-                 ) -> tmc::task<void> {
-                   co_await Event;
-                   AA.inc();
-                 }(event, aa)
-      )
-                 .fork();
+      auto t =
+        tmc::spawn(
+          [](tmc::auto_reset_event& Event, atomic_awaitable<int>& AA) -> tmc::task<void> {
+            co_await Event;
+            AA.inc();
+          }(event, aa)
+        )
+          .fork();
       co_await waiter_count_accessor::wait_for_waiter_count(event, 1);
       EXPECT_EQ(event.is_set(), false);
       EXPECT_EQ(aa.load(), 0);
@@ -125,9 +123,8 @@ TEST_F(CATEGORY, multi_waiter) {
       atomic_awaitable<int> aa(5);
       std::array<tmc::task<void>, 5> tasks;
       for (size_t i = 0; i < 5; ++i) {
-        tasks[i] = [](
-                     tmc::auto_reset_event& Event, atomic_awaitable<int>& AA
-                   ) -> tmc::task<void> {
+        tasks[i] =
+          [](tmc::auto_reset_event& Event, atomic_awaitable<int>& AA) -> tmc::task<void> {
           co_await Event;
           AA.inc();
         }(event, aa);
@@ -156,9 +153,8 @@ TEST_F(CATEGORY, multi_waiter_co_set) {
       atomic_awaitable<int> aa(5);
       std::array<tmc::task<void>, 5> tasks;
       for (size_t i = 0; i < 5; ++i) {
-        tasks[i] = [](
-                     tmc::auto_reset_event& Event, atomic_awaitable<int>& AA
-                   ) -> tmc::task<void> {
+        tasks[i] =
+          [](tmc::auto_reset_event& Event, atomic_awaitable<int>& AA) -> tmc::task<void> {
           co_await Event;
           AA.inc();
         }(event, aa);
@@ -185,8 +181,7 @@ TEST_F(CATEGORY, set_wakes_waiters_fifo) {
   test_async_main(exec, []() -> tmc::task<void> {
     tmc::auto_reset_event event;
 
-    auto make_waiter = [](tmc::auto_reset_event& Event, size_t Idx)
-      -> tmc::task<size_t> {
+    auto make_waiter = [](tmc::auto_reset_event& Event, size_t Idx) -> tmc::task<size_t> {
       co_await Event;
       co_return Idx;
     };
@@ -221,8 +216,7 @@ TEST_F(CATEGORY, co_set_wakes_waiters_fifo) {
   test_async_main(exec, []() -> tmc::task<void> {
     tmc::auto_reset_event event;
 
-    auto make_waiter = [](tmc::auto_reset_event& Event, size_t Idx)
-      -> tmc::task<size_t> {
+    auto make_waiter = [](tmc::auto_reset_event& Event, size_t Idx) -> tmc::task<size_t> {
       co_await Event;
       co_return Idx;
     };
@@ -257,15 +251,14 @@ TEST_F(CATEGORY, resume_in_destructor) {
     std::optional<tmc::auto_reset_event> event;
     event.emplace();
     EXPECT_EQ(event->is_set(), false);
-    auto t = tmc::spawn(
-               [](
-                 tmc::auto_reset_event& Event, atomic_awaitable<int>& AA
-               ) -> tmc::task<void> {
-                 co_await Event;
-                 AA.inc();
-               }(*event, aa)
-    )
-               .fork();
+    auto t =
+      tmc::spawn(
+        [](tmc::auto_reset_event& Event, atomic_awaitable<int>& AA) -> tmc::task<void> {
+          co_await Event;
+          AA.inc();
+        }(*event, aa)
+      )
+        .fork();
     co_await waiter_count_accessor::wait_for_waiter_count(*event, 1);
     EXPECT_EQ(aa.load(), 0);
     EXPECT_EQ(event->is_set(), false);
@@ -288,12 +281,11 @@ TEST_F(CATEGORY, access_control) {
       tmc::iter_adapter(
         0,
         [&event, &count](int) -> tmc::task<void> {
-          return
-            [](tmc::auto_reset_event& Event, size_t& Count) -> tmc::task<void> {
-              co_await Event;
-              ++Count;
-              Event.set();
-            }(event, count);
+          return [](tmc::auto_reset_event& Event, size_t& Count) -> tmc::task<void> {
+            co_await Event;
+            ++Count;
+            Event.set();
+          }(event, count);
         }
       ),
       1000
@@ -318,15 +310,14 @@ TEST_F(CATEGORY, co_set) {
     event.reset();
     {
       atomic_awaitable<int> aa(1);
-      auto t = tmc::spawn(
-                 [](
-                   tmc::auto_reset_event& Event, atomic_awaitable<int>& AA
-                 ) -> tmc::task<void> {
-                   co_await Event;
-                   AA.inc();
-                 }(event, aa)
-      )
-                 .fork();
+      auto t =
+        tmc::spawn(
+          [](tmc::auto_reset_event& Event, atomic_awaitable<int>& AA) -> tmc::task<void> {
+            co_await Event;
+            AA.inc();
+          }(event, aa)
+        )
+          .fork();
       co_await waiter_count_accessor::wait_for_waiter_count(event, 1);
       EXPECT_EQ(event.is_set(), false);
       EXPECT_EQ(aa.load(), 0);
@@ -345,24 +336,27 @@ TEST_F(CATEGORY, co_set_no_symmetric) {
     tmc::auto_reset_event event;
     EXPECT_EQ(event.is_set(), false);
     atomic_awaitable<int> aa(1);
-    auto t = tmc::spawn(
-               [](
-                 tmc::auto_reset_event& Event, atomic_awaitable<int>& AA
-               ) -> tmc::task<void> {
-                 EXPECT_EQ(tmc::current_priority(), 1);
-                 co_await Event;
-                 EXPECT_EQ(tmc::current_priority(), 1);
-                 AA.inc();
-               }(event, aa)
-    )
-               .with_priority(1)
-               .fork();
+
+    // Run at a lower priority so we can't starve the waiter while spinning.
+    co_await tmc::change_priority(1);
+
+    auto t =
+      tmc::spawn(
+        [](tmc::auto_reset_event& Event, atomic_awaitable<int>& AA) -> tmc::task<void> {
+          EXPECT_EQ(tmc::current_priority(), 0);
+          co_await Event;
+          EXPECT_EQ(tmc::current_priority(), 0);
+          AA.inc();
+        }(event, aa)
+      )
+        .with_priority(0)
+        .fork();
     co_await waiter_count_accessor::wait_for_waiter_count(event, 1);
     EXPECT_EQ(event.is_set(), false);
     EXPECT_EQ(aa.load(), 0);
-    EXPECT_EQ(tmc::current_priority(), 0);
+    EXPECT_EQ(tmc::current_priority(), 1);
     co_await event.co_set();
-    EXPECT_EQ(tmc::current_priority(), 0);
+    EXPECT_EQ(tmc::current_priority(), 1);
     co_await aa;
     co_await std::move(t);
     EXPECT_EQ(event.is_set(), false);
