@@ -340,6 +340,10 @@ make_exe(asio_cancellation
     examples/asio/cancellation.cpp
 )
 
+make_exe(asio_select
+    examples/asio/select.cpp
+)
+
 make_exe(asio_delay
     examples/asio/delay.cpp
 )
