@@ -93,9 +93,9 @@ TEST_F(CATEGORY, with_async_initiate) {
     atomic_awaitable<int> aa2(1);
     atomic_awaitable<int> aa3(1);
 
-    fg.fork(std::move(aa1));
-    fg.fork(std::move(aa2));
-    fg.fork(std::move(aa3));
+    fg.fork(aa1);
+    fg.fork(aa2);
+    fg.fork(aa3);
     aa1.inc();
     aa2.inc();
     aa3.inc();
@@ -112,9 +112,9 @@ TEST_F(CATEGORY, with_async_initiate_clang) {
     atomic_awaitable<int> aa2(1);
     atomic_awaitable<int> aa3(1);
 
-    co_await fg.fork_clang(std::move(aa1));
-    co_await fg.fork_clang(std::move(aa2));
-    co_await fg.fork_clang(std::move(aa3));
+    co_await fg.fork_clang(aa1);
+    co_await fg.fork_clang(aa2);
+    co_await fg.fork_clang(aa3);
 
     aa1.inc();
     aa2.inc();
@@ -278,7 +278,7 @@ TEST_F(CATEGORY, mixed_awaitables_void) {
     atomic_awaitable<int> aa(1);
     fg.fork(task_void());             // TMC_TASK
     fg.fork(tmc::spawn(task_void())); // WRAPPER
-    fg.fork(std::move(aa));           // ASYNC_INITIATE
+    fg.fork(aa);                      // ASYNC_INITIATE
     aa.inc();
     co_await std::move(fg);
   }());
@@ -330,7 +330,7 @@ TEST_F(CATEGORY, factory_deduction) {
     // Test with atomic_awaitable - should deduce Result = void
     {
       atomic_awaitable<int> aa(1);
-      auto fg = tmc::fork_group(std::move(aa));
+      auto fg = tmc::fork_group(aa);
       static_assert(std::is_same_v<decltype(fg), tmc::aw_fork_group<0, void>>);
       aa.inc();
       co_await std::move(fg);
