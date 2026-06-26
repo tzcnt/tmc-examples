@@ -380,6 +380,64 @@ TEST_F(CATEGORY, spawn_func_many_with_priority_run_on) {
   }());
 }
 
+TEST_F(CATEGORY, spawn_many_each_replace_with_priority_run_on) {
+  tmc::async_main([]() -> tmc::task<int> {
+    EXPECT_EQ(tmc::current_priority(), 0);
+    co_await tmc::change_priority(1);
+    EXPECT_EQ(tmc::current_priority(), 1);
+
+    tmc::manual_reset_event gate;
+    auto continuationExec = tmc::current_executor();
+    std::array<tmc::task<int>, 2> tasks{
+      []() -> tmc::task<int> {
+        check_exec_prio(tmc::asio_executor(), 2);
+        co_return 1;
+      }(),
+      [&gate]() -> tmc::task<int> {
+        check_exec_prio(tmc::asio_executor(), 2);
+        co_await gate;
+        check_exec_prio(tmc::asio_executor(), 2);
+        co_return 2;
+      }()};
+
+    auto select = tmc::spawn_many<2>(tasks.begin())
+                    .run_on(tmc::asio_executor())
+                    .with_priority(2)
+                    .result_each();
+
+    auto idx = co_await select;
+    EXPECT_EQ(idx, 0);
+    EXPECT_EQ(select[0], 1);
+    EXPECT_EQ(tmc::current_executor(), continuationExec);
+    EXPECT_EQ(tmc::current_priority(), 1);
+
+    select.replace(0, []() -> tmc::task<int> {
+      check_exec_prio(tmc::asio_executor(), 2);
+      co_return 4;
+    }());
+
+    idx = co_await select;
+    EXPECT_EQ(idx, 0);
+    EXPECT_EQ(select[0], 4);
+    EXPECT_EQ(tmc::current_executor(), continuationExec);
+    EXPECT_EQ(tmc::current_priority(), 1);
+
+    gate.set();
+
+    idx = co_await select;
+    EXPECT_EQ(idx, 1);
+    EXPECT_EQ(select[1], 2);
+    EXPECT_EQ(tmc::current_executor(), continuationExec);
+    EXPECT_EQ(tmc::current_priority(), 1);
+
+    idx = co_await select;
+    EXPECT_EQ(idx, select.end());
+    EXPECT_EQ(tmc::current_executor(), continuationExec);
+    EXPECT_EQ(tmc::current_priority(), 1);
+    co_return 0;
+  }());
+}
+
 TEST_F(CATEGORY, spawn_tuple_with_priority) {
   tmc::async_main([]() -> tmc::task<int> {
     EXPECT_EQ(tmc::current_priority(), 0);
@@ -452,6 +510,63 @@ TEST_F(CATEGORY, spawn_tuple_each_with_priority_run_on) {
 
     v = co_await t;
     EXPECT_EQ(v, t.end());
+    EXPECT_EQ(tmc::current_priority(), 1);
+    co_return 0;
+  }());
+}
+
+TEST_F(CATEGORY, spawn_tuple_each_replace_with_priority_run_on) {
+  tmc::async_main([]() -> tmc::task<int> {
+    EXPECT_EQ(tmc::current_priority(), 0);
+    co_await tmc::change_priority(1);
+    EXPECT_EQ(tmc::current_priority(), 1);
+
+    tmc::manual_reset_event gate;
+    auto continuationExec = tmc::current_executor();
+
+    auto select = tmc::spawn_tuple(
+                    []() -> tmc::task<int> {
+                      check_exec_prio(tmc::asio_executor(), 2);
+                      co_return 1;
+                    }(),
+                    [&gate]() -> tmc::task<int> {
+                      check_exec_prio(tmc::asio_executor(), 2);
+                      co_await gate;
+                      check_exec_prio(tmc::asio_executor(), 2);
+                      co_return 2;
+                    }())
+                    .run_on(tmc::asio_executor())
+                    .with_priority(2)
+                    .result_each();
+
+    auto idx = co_await select;
+    EXPECT_EQ(idx, 0);
+    EXPECT_EQ(select.get<0>(), 1);
+    EXPECT_EQ(tmc::current_executor(), continuationExec);
+    EXPECT_EQ(tmc::current_priority(), 1);
+
+    select.replace<0>([]() -> tmc::task<int> {
+      check_exec_prio(tmc::asio_executor(), 2);
+      co_return 4;
+    }());
+
+    idx = co_await select;
+    EXPECT_EQ(idx, 0);
+    EXPECT_EQ(select.get<0>(), 4);
+    EXPECT_EQ(tmc::current_executor(), continuationExec);
+    EXPECT_EQ(tmc::current_priority(), 1);
+
+    gate.set();
+
+    idx = co_await select;
+    EXPECT_EQ(idx, 1);
+    EXPECT_EQ(select.get<1>(), 2);
+    EXPECT_EQ(tmc::current_executor(), continuationExec);
+    EXPECT_EQ(tmc::current_priority(), 1);
+
+    idx = co_await select;
+    EXPECT_EQ(idx, select.end());
+    EXPECT_EQ(tmc::current_executor(), continuationExec);
     EXPECT_EQ(tmc::current_priority(), 1);
     co_return 0;
   }());
