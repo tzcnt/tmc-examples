@@ -296,6 +296,10 @@ make_exe(exec_st_roundtrip_bench
     examples/exec_st_roundtrip_bench.cpp
 )
 
+make_exe(asio_braid_strand_roundtrip_bench
+    examples/asio/braid_strand_roundtrip_bench.cpp
+)
+
 make_exe(braid
     examples/braid.cpp
 )
