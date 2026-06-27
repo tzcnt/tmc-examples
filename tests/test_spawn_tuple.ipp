@@ -1116,3 +1116,23 @@ TEST_F(CATEGORY, spawn_tuple_each_replace_async_initiate_rvalue) {
     EXPECT_EQ(idx, each.end());
   }());
 }
+
+// aw_fork_tuple_clang (the dummy awaitable returned by fork_tuple_clang()) has an
+// await_ready() that returns true, so a normal co_await goes straight to
+// await_resume() and its await_suspend() is never reached. Exercise the awaiter
+// interface directly to cover and document that no-op suspend, then join the
+// fork so the forked tasks are consumed.
+TEST_F(CATEGORY, fork_tuple_clang_await_suspend_noop) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    auto dummy = tmc::fork_tuple_clang(
+      []() -> tmc::task<int> { co_return 3; }(),
+      []() -> tmc::task<int> { co_return 4; }()
+    );
+    EXPECT_TRUE(dummy.await_ready());
+    dummy.await_suspend(std::noop_coroutine()); // no-op; never reached by co_await
+    auto forked = dummy.await_resume();
+    std::tuple<int, int> results = co_await std::move(forked);
+    EXPECT_EQ(std::get<0>(results), 3);
+    EXPECT_EQ(std::get<1>(results), 4);
+  }());
+}
