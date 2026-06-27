@@ -337,7 +337,11 @@ make_exe(asio_prio
 )
 
 make_exe(asio_cancellation
-    examples/asio/cancellation.cpp
+    examples/asio/result_each.cpp
+)
+
+make_exe(asio_select
+    examples/asio/select.cpp
 )
 
 make_exe(asio_delay

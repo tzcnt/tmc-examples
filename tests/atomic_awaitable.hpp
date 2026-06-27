@@ -84,15 +84,16 @@ template <IsAwAtomic Awaitable> struct awaitable_traits<Awaitable> {
   using self_type = Awaitable;
 
   // Values controlling the behavior when awaited directly in a tmc::task
-  static decltype(auto) get_awaiter(self_type& awaitable) noexcept {
-    return awaitable;
-  }
+  static decltype(auto) get_awaiter(self_type& awaitable) noexcept { return awaitable; }
 
   // Values controlling the behavior when wrapped by a utility function
   // such as tmc::spawn_*()
   static constexpr configure_mode mode = ASYNC_INITIATE;
+  // lvalue-qualified to match get_awaiter above: this type is safe to await
+  // multiple times, so spawn_*() should borrow it (forward an lvalue) rather
+  // than consume it.
   static void async_initiate(
-    self_type&& awaitable, [[maybe_unused]] tmc::ex_any* Executor,
+    self_type& awaitable, [[maybe_unused]] tmc::ex_any* Executor,
     [[maybe_unused]] size_t Priority
   ) {
     awaitable.async_initiate();
