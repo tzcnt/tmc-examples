@@ -1,5 +1,5 @@
 file ./build/gcc-linux-debug/fib
 command script import ./coro_backtrace_lldb.py
-breakpoint set --file ./examples/fib.cpp --line 47
+breakpoint set --file ./examples/fib.cpp --line 44
 run
 bt
