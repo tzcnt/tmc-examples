@@ -1,25 +1,7 @@
-// Demonstrate how to create a custom cancellation timeout for non-Asio
-// operations. For an Asio operation, it's simpler to use the builtin
-// timeout operations, e.g. to cancel a socket operation:
-// `co_await sock.async_read_some(buf, asio::cancel_after(1s, tmc::aw_asio));`
-
-// Uses tmc::spawn_tuple().result_each() to await
-// heterogeneous operations that complete at different times. By submitting a
-// long-running operation and a short running timer, timeout-based cancellation
-// can be achieved.
-
-// The timeout nominally occurs after 100ms and the timestamps of the various
-// events are logged. Note that the this example signals the cancellation event
-// back to the root task by the completion of the timeout operation (at index
-// 1 in the tuple), and then the root task cancels the long-running operation.
-// This is somewhat less efficient than having the timeout task capture a
-// reference to the long-running operation and cancel it directly after the
-// timer expires.
-
-// Alternatively, you could cancel the main operation directly from within the
-// timeout operation. This example serves to also demonstrate how to use the
-// result_each() function when you need the awaiting thread involved in the
-// process.
+// Demonstrate how to use the spawn_tuple().result_each() function, which receives results
+// from multiple awaitables as they complete one-by-one, instead of waiting for them all
+// to complete. This is a contrived example to demonstrate the usage, since Asio
+// operations already support timeouts.
 
 #ifdef _WIN32
 #include <sdkddkver.h>
@@ -58,15 +40,13 @@ static void log_event_timestamp(
     std::chrono::high_resolution_clock::now()
 ) {
   size_t duration = static_cast<size_t>(
-    std::chrono::duration_cast<std::chrono::microseconds>(now - startTime)
-      .count()
+    std::chrono::duration_cast<std::chrono::microseconds>(now - startTime).count()
   );
   std::printf("%s at %zu us\n", event.c_str(), duration);
 }
 
-static void log_error_code(
-  error_code ec, std::chrono::high_resolution_clock::time_point startTime
-) {
+static void
+log_error_code(error_code ec, std::chrono::high_resolution_clock::time_point startTime) {
   switch (ec.value()) {
   case 0:
     log_event_timestamp("operation completed", startTime);
@@ -76,8 +56,7 @@ static void log_error_code(
     break;
   default:
     std::printf(
-      "an unexpected error occurred: %d | %s\n", ec.value(),
-      ec.message().c_str()
+      "an unexpected error occurred: %d | %s\n", ec.value(), ec.message().c_str()
     );
     break;
   }
@@ -97,24 +76,22 @@ int main() {
       // A shorter timer is used for the timeout
       auto timeoutTask =
         []() -> tmc::task<std::chrono::high_resolution_clock::time_point> {
-        asio::steady_timer shortTim{
-          tmc::asio_executor(), std::chrono::milliseconds(100)
-        };
-        auto [error] = co_await shortTim.async_wait(tmc::aw_asio)
-                         .resume_on(tmc::asio_executor());
+        asio::steady_timer shortTim{tmc::asio_executor(), std::chrono::milliseconds(100)};
+        auto [error] =
+          co_await shortTim.async_wait(tmc::aw_asio).resume_on(tmc::asio_executor());
         (void)error; // silence unused warning
         co_return std::chrono::high_resolution_clock::now();
       }();
 
-      // Using the result_each() customizer allows us to receive each result
-      // immediately as it becomes ready, even if the other tasks are still
-      // running
+      // Using the result_each() customizer allows us to receive each result immediately
+      // as it becomes ready, even if the other tasks are still running.
       auto eachResult =
         tmc::spawn_tuple(
           mainOperationHandle.async_wait(tmc::aw_asio), std::move(timeoutTask)
         )
           .result_each();
 
+      // We must wait for all operations to complete before returning.
       for (auto readyIdx = co_await eachResult; readyIdx != eachResult.end();
            readyIdx = co_await eachResult) {
         switch (readyIdx) {
