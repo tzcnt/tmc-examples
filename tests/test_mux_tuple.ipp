@@ -12,9 +12,10 @@
 #include <type_traits>
 #include <variant>
 
-// Tests for tmc::mux_tuple - a standalone result-multiplexer that behaves like
-// tmc::spawn_tuple(...).result_each(), but also supports an empty constructor
-// (storage only) plus restart<I>() to (re)launch work into individual slots.
+// Tests for tmc::mux_tuple - a standalone result-multiplexer that initiates a
+// set of awaitables like tmc::spawn_tuple() but yields each result as it becomes
+// ready, and also supports an empty constructor (storage only) plus restart<I>()
+// to (re)launch work into individual slots.
 //
 // restart<I>() (re)starts a slot of the group with a new awaitable. The
 // awaitable is initiated immediately (synchronously inside restart()) and joined
@@ -25,11 +26,10 @@
 // UNKNOWN is the not-an-awaitable case and is rejected by a static_assert inside
 // restart(), so it is not runtime-testable.
 //
-// The restart() tests use the same deterministic skeleton as the original
-// spawn_tuple result_each().replace() tests: slot 0 is an immediately-ready
-// awaitable that is consumed and then restarted; slot 1 blocks on an
-// atomic_awaitable until the test releases it, so the group never reports slot 1
-// before the restart has been observed.
+// The restart() tests use a deterministic skeleton: slot 0 is an
+// immediately-ready awaitable that is consumed and then restarted; slot 1 blocks
+// on an atomic_awaitable until the test releases it, so the group never reports
+// slot 1 before the restart has been observed.
 
 // A WRAPPER-mode awaitable: it implements the await_ready/await_suspend/
 // await_resume interface directly and has no awaitable_traits specialization, so
@@ -172,7 +172,7 @@ template <IsMuxRvalueAsyncOp Awaitable> struct awaitable_traits<Awaitable> {
 };
 } // namespace tmc::detail
 
-/*** Eager constructor (behaves like spawn_tuple(...).result_each()) ***/
+/*** Eager constructor (initiates all awaitables like spawn_tuple()) ***/
 
 // Basic eager construction with coroutine awaitables: drain every slot once.
 TEST_F(CATEGORY, mux_tuple_eager_each) {
@@ -243,6 +243,71 @@ TEST_F(CATEGORY, mux_tuple_eager_with_wrapper) {
     EXPECT_EQ(mux.get<1>(), 7);
     idx = co_await mux;
     EXPECT_EQ(idx, mux.end());
+  }());
+}
+
+// Every eagerly-initiated task completes (awaited via `aa`) before the group is
+// drained, so the first co_await of the group finds all results already ready.
+TEST_F(CATEGORY, mux_tuple_eager_resume_after) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    auto make_task = [](int I, atomic_awaitable<size_t>& AA) -> tmc::task<int> {
+      AA.inc();
+      co_return 1 << I;
+    };
+    static constexpr int N = 5;
+    atomic_awaitable<size_t> aa(N);
+    tmc::mux_tuple mux(
+      make_task(0, aa), make_task(1, aa), make_task(2, aa), make_task(3, aa),
+      make_task(4, aa)
+    );
+    co_await aa;
+    int sum = 0;
+    for (auto idx = co_await mux; idx != mux.end(); idx = co_await mux) {
+      switch (idx) {
+      case 0:
+        sum += mux.get<0>();
+        break;
+      case 1:
+        sum += mux.get<1>();
+        break;
+      case 2:
+        sum += mux.get<2>();
+        break;
+      case 3:
+        sum += mux.get<3>();
+        break;
+      case 4:
+        sum += mux.get<4>();
+        break;
+      }
+    }
+
+    EXPECT_EQ(sum, (1 << N) - 1);
+
+    co_return;
+  }());
+}
+
+// Regression: CTAD on the eager constructor must apply forward_awaitable and
+// preserve the value category of a non-movable rvalue awaitable - storing it by
+// reference (mux_rvalue_async_op&&), not collapsing it to a by-value tuple
+// element (which is non-movable and would fail to compile). This guards the
+// constrained deduction guide: without the constraint, the eager constructor's
+// own (more-constrained) implicit guide would win and drop forward_awaitable.
+// `op` is declared before `mux` so it outlives the group that borrows it.
+TEST_F(CATEGORY, mux_tuple_eager_ctad_non_movable_rvalue) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    auto immediate = []() -> tmc::task<void> { co_return; };
+    mux_rvalue_async_op op; // non-movable, rvalue-qualified ASYNC_INITIATE
+    tmc::mux_tuple mux(immediate(), std::move(op));
+    static_assert(std::is_same_v<
+                  decltype(mux), tmc::mux_tuple<tmc::task<void>, mux_rvalue_async_op&&>>);
+    op.complete();
+    int count = 0;
+    for (size_t i = co_await mux; i != mux.end(); i = co_await mux) {
+      ++count;
+    }
+    EXPECT_EQ(count, 2);
   }());
 }
 

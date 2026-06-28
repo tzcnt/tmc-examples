@@ -545,15 +545,13 @@ TEST_F(CATEGORY, multi_level_composition_lvalue) {
       tmc::task<int> t1 = work(0);
       tmc::task<int> t2 = work(1);
 
-      tmc::aw_spawn_tuple_each<tmc::task<int>> te1 =
-        tmc::spawn_tuple(std::move(t1)).result_each();
-      tmc::aw_spawn_tuple_each<tmc::task<int>> te2 =
-        tmc::spawn_tuple(std::move(t2)).result_each();
+      tmc::mux_tuple<tmc::task<int>> te1(std::move(t1));
+      tmc::mux_tuple<tmc::task<int>> te2(std::move(t2));
 
-      // This is kind of an abuse of the rules - the lvalue only awaitable from
-      // result_each() is turned into an rvalue only awaitable with spawn()
+      // This is kind of an abuse of the rules - the lvalue only mux_tuple
+      // awaitable is turned into an rvalue only awaitable with spawn()
       // which can then be passed to spawn_many().
-      std::array<tmc::aw_spawn<tmc::aw_spawn_tuple_each<tmc::task<int>>&>, 2>
+      std::array<tmc::aw_spawn<tmc::mux_tuple<tmc::task<int>>&>, 2>
         tt{tmc::spawn(te1), tmc::spawn(te2)};
 
       // Spawn_many is always movable - however the type in the array that it
@@ -568,7 +566,7 @@ TEST_F(CATEGORY, multi_level_composition_lvalue) {
       EXPECT_EQ(sum, 0);
 
       // We can't await this again because the spawn_many is a single-use
-      // awaitable, even though the underlying result_each() awaitables could be
+      // awaitable, even though the underlying mux_tuple awaitables could be
       // awaited multiple times.
       // results = co_await std::move(whyNot);
       // sum = results[0] + results[1];
@@ -580,10 +578,8 @@ TEST_F(CATEGORY, multi_level_composition_lvalue) {
 TEST_F(CATEGORY, tuple_compose_each_twice) {
   test_async_main(ex(), []() -> tmc::task<void> {
     {
-      tmc::aw_spawn_tuple_each<tmc::task<int>, tmc::task<int>> te1 =
-        tmc::spawn_tuple(work(0), work(1)).result_each();
-      tmc::aw_spawn_tuple_each<tmc::task<int>, tmc::task<int>> te2 =
-        tmc::spawn_tuple(work(2), work(3)).result_each();
+      tmc::mux_tuple<tmc::task<int>, tmc::task<int>> te1(work(0), work(1));
+      tmc::mux_tuple<tmc::task<int>, tmc::task<int>> te2(work(2), work(3));
 
       int sum = 0;
 
@@ -644,12 +640,12 @@ TEST_F(CATEGORY, tuple_compose_each_twice) {
   }());
 }
 
-//// Doesn't / shouldn't compile - co_awaiting a temporary result_each() is
+//// Doesn't / shouldn't compile - co_awaiting a temporary mux_tuple is
 //// invalid - it must be awaited as an lvalue.
 //
 // TEST_F(CATEGORY, co_await_lvalue_tuple_each) {
 //   test_async_main(ex(), []() -> tmc::task<void> {
-//     auto x = co_await tmc::spawn_tuple(work(0)).result_each();
+//     auto x = co_await tmc::mux_tuple(work(0));
 //   }());
 // }
 //
@@ -660,15 +656,15 @@ TEST_F(CATEGORY, tuple_compose_each_twice) {
 //   }());
 // }
 
-//// Doesn't / shouldn't compile - wrapping a temporary result_each() is invalid
-//// - it must be awaited as an lvalue.
+//// Doesn't / shouldn't compile - wrapping a temporary lvalue-only each/mux
+//// awaitable is invalid - it must be awaited as an lvalue.
 //
 // TEST_F(CATEGORY, multi_level_composition_lvalue_tuple_each_in_tuple) {
 //   test_async_main(ex(), []() -> tmc::task<void> {
 //     {
 //       tmc::task<int> t1 = work(0);
 //       auto tte =
-//         tmc::spawn_tuple(tmc::spawn_tuple(std::move(t1)).result_each());
+//         tmc::spawn_tuple(tmc::mux_tuple<tmc::task<int>>(std::move(t1)));
 //       co_await std::move(tte);
 //     }
 //   }());

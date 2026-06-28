@@ -473,48 +473,28 @@ TEST_F(CATEGORY, spawn_tuple_with_priority_run_on) {
   }());
 }
 
-TEST_F(CATEGORY, spawn_tuple_each_with_priority) {
+// mux_tuple has no with_priority()/run_on() fluent API - it captures the current
+// executor and priority at construction. Constructed here at priority 2, so its
+// task runs at priority 2 and the awaiting coroutine resumes at priority 2. This
+// is the mux_tuple analogue of the spawn_tuple each with_priority (and
+// with_priority + run_on) tests; the cross-executor resume that run_on()
+// exercised is not expressible with mux_tuple.
+TEST_F(CATEGORY, mux_tuple_each_with_priority) {
   tmc::async_main([]() -> tmc::task<int> {
     EXPECT_EQ(tmc::current_priority(), 0);
-    co_await tmc::change_priority(1);
-    EXPECT_EQ(tmc::current_priority(), 1);
-    auto t = tmc::spawn_tuple([]() -> tmc::task<void> {
-               EXPECT_EQ(tmc::current_priority(), 2);
-               co_return;
-             }())
-               .with_priority(2)
-               .result_each();
-    auto v = co_await t;
+    co_await tmc::change_priority(2);
+    EXPECT_EQ(tmc::current_priority(), 2);
+    tmc::mux_tuple mux([]() -> tmc::task<void> {
+      EXPECT_EQ(tmc::current_priority(), 2);
+      co_return;
+    }());
+    auto v = co_await mux;
     EXPECT_EQ(v, 0);
-    EXPECT_EQ(tmc::current_priority(), 1);
+    EXPECT_EQ(tmc::current_priority(), 2);
 
-    v = co_await t;
-    EXPECT_EQ(v, t.end());
-    EXPECT_EQ(tmc::current_priority(), 1);
-    co_return 0;
-  }());
-}
-
-TEST_F(CATEGORY, spawn_tuple_each_with_priority_run_on) {
-  tmc::async_main([]() -> tmc::task<int> {
-    EXPECT_EQ(tmc::current_priority(), 0);
-    co_await tmc::change_priority(1);
-    EXPECT_EQ(tmc::current_priority(), 1);
-    auto t = tmc::spawn_tuple([]() -> tmc::task<void> {
-               EXPECT_EQ(tmc::current_priority(), 2);
-               co_return;
-             }())
-               .run_on(tmc::asio_executor())
-               .with_priority(2)
-               .result_each();
-    EXPECT_EQ(tmc::current_priority(), 1);
-    auto v = co_await t;
-    EXPECT_EQ(v, 0);
-    EXPECT_EQ(tmc::current_priority(), 1);
-
-    v = co_await t;
-    EXPECT_EQ(v, t.end());
-    EXPECT_EQ(tmc::current_priority(), 1);
+    v = co_await mux;
+    EXPECT_EQ(v, mux.end());
+    EXPECT_EQ(tmc::current_priority(), 2);
     co_return 0;
   }());
 }

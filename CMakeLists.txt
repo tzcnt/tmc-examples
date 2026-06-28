@@ -336,8 +336,8 @@ make_exe(asio_prio
     examples/asio/prio.cpp
 )
 
-make_exe(asio_cancellation
-    examples/asio/result_each.cpp
+make_exe(asio_mux_tuple
+    examples/asio/mux_tuple.cpp
 )
 
 make_exe(asio_select
