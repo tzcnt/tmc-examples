@@ -204,6 +204,7 @@ TEST_F(CATEGORY, add_partition_numa) {
 #include "test_spawn_many_detach.ipp"
 #include "test_spawn_many_each.ipp"
 #include "test_spawn_many_fork.ipp"
+#include "test_mux_tuple.ipp"
 #include "test_spawn_tuple.ipp"
 
 #undef CATEGORY

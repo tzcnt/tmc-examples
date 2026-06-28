@@ -592,6 +592,7 @@ TEST_F(CATEGORY, partition_split_group_thread_hint_overlap) {
 #include "test_spawn_many_detach.ipp"
 #include "test_spawn_many_each.ipp"
 #include "test_spawn_many_fork.ipp"
+#include "test_mux_tuple.ipp"
 #include "test_spawn_tuple.ipp"
 
 #undef CATEGORY

@@ -35,6 +35,7 @@ protected:
 #include "test_spawn_many_detach.ipp"
 #include "test_spawn_many_each.ipp"
 #include "test_spawn_many_fork.ipp"
+#include "test_mux_tuple.ipp"
 #include "test_spawn_tuple.ipp"
 
 TEST_F(CATEGORY, destroy_running_braid) {

@@ -388,17 +388,21 @@ TEST_F(CATEGORY, spawn_many_each_replace_with_priority_run_on) {
 
     tmc::manual_reset_event gate;
     auto continuationExec = tmc::current_executor();
+    // The blocked task takes `gate` as a coroutine parameter, not a lambda
+    // capture: a capturing lambda coroutine invoked as a temporary here would
+    // leave each lazy task's frame pointing at a closure destroyed at the end of
+    // this initializer, a use-after-free once the task is resumed.
     std::array<tmc::task<int>, 2> tasks{
       []() -> tmc::task<int> {
         check_exec_prio(tmc::asio_executor(), 2);
         co_return 1;
       }(),
-      [&gate]() -> tmc::task<int> {
+      [](tmc::manual_reset_event& Gate) -> tmc::task<int> {
         check_exec_prio(tmc::asio_executor(), 2);
-        co_await gate;
+        co_await Gate;
         check_exec_prio(tmc::asio_executor(), 2);
         co_return 2;
-      }()};
+      }(gate)};
 
     auto select = tmc::spawn_many<2>(tasks.begin())
                     .run_on(tmc::asio_executor())
@@ -515,59 +519,70 @@ TEST_F(CATEGORY, spawn_tuple_each_with_priority_run_on) {
   }());
 }
 
-TEST_F(CATEGORY, spawn_tuple_each_replace_with_priority_run_on) {
+// mux_tuple has no run_on()/with_priority() fluent API (it initiates in its
+// constructor); instead it captures the current executor and priority at
+// construction. Constructed here on the cpu executor at priority 2, so its tasks
+// - and any restart()'d task - run on cpu@2, and the awaiting coroutine resumes
+// on cpu@2. This is the closest mux_tuple analogue of the spawn_tuple
+// result_each().replace() + run_on()/with_priority() test; the cross-executor
+// resume that run_on()/resume_on() exercise is not expressible with mux_tuple.
+//
+// The blocked slot's task takes `gate` as a coroutine *parameter*, not a lambda
+// capture. A capturing lambda coroutine invoked as a temporary leaves the lazy
+// task's frame pointing at a closure that is destroyed at the end of the
+// construction statement - a use-after-free of the captured reference once the
+// task is resumed.
+TEST_F(CATEGORY, mux_tuple_restart_with_priority) {
   tmc::async_main([]() -> tmc::task<int> {
     EXPECT_EQ(tmc::current_priority(), 0);
-    co_await tmc::change_priority(1);
-    EXPECT_EQ(tmc::current_priority(), 1);
+    co_await tmc::change_priority(2);
+    EXPECT_EQ(tmc::current_priority(), 2);
 
     tmc::manual_reset_event gate;
     auto continuationExec = tmc::current_executor();
 
-    auto select = tmc::spawn_tuple(
-                    []() -> tmc::task<int> {
-                      check_exec_prio(tmc::asio_executor(), 2);
-                      co_return 1;
-                    }(),
-                    [&gate]() -> tmc::task<int> {
-                      check_exec_prio(tmc::asio_executor(), 2);
-                      co_await gate;
-                      check_exec_prio(tmc::asio_executor(), 2);
-                      co_return 2;
-                    }())
-                    .run_on(tmc::asio_executor())
-                    .with_priority(2)
-                    .result_each();
+    tmc::mux_tuple mux(
+      []() -> tmc::task<int> {
+        check_exec_prio(tmc::cpu_executor(), 2);
+        co_return 1;
+      }(),
+      [](tmc::manual_reset_event& Gate) -> tmc::task<int> {
+        check_exec_prio(tmc::cpu_executor(), 2);
+        co_await Gate;
+        check_exec_prio(tmc::cpu_executor(), 2);
+        co_return 2;
+      }(gate)
+    );
 
-    auto idx = co_await select;
+    auto idx = co_await mux;
     EXPECT_EQ(idx, 0);
-    EXPECT_EQ(select.get<0>(), 1);
+    EXPECT_EQ(mux.get<0>(), 1);
     EXPECT_EQ(tmc::current_executor(), continuationExec);
-    EXPECT_EQ(tmc::current_priority(), 1);
+    EXPECT_EQ(tmc::current_priority(), 2);
 
-    select.replace<0>([]() -> tmc::task<int> {
-      check_exec_prio(tmc::asio_executor(), 2);
+    mux.restart<0>([]() -> tmc::task<int> {
+      check_exec_prio(tmc::cpu_executor(), 2);
       co_return 4;
     }());
 
-    idx = co_await select;
+    idx = co_await mux;
     EXPECT_EQ(idx, 0);
-    EXPECT_EQ(select.get<0>(), 4);
+    EXPECT_EQ(mux.get<0>(), 4);
     EXPECT_EQ(tmc::current_executor(), continuationExec);
-    EXPECT_EQ(tmc::current_priority(), 1);
+    EXPECT_EQ(tmc::current_priority(), 2);
 
     gate.set();
 
-    idx = co_await select;
+    idx = co_await mux;
     EXPECT_EQ(idx, 1);
-    EXPECT_EQ(select.get<1>(), 2);
+    EXPECT_EQ(mux.get<1>(), 2);
     EXPECT_EQ(tmc::current_executor(), continuationExec);
-    EXPECT_EQ(tmc::current_priority(), 1);
+    EXPECT_EQ(tmc::current_priority(), 2);
 
-    idx = co_await select;
-    EXPECT_EQ(idx, select.end());
+    idx = co_await mux;
+    EXPECT_EQ(idx, mux.end());
     EXPECT_EQ(tmc::current_executor(), continuationExec);
-    EXPECT_EQ(tmc::current_priority(), 1);
+    EXPECT_EQ(tmc::current_priority(), 2);
     co_return 0;
   }());
 }
