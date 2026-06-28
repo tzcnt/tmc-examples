@@ -567,6 +567,88 @@ TEST_F(CATEGORY, mux_tuple_restart_with_priority) {
   }());
 }
 
+// restart() takes an optional priority used to dispatch the awaitable. Each slot
+// is dispatched at an explicit priority different from the consumer's priority
+// (1); confirm each awaitable runs at its requested priority while the consumer
+// always resumes at its own priority on its own executor.
+TEST_F(CATEGORY, mux_tuple_restart_custom_priority) {
+  tmc::async_main([]() -> tmc::task<int> {
+    co_await tmc::change_priority(1);
+    EXPECT_EQ(tmc::current_priority(), 1);
+    auto continuationExec = tmc::current_executor();
+
+    tmc::mux_tuple<tmc::task<int>, tmc::task<int>> mux;
+
+    mux.restart<0>(
+      []() -> tmc::task<int> {
+        check_exec_prio(tmc::cpu_executor(), 3);
+        co_return 10;
+      }(),
+      tmc::cpu_executor(), 3
+    );
+    mux.restart<1>(
+      []() -> tmc::task<int> {
+        check_exec_prio(tmc::cpu_executor(), 5);
+        co_return 20;
+      }(),
+      tmc::cpu_executor(), 5
+    );
+
+    int sum = 0;
+    int count = 0;
+    for (auto idx = co_await mux; idx != mux.end(); idx = co_await mux) {
+      // The dispatch priority does not affect where/when the consumer resumes:
+      // it always resumes on the construction executor at its own priority.
+      EXPECT_EQ(tmc::current_executor(), continuationExec);
+      EXPECT_EQ(tmc::current_priority(), 1);
+      sum += (idx == 0) ? mux.get<0>() : mux.get<1>();
+      ++count;
+    }
+    EXPECT_EQ(count, 2);
+    EXPECT_EQ(sum, 30);
+    co_return 0;
+  }());
+}
+
+// restart() takes an optional executor used to dispatch the awaitable. One slot
+// is dispatched on the cpu executor (the default = current) and another on the
+// asio executor; confirm each runs on the requested executor while the consumer
+// always resumes on the executor that was current at construction (cpu).
+TEST_F(CATEGORY, mux_tuple_restart_custom_executor) {
+  tmc::async_main([]() -> tmc::task<int> {
+    co_await tmc::change_priority(1);
+    auto continuationExec = tmc::current_executor(); // cpu
+
+    tmc::mux_tuple<tmc::task<int>, tmc::task<int>> mux;
+
+    // Default executor = current executor (cpu).
+    mux.restart<0>([]() -> tmc::task<int> {
+      check_exec_prio(tmc::cpu_executor(), 1);
+      co_return 10;
+    }());
+    // Explicit executor = asio; default priority = current (1).
+    mux.restart<1>(
+      []() -> tmc::task<int> {
+        check_exec_prio(tmc::asio_executor(), 1);
+        co_return 20;
+      }(),
+      tmc::asio_executor()
+    );
+
+    int sum = 0;
+    int count = 0;
+    for (auto idx = co_await mux; idx != mux.end(); idx = co_await mux) {
+      EXPECT_EQ(tmc::current_executor(), continuationExec);
+      EXPECT_EQ(tmc::current_priority(), 1);
+      sum += (idx == 0) ? mux.get<0>() : mux.get<1>();
+      ++count;
+    }
+    EXPECT_EQ(count, 2);
+    EXPECT_EQ(sum, 30);
+    co_return 0;
+  }());
+}
+
 TEST_F(CATEGORY, aw_asio) {
   tmc::async_main([]() -> tmc::task<int> {
     EXPECT_EQ(tmc::current_priority(), 0);

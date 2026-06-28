@@ -395,6 +395,29 @@ TEST_F(CATEGORY, mux_tuple_restart_maintains_concurrency) {
   }());
 }
 
+// restart() accepts an optional executor and priority used to dispatch the
+// awaitable. Here both are given explicitly (the fixture's own executor at
+// priority 0); this exercises the explicit-argument overload on every executor
+// type the fixture set runs under. (Cross-executor and cross-priority dispatch is
+// verified more thoroughly in test_prio.cpp.)
+TEST_F(CATEGORY, mux_tuple_restart_explicit_executor_priority) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    auto work = [](int V) -> tmc::task<int> { co_return V; };
+    tmc::mux_tuple<tmc::task<int>, tmc::task<int>> mux;
+    mux.restart<0>(work(1), ex(), 0);
+    mux.restart<1>(work(2), ex(), 0);
+
+    int sum = 0;
+    int count = 0;
+    for (size_t i = co_await mux; i != mux.end(); i = co_await mux) {
+      sum += (i == 0) ? mux.get<0>() : mux.get<1>();
+      ++count;
+    }
+    EXPECT_EQ(count, 2);
+    EXPECT_EQ(sum, 3);
+  }());
+}
+
 /*** restart<I>() value categories and awaitable modes ***/
 
 // Mode TMC_TASK, movable rvalue replacement. The replacement tmc::task is a
