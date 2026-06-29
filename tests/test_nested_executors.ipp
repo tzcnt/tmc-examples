@@ -18,8 +18,7 @@ template <typename Executor> tmc::task<size_t> bounce(Executor& Exec) {
   size_t result = 0;
   for (size_t i = 0; i < 10; ++i) {
     auto outerExec = tmc::current_executor();
-    auto innerExec =
-      tmc::detail::get_executor_traits<Executor>::type_erased(Exec);
+    auto innerExec = tmc::detail::get_executor_traits<Executor>::type_erased(Exec);
     auto scope = co_await tmc::enter(Exec);
     EXPECT_EQ(tmc::current_executor(), innerExec);
     ++result;
@@ -136,8 +135,7 @@ TEST_F(CATEGORY, test_spawn_run_resume) {
 
     EXPECT_EQ(tmc::current_executor(), ex().type_erased());
 
-    co_await tmc::spawn([]() -> tmc::task<void> { co_return; }())
-      .resume_on(localEx);
+    co_await tmc::spawn([]() -> tmc::task<void> { co_return; }()).resume_on(localEx);
     EXPECT_EQ(tmc::current_executor(), localEx.type_erased());
 
     co_await tmc::resume_on(ex());
@@ -152,13 +150,11 @@ TEST_F(CATEGORY, test_spawn_fork_run_resume) {
     {
       atomic_awaitable<size_t> aa(1);
       auto t1 =
-        tmc::spawn(
-          [](tmc::ex_any* Ex, atomic_awaitable<size_t>& AA) -> tmc::task<void> {
-            EXPECT_EQ(tmc::current_executor(), Ex);
-            AA.inc();
-            co_return;
-          }(localEx.type_erased(), aa)
-        )
+        tmc::spawn([](tmc::ex_any* Ex, atomic_awaitable<size_t>& AA) -> tmc::task<void> {
+          EXPECT_EQ(tmc::current_executor(), Ex);
+          AA.inc();
+          co_return;
+        }(localEx.type_erased(), aa))
           .run_on(localEx)
           .fork();
 
@@ -232,8 +228,7 @@ TEST_F(CATEGORY, test_spawn_func_fork_run_resume) {
 
     {
       atomic_awaitable<size_t> aa(1);
-      auto t2 =
-        tmc::spawn_func([&]() -> void { aa.inc(); }).resume_on(localEx).fork();
+      auto t2 = tmc::spawn_func([&]() -> void { aa.inc(); }).resume_on(localEx).fork();
 
       // Ensure that the task completes first
       co_await aa;
@@ -275,16 +270,15 @@ TEST_F(CATEGORY, test_spawn_tuple_fork_run_resume) {
 
     {
       atomic_awaitable<size_t> aa(1);
-      auto t1 =
-        tmc::spawn_tuple(
-          [](tmc::ex_any* Ex, atomic_awaitable<size_t>& AA) -> tmc::task<void> {
-            EXPECT_EQ(tmc::current_executor(), Ex);
-            AA.inc();
-            co_return;
-          }(localEx.type_erased(), aa)
-        )
-          .run_on(localEx)
-          .fork();
+      auto t1 = tmc::spawn_tuple(
+                  [](tmc::ex_any* Ex, atomic_awaitable<size_t>& AA) -> tmc::task<void> {
+                    EXPECT_EQ(tmc::current_executor(), Ex);
+                    AA.inc();
+                    co_return;
+                  }(localEx.type_erased(), aa)
+      )
+                  .run_on(localEx)
+                  .fork();
 
       // Ensure that the task completes first
       co_await aa;
@@ -297,13 +291,12 @@ TEST_F(CATEGORY, test_spawn_tuple_fork_run_resume) {
 
     {
       atomic_awaitable<size_t> aa(1);
-      auto t2 =
-        tmc::spawn_tuple([](atomic_awaitable<size_t>& AA) -> tmc::task<void> {
-          AA.inc();
-          co_return;
-        }(aa))
-          .resume_on(localEx)
-          .fork();
+      auto t2 = tmc::spawn_tuple([](atomic_awaitable<size_t>& AA) -> tmc::task<void> {
+                  AA.inc();
+                  co_return;
+                }(aa))
+                  .resume_on(localEx)
+                  .fork();
       // Ensure that the task completes first
       co_await aa;
       EXPECT_EQ(tmc::current_executor(), ex().type_erased());
@@ -347,8 +340,7 @@ TEST_F(CATEGORY, test_spawn_many_fork_run_resume) {
 
     {
       atomic_awaitable<size_t> aa(1);
-      tasks[0] =
-        [](tmc::ex_any* Ex, atomic_awaitable<size_t>& AA) -> tmc::task<void> {
+      tasks[0] = [](tmc::ex_any* Ex, atomic_awaitable<size_t>& AA) -> tmc::task<void> {
         EXPECT_EQ(tmc::current_executor(), Ex);
         AA.inc();
         co_return;
@@ -383,7 +375,7 @@ TEST_F(CATEGORY, test_spawn_many_fork_run_resume) {
 }
 
 // mux_many captures its resume (continuation) executor at construction; it has
-// no run_on()/resume_on() fluent API. restart() instead dispatches each slot to
+// no run_on()/resume_on() fluent API. fork() instead dispatches each slot to
 // an explicit executor. These two blocks confirm that, wherever a slot runs, the
 // consumer resumes on the executor that was current when the mux was
 // constructed.
@@ -396,7 +388,7 @@ TEST_F(CATEGORY, mux_many_run_resume) {
     // consumer resumes on the fixture executor.
     {
       auto mux = tmc::mux_many<void, 1>();
-      mux.restart(
+      mux.fork(
         0,
         [](tmc::ex_any* Ex) -> tmc::task<void> {
           EXPECT_EQ(tmc::current_executor(), Ex);
@@ -421,7 +413,7 @@ TEST_F(CATEGORY, mux_many_run_resume) {
       EXPECT_EQ(tmc::current_executor(), localEx.type_erased());
 
       auto mux = tmc::mux_many<void, 1>();
-      mux.restart(
+      mux.fork(
         0,
         [](tmc::ex_any* Ex) -> tmc::task<void> {
           EXPECT_EQ(tmc::current_executor(), Ex);

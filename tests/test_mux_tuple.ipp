@@ -15,22 +15,22 @@
 
 // Tests for tmc::mux_tuple - a standalone result-multiplexer that initiates a
 // set of awaitables like tmc::spawn_tuple() but yields each result as it becomes
-// ready, and also supports an empty constructor (storage only) plus restart<I>()
+// ready, and also supports an empty constructor (storage only) plus fork<I>()
 // to (re)launch work into individual slots.
 //
-// restart<I>() (re)starts a slot of the group with a new awaitable. The
-// awaitable is initiated immediately (synchronously inside restart()) and joined
+// fork<I>() (re)starts a slot of the group with a new awaitable. The
+// awaitable is initiated immediately (synchronously inside fork()) and joined
 // by a later co_await of the group. These tests exercise every value category
 // (lvalue, movable rvalue, non-movable rvalue) and every runtime mode of
-// tmc::detail::awaitable_traits<T>::mode that restart() can be handed (TMC_TASK,
+// tmc::detail::awaitable_traits<T>::mode that fork() can be handed (TMC_TASK,
 // COROUTINE, ASYNC_INITIATE - both lvalue- and rvalue-qualified - and WRAPPER).
 // UNKNOWN is the not-an-awaitable case and is rejected by a static_assert inside
-// restart(), so it is not runtime-testable.
+// fork(), so it is not runtime-testable.
 //
-// The restart() tests use a deterministic skeleton: slot 0 is an
-// immediately-ready awaitable that is consumed and then restarted; slot 1 blocks
+// The fork() tests use a deterministic skeleton: slot 0 is an
+// immediately-ready awaitable that is consumed and then forked; slot 1 blocks
 // on an atomic_awaitable until the test releases it, so the group never reports
-// slot 1 before the restart has been observed.
+// slot 1 before the fork has been observed.
 
 /*** Eager constructor (initiates all awaitables like spawn_tuple()) ***/
 
@@ -171,12 +171,12 @@ TEST_F(CATEGORY, mux_tuple_eager_ctad_non_movable_rvalue) {
   }());
 }
 
-/*** Empty constructor (storage only; restart<I>() to launch work) ***/
+/*** Empty constructor (storage only; fork<I>() to launch work) ***/
 
 // The empty constructor allocates result storage but initiates nothing. The
-// template arguments must be provided explicitly. restart<I>() then launches
-// each slot, and slot 0 is restarted again after its first result is consumed.
-TEST_F(CATEGORY, mux_tuple_empty_constructor_restart_all) {
+// template arguments must be provided explicitly. fork<I>() then launches
+// each slot, and slot 0 is forked again after its first result is consumed.
+TEST_F(CATEGORY, mux_tuple_empty_constructor_fork_all) {
   test_async_main(ex(), []() -> tmc::task<void> {
     atomic_awaitable<int> block(1);
     auto immediate = [](int V) -> tmc::task<int> { co_return V; };
@@ -186,14 +186,14 @@ TEST_F(CATEGORY, mux_tuple_empty_constructor_restart_all) {
     };
 
     tmc::mux_tuple<tmc::task<int>, tmc::task<int>> mux; // storage only
-    mux.restart<0>(immediate(1));
-    mux.restart<1>(blocker(block));
+    mux.fork<0>(immediate(1));
+    mux.fork<1>(blocker(block));
 
     size_t idx = co_await mux;
     EXPECT_EQ(idx, 0u);
     EXPECT_EQ(mux.get<0>(), 1);
 
-    mux.restart<0>(immediate(2));
+    mux.fork<0>(immediate(2));
     idx = co_await mux;
     EXPECT_EQ(idx, 0u);
     EXPECT_EQ(mux.get<0>(), 2);
@@ -219,14 +219,14 @@ TEST_F(CATEGORY, mux_tuple_empty_drain) {
 }
 
 // Demonstrates the core use case: maintain a fixed level of concurrency by
-// restarting a slot with new work as soon as its previous result is consumed.
-TEST_F(CATEGORY, mux_tuple_restart_maintains_concurrency) {
+// forking a slot with new work as soon as its previous result is consumed.
+TEST_F(CATEGORY, mux_tuple_fork_maintains_concurrency) {
   test_async_main(ex(), []() -> tmc::task<void> {
     auto work = [](int V) -> tmc::task<int> { co_return V; };
 
     tmc::mux_tuple<tmc::task<int>, tmc::task<int>> mux;
-    mux.restart<0>(work(0));
-    mux.restart<1>(work(1));
+    mux.fork<0>(work(0));
+    mux.fork<1>(work(1));
 
     int produced = 0;
     int sum = 0;
@@ -242,30 +242,30 @@ TEST_F(CATEGORY, mux_tuple_restart_maintains_concurrency) {
       if (produced < 4) {
         int next = (produced + 1) * 10;
         if (i == 0) {
-          mux.restart<0>(work(next));
+          mux.fork<0>(work(next));
         } else {
-          mux.restart<1>(work(next));
+          mux.fork<1>(work(next));
         }
       }
     }
-    // First two results: 0 + 1. Then four restarts produced for produced in
-    // {1,2,3}: values 20, 30, 40 (3 restarts). 0+1+20+30+40 = 91.
+    // First two results: 0 + 1. Then four forks produced for produced in
+    // {1,2,3}: values 20, 30, 40 (3 forks). 0+1+20+30+40 = 91.
     EXPECT_EQ(produced, 5);
     EXPECT_EQ(sum, 0 + 1 + 20 + 30 + 40);
   }());
 }
 
-// restart() accepts an optional executor and priority used to dispatch the
+// fork() accepts an optional executor and priority used to dispatch the
 // awaitable. Here both are given explicitly (the fixture's own executor at
 // priority 0); this exercises the explicit-argument overload on every executor
 // type the fixture set runs under. (Cross-executor and cross-priority dispatch is
 // verified more thoroughly in test_prio.cpp.)
-TEST_F(CATEGORY, mux_tuple_restart_explicit_executor_priority) {
+TEST_F(CATEGORY, mux_tuple_fork_explicit_executor_priority) {
   test_async_main(ex(), []() -> tmc::task<void> {
     auto work = [](int V) -> tmc::task<int> { co_return V; };
     tmc::mux_tuple<tmc::task<int>, tmc::task<int>> mux;
-    mux.restart<0>(work(1), ex(), 0);
-    mux.restart<1>(work(2), ex(), 0);
+    mux.fork<0>(work(1), ex(), 0);
+    mux.fork<1>(work(2), ex(), 0);
 
     int sum = 0;
     int count = 0;
@@ -278,11 +278,11 @@ TEST_F(CATEGORY, mux_tuple_restart_explicit_executor_priority) {
   }());
 }
 
-/*** restart<I>() value categories and awaitable modes ***/
+/*** fork<I>() value categories and awaitable modes ***/
 
 // Mode TMC_TASK, movable rvalue replacement. The replacement tmc::task is a
-// prvalue, so it is moved into restart().
-TEST_F(CATEGORY, mux_tuple_restart_task_rvalue) {
+// prvalue, so it is moved into fork().
+TEST_F(CATEGORY, mux_tuple_fork_task_rvalue) {
   test_async_main(ex(), []() -> tmc::task<void> {
     atomic_awaitable<int> block(1);
     auto immediate = [](int V) -> tmc::task<int> { co_return V; };
@@ -294,7 +294,7 @@ TEST_F(CATEGORY, mux_tuple_restart_task_rvalue) {
     EXPECT_EQ(idx, 0u);
     EXPECT_EQ(mux.get<0>(), 1);
 
-    mux.restart<0>(immediate(4)); // TMC_TASK, movable rvalue
+    mux.fork<0>(immediate(4)); // TMC_TASK, movable rvalue
     idx = co_await mux;
     EXPECT_EQ(idx, 0u);
     EXPECT_EQ(mux.get<0>(), 4);
@@ -308,7 +308,7 @@ TEST_F(CATEGORY, mux_tuple_restart_task_rvalue) {
 }
 
 // Mode TMC_TASK, void result. The replaced slot is a std::monostate.
-TEST_F(CATEGORY, mux_tuple_restart_void) {
+TEST_F(CATEGORY, mux_tuple_fork_void) {
   test_async_main(ex(), []() -> tmc::task<void> {
     atomic_awaitable<int> block(1);
     auto immediate = []() -> tmc::task<void> { co_return; };
@@ -320,7 +320,7 @@ TEST_F(CATEGORY, mux_tuple_restart_void) {
     EXPECT_EQ(idx, 0u);
     [[maybe_unused]] std::monostate m0 = mux.get<0>(); // void -> monostate slot
 
-    mux.restart<0>(immediate()); // TMC_TASK, void
+    mux.fork<0>(immediate()); // TMC_TASK, void
     idx = co_await mux;
     EXPECT_EQ(idx, 0u);
     [[maybe_unused]] std::monostate m1 = mux.get<0>();
@@ -334,9 +334,9 @@ TEST_F(CATEGORY, mux_tuple_restart_void) {
 }
 
 // Mode TMC_TASK, non-default-constructible result. The slot is wrapped in a
-// std::optional, exercising restart()'s ResultStorage match (the static_assert)
+// std::optional, exercising fork()'s ResultStorage match (the static_assert)
 // and the optional-wrapped slot.
-TEST_F(CATEGORY, mux_tuple_restart_non_default_constructible) {
+TEST_F(CATEGORY, mux_tuple_fork_non_default_constructible) {
   struct NoDefault {
     int v;
     NoDefault() = delete;
@@ -356,7 +356,7 @@ TEST_F(CATEGORY, mux_tuple_restart_non_default_constructible) {
     EXPECT_EQ(idx, 0u);
     EXPECT_EQ(mux.get<0>()->v, 7); // get<0>() is std::optional<NoDefault>
 
-    mux.restart<0>(immediate(11));
+    mux.fork<0>(immediate(11));
     idx = co_await mux;
     EXPECT_EQ(idx, 0u);
     EXPECT_EQ(mux.get<0>()->v, 11);
@@ -370,7 +370,7 @@ TEST_F(CATEGORY, mux_tuple_restart_non_default_constructible) {
 }
 
 // Mode COROUTINE, movable rvalue replacement.
-TEST_F(CATEGORY, mux_tuple_restart_coroutine_mode) {
+TEST_F(CATEGORY, mux_tuple_fork_coroutine_mode) {
   test_async_main(ex(), []() -> tmc::task<void> {
     atomic_awaitable<int> block(1);
     auto immediate = [](int V) -> tmc::task<int> { co_return V; };
@@ -382,7 +382,7 @@ TEST_F(CATEGORY, mux_tuple_restart_coroutine_mode) {
     EXPECT_EQ(idx, 0u);
     EXPECT_EQ(mux.get<0>(), 1);
 
-    mux.restart<0>(mux_coroutine_op<int>{immediate(4)}); // COROUTINE, rvalue
+    mux.fork<0>(mux_coroutine_op<int>{immediate(4)}); // COROUTINE, rvalue
     idx = co_await mux;
     EXPECT_EQ(idx, 0u);
     EXPECT_EQ(mux.get<0>(), 4);
@@ -397,7 +397,7 @@ TEST_F(CATEGORY, mux_tuple_restart_coroutine_mode) {
 
 // Mode WRAPPER, movable rvalue replacement. safe_wrap() moves the awaitable into
 // the wrapper coroutine (consume-once).
-TEST_F(CATEGORY, mux_tuple_restart_wrapper_rvalue) {
+TEST_F(CATEGORY, mux_tuple_fork_wrapper_rvalue) {
   test_async_main(ex(), []() -> tmc::task<void> {
     atomic_awaitable<int> block(1);
     auto immediate = [](int V) -> tmc::task<int> { co_return V; };
@@ -409,7 +409,7 @@ TEST_F(CATEGORY, mux_tuple_restart_wrapper_rvalue) {
     EXPECT_EQ(idx, 0u);
     EXPECT_EQ(mux.get<0>(), 1);
 
-    mux.restart<0>(mux_wrapper_int{4}); // WRAPPER, movable rvalue
+    mux.fork<0>(mux_wrapper_int{4}); // WRAPPER, movable rvalue
     idx = co_await mux;
     EXPECT_EQ(idx, 0u);
     EXPECT_EQ(mux.get<0>(), 4);
@@ -425,7 +425,7 @@ TEST_F(CATEGORY, mux_tuple_restart_wrapper_rvalue) {
 // Mode WRAPPER, lvalue replacement. safe_wrap() borrows the awaitable by
 // reference and awaits it as an lvalue (re-awaitable); the lvalue must outlive
 // the group, so it is a named local kept alive until the drain completes.
-TEST_F(CATEGORY, mux_tuple_restart_wrapper_lvalue) {
+TEST_F(CATEGORY, mux_tuple_fork_wrapper_lvalue) {
   test_async_main(ex(), []() -> tmc::task<void> {
     atomic_awaitable<int> block(1);
     auto immediate = [](int V) -> tmc::task<int> { co_return V; };
@@ -438,7 +438,7 @@ TEST_F(CATEGORY, mux_tuple_restart_wrapper_lvalue) {
     EXPECT_EQ(mux.get<0>(), 1);
 
     mux_wrapper_int w{4};
-    mux.restart<0>(w); // WRAPPER, lvalue (borrowed by reference)
+    mux.fork<0>(w); // WRAPPER, lvalue (borrowed by reference)
     idx = co_await mux;
     EXPECT_EQ(idx, 0u);
     EXPECT_EQ(mux.get<0>(), 4);
@@ -453,7 +453,7 @@ TEST_F(CATEGORY, mux_tuple_restart_wrapper_lvalue) {
 
 // Mode ASYNC_INITIATE, lvalue-qualified (async_initiate(self_type&)). The
 // replacement is borrowed as an lvalue and driven to completion via inc().
-TEST_F(CATEGORY, mux_tuple_restart_async_initiate_lvalue) {
+TEST_F(CATEGORY, mux_tuple_fork_async_initiate_lvalue) {
   test_async_main(ex(), []() -> tmc::task<void> {
     atomic_awaitable<int> block(1);
     auto immediate = []() -> tmc::task<void> { co_return; };
@@ -467,8 +467,8 @@ TEST_F(CATEGORY, mux_tuple_restart_async_initiate_lvalue) {
     // atomic_awaitable is an lvalue-qualified ASYNC_INITIATE awaitable (void
     // result -> monostate slot, matching the void task it replaces).
     atomic_awaitable<int> repl(1);
-    mux.restart<0>(repl); // lvalue
-    repl.inc();           // drive completion
+    mux.fork<0>(repl); // lvalue
+    repl.inc();        // drive completion
     idx = co_await mux;
     EXPECT_EQ(idx, 0u);
 
@@ -484,7 +484,7 @@ TEST_F(CATEGORY, mux_tuple_restart_async_initiate_lvalue) {
 // replacement is a non-movable, consume-once awaitable; it is passed as an
 // rvalue but borrowed in place (it can't be moved) and so is a named local kept
 // alive until the drain completes, driven via complete().
-TEST_F(CATEGORY, mux_tuple_restart_async_initiate_rvalue) {
+TEST_F(CATEGORY, mux_tuple_fork_async_initiate_rvalue) {
   test_async_main(ex(), []() -> tmc::task<void> {
     atomic_awaitable<int> block(1);
     auto immediate = []() -> tmc::task<void> { co_return; };
@@ -495,9 +495,9 @@ TEST_F(CATEGORY, mux_tuple_restart_async_initiate_rvalue) {
     size_t idx = co_await mux;
     EXPECT_EQ(idx, 0u);
 
-    mux_rvalue_async_op repl;        // rvalue-qualified, non-movable, void result
-    mux.restart<0>(std::move(repl)); // rvalue
-    repl.complete();                 // drive completion
+    mux_rvalue_async_op repl;     // rvalue-qualified, non-movable, void result
+    mux.fork<0>(std::move(repl)); // rvalue
+    repl.complete();              // drive completion
     idx = co_await mux;
     EXPECT_EQ(idx, 0u);
 

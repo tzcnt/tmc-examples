@@ -16,13 +16,13 @@
 // Tests for tmc::mux_many - a standalone result-multiplexer that eagerly
 // initiates a homogeneous set of awaitables like tmc::spawn_many() but yields
 // each result as it becomes ready, and also supports empty constructors (storage
-// only) plus restart(idx, ...) to (re)launch work into individual slots.
+// only) plus fork(idx, ...) to (re)launch work into individual slots.
 //
 // The eager-construction tests below are ported from the former
-// tmc::spawn_many().result_each() tests. The restart()/empty-constructor tests
+// tmc::spawn_many().result_each() tests. The fork()/empty-constructor tests
 // mirror the tmc::mux_tuple tests; they exercise every value category (lvalue,
 // movable rvalue, non-movable rvalue) and every runtime mode of
-// tmc::detail::awaitable_traits<T>::mode that restart() can be handed (TMC_TASK,
+// tmc::detail::awaitable_traits<T>::mode that fork() can be handed (TMC_TASK,
 // COROUTINE, ASYNC_INITIATE - both lvalue- and rvalue-qualified - and WRAPPER).
 // The shared helper awaitables live in test_mux_common.hpp.
 
@@ -39,8 +39,7 @@ template <int N> tmc::task<void> mux_many_static_sized_iterator() {
     results[idx] = mux[idx];
   }
 
-  [[maybe_unused]] auto sum =
-    std::accumulate(results.begin(), results.end(), 0);
+  [[maybe_unused]] auto sum = std::accumulate(results.begin(), results.end(), 0);
 
   EXPECT_EQ(sum, (1 << N) - 1);
 
@@ -116,11 +115,9 @@ template <int N> tmc::task<void> mux_many_dynamic_known_sized_iterator() {
     results.push_back(mux[idx]);
   }
 
-  [[maybe_unused]] auto taskCount =
-    static_cast<size_t>(iter.end() - iter.begin());
+  [[maybe_unused]] auto taskCount = static_cast<size_t>(iter.end() - iter.begin());
 
-  [[maybe_unused]] auto sum =
-    std::accumulate(results.begin(), results.end(), 0);
+  [[maybe_unused]] auto sum = std::accumulate(results.begin(), results.end(), 0);
   EXPECT_EQ(sum, (1 << N) - 1 - 8);
   EXPECT_EQ(results.size(), taskCount);
 
@@ -138,8 +135,7 @@ template <int N> tmc::task<void> mux_many_dynamic_unknown_sized_iterator() {
     results.push_back(mux[idx]);
   }
 
-  [[maybe_unused]] auto sum =
-    std::accumulate(results.begin(), results.end(), 0);
+  [[maybe_unused]] auto sum = std::accumulate(results.begin(), results.end(), 0);
 
   EXPECT_EQ(sum, (1 << N) - 1 - 8);
 
@@ -239,14 +235,13 @@ TEST_F(CATEGORY, mux_many_resume_after) {
     static constexpr int N = 5;
     for (int i = 0; i < N; ++i) {
       atomic_awaitable<int> aa(i);
-      auto iter =
-        std::ranges::views::iota(0, i) |
-        std::ranges::views::transform([&aa](int idx) -> tmc::task<int> {
-          return [](int I, atomic_awaitable<int>& AA) -> tmc::task<int> {
-            AA.inc();
-            co_return 1 << I;
-          }(idx, aa);
-        });
+      auto iter = std::ranges::views::iota(0, i) |
+                  std::ranges::views::transform([&aa](int idx) -> tmc::task<int> {
+                    return [](int I, atomic_awaitable<int>& AA) -> tmc::task<int> {
+                      AA.inc();
+                      co_return 1 << I;
+                    }(idx, aa);
+                  });
       auto mux = tmc::mux_many(iter);
       co_await aa;
       std::vector<int> results(static_cast<size_t>(i), 0);
@@ -254,8 +249,7 @@ TEST_F(CATEGORY, mux_many_resume_after) {
         results[idx] = mux[idx];
       }
 
-      [[maybe_unused]] auto sum =
-        std::accumulate(results.begin(), results.end(), 0);
+      [[maybe_unused]] auto sum = std::accumulate(results.begin(), results.end(), 0);
 
       EXPECT_EQ(sum, (1 << i) - 1);
     }
@@ -270,7 +264,8 @@ TEST_F(CATEGORY, mux_many_resume_after) {
 TEST_F(CATEGORY, mux_many_eager_wrapper_mode) {
   test_async_main(ex(), []() -> tmc::task<void> {
     std::array<mux_wrapper_int, 3> arr{
-      mux_wrapper_int{1}, mux_wrapper_int{2}, mux_wrapper_int{4}};
+      mux_wrapper_int{1}, mux_wrapper_int{2}, mux_wrapper_int{4}
+    };
     std::array<int, 3> results{};
     auto mux = tmc::mux_many<3>(arr.begin());
     int count = 0;
@@ -290,11 +285,9 @@ TEST_F(CATEGORY, mux_many_eager_wrapper_mode) {
 TEST_F(CATEGORY, mux_many_eager_coroutine_unknown) {
   test_async_main(ex(), []() -> tmc::task<void> {
     static constexpr int N = 5;
-    auto iter = std::ranges::views::iota(0, N) |
-                std::ranges::views::filter(unpredictable_filter) |
-                std::ranges::views::transform([](int i) {
-                  return mux_coroutine_op<int>{work(i)};
-                });
+    auto iter =
+      std::ranges::views::iota(0, N) | std::ranges::views::filter(unpredictable_filter) |
+      std::ranges::views::transform([](int i) { return mux_coroutine_op<int>{work(i)}; });
     std::vector<int> results;
     auto mux = tmc::mux_many(iter.begin(), iter.end());
     for (auto idx = co_await mux; idx != mux.end(); idx = co_await mux) {
@@ -344,23 +337,21 @@ TEST_F(CATEGORY, mux_many_eager_empty_unknown_iterator) {
 // early-out.
 TEST_F(CATEGORY, mux_many_eager_empty_unknown_coroutine_iterator) {
   test_async_main(ex(), []() -> tmc::task<void> {
-    auto iter = std::ranges::views::iota(0, 0) |
-                std::ranges::views::filter(unpredictable_filter) |
-                std::ranges::views::transform([](int i) {
-                  return mux_coroutine_op<int>{work(i)};
-                });
+    auto iter =
+      std::ranges::views::iota(0, 0) | std::ranges::views::filter(unpredictable_filter) |
+      std::ranges::views::transform([](int i) { return mux_coroutine_op<int>{work(i)}; });
     auto mux = tmc::mux_many(iter.begin(), iter.end());
     size_t idx = co_await mux;
     EXPECT_EQ(idx, mux.end());
   }());
 }
 
-/*** Empty constructors (storage only; restart(idx, ...) to launch work) ***/
+/*** Empty constructors (storage only; fork(idx, ...) to launch work) ***/
 
 // The empty constructor allocates result storage but initiates nothing. The
-// Result type and Count must be provided explicitly. restart() then launches
-// each slot, and slot 0 is restarted again after its first result is consumed.
-TEST_F(CATEGORY, mux_many_empty_constructor_restart_all) {
+// Result type and Count must be provided explicitly. fork() then launches
+// each slot, and slot 0 is forked again after its first result is consumed.
+TEST_F(CATEGORY, mux_many_empty_constructor_fork_all) {
   test_async_main(ex(), []() -> tmc::task<void> {
     atomic_awaitable<int> block(1);
     auto immediate = [](int V) -> tmc::task<int> { co_return V; };
@@ -370,14 +361,14 @@ TEST_F(CATEGORY, mux_many_empty_constructor_restart_all) {
     };
 
     auto mux = tmc::mux_many<int, 2>(); // storage only
-    mux.restart(0, immediate(1));
-    mux.restart(1, blocker(block));
+    mux.fork(0, immediate(1));
+    mux.fork(1, blocker(block));
 
     size_t idx = co_await mux;
     EXPECT_EQ(idx, 0u);
     EXPECT_EQ(mux[0], 1);
 
-    mux.restart(0, immediate(2));
+    mux.fork(0, immediate(2));
     idx = co_await mux;
     EXPECT_EQ(idx, 0u);
     EXPECT_EQ(mux[0], 2);
@@ -392,15 +383,15 @@ TEST_F(CATEGORY, mux_many_empty_constructor_restart_all) {
 }
 
 // A runtime-sized (std::vector) empty mux_many: capacity is fixed at
-// construction, and each slot is launched with restart().
-TEST_F(CATEGORY, mux_many_empty_runtime_vector_restart_all) {
+// construction, and each slot is launched with fork().
+TEST_F(CATEGORY, mux_many_empty_runtime_vector_fork_all) {
   test_async_main(ex(), []() -> tmc::task<void> {
     auto work = [](int V) -> tmc::task<int> { co_return V; };
 
     auto mux = tmc::mux_many<int>(size_t{3}); // runtime-sized storage
-    mux.restart(0, work(1));
-    mux.restart(1, work(2));
-    mux.restart(2, work(4));
+    mux.fork(0, work(1));
+    mux.fork(1, work(2));
+    mux.fork(2, work(4));
 
     int sum = 0;
     int count = 0;
@@ -422,8 +413,8 @@ TEST_F(CATEGORY, mux_many_empty_runtime_vector_capacity_clamp) {
 
     // Request more than the bitmask can hold; capacity is clamped internally.
     auto mux = tmc::mux_many<int>(static_cast<size_t>(TMC_PLATFORM_BITS + 8));
-    mux.restart(0, work(1));
-    mux.restart(TMC_PLATFORM_BITS - 2, work(2)); // highest valid slot index
+    mux.fork(0, work(1));
+    mux.fork(TMC_PLATFORM_BITS - 2, work(2)); // highest valid slot index
 
     int sum = 0;
     int count = 0;
@@ -447,14 +438,14 @@ TEST_F(CATEGORY, mux_many_empty_drain) {
 }
 
 // Demonstrates the core use case: maintain a fixed level of concurrency by
-// restarting a slot with new work as soon as its previous result is consumed.
-TEST_F(CATEGORY, mux_many_restart_maintains_concurrency) {
+// forking a slot with new work as soon as its previous result is consumed.
+TEST_F(CATEGORY, mux_many_fork_maintains_concurrency) {
   test_async_main(ex(), []() -> tmc::task<void> {
     auto work = [](int V) -> tmc::task<int> { co_return V; };
 
     auto mux = tmc::mux_many<int, 2>();
-    mux.restart(0, work(0));
-    mux.restart(1, work(1));
+    mux.fork(0, work(0));
+    mux.fork(1, work(1));
 
     int produced = 0;
     int sum = 0;
@@ -463,27 +454,27 @@ TEST_F(CATEGORY, mux_many_restart_maintains_concurrency) {
       ++produced;
       if (produced < 4) {
         int next = (produced + 1) * 10;
-        mux.restart(i, work(next));
+        mux.fork(i, work(next));
       }
     }
-    // First two results: 0 + 1. Then restarts produced for produced in {1,2,3}:
+    // First two results: 0 + 1. Then forks produced for produced in {1,2,3}:
     // values 20, 30, 40. 0+1+20+30+40 = 91.
     EXPECT_EQ(produced, 5);
     EXPECT_EQ(sum, 0 + 1 + 20 + 30 + 40);
   }());
 }
 
-// restart() accepts an optional executor and priority used to dispatch the
+// fork() accepts an optional executor and priority used to dispatch the
 // awaitable. Here both are given explicitly (the fixture's own executor at
 // priority 0); this exercises the explicit-argument overload on every executor
 // type the fixture set runs under. (Cross-executor and cross-priority dispatch
 // is verified more thoroughly in test_prio.cpp.)
-TEST_F(CATEGORY, mux_many_restart_explicit_executor_priority) {
+TEST_F(CATEGORY, mux_many_fork_explicit_executor_priority) {
   test_async_main(ex(), []() -> tmc::task<void> {
     auto work = [](int V) -> tmc::task<int> { co_return V; };
     auto mux = tmc::mux_many<int, 2>();
-    mux.restart(0, work(1), ex(), 0);
-    mux.restart(1, work(2), ex(), 0);
+    mux.fork(0, work(1), ex(), 0);
+    mux.fork(1, work(2), ex(), 0);
 
     int sum = 0;
     int count = 0;
@@ -496,11 +487,11 @@ TEST_F(CATEGORY, mux_many_restart_explicit_executor_priority) {
   }());
 }
 
-/*** restart(idx, ...) value categories and awaitable modes ***/
+/*** fork(idx, ...) value categories and awaitable modes ***/
 
 // Mode TMC_TASK, movable rvalue replacement. The replacement tmc::task is a
-// prvalue, so it is moved into restart().
-TEST_F(CATEGORY, mux_many_restart_task_rvalue) {
+// prvalue, so it is moved into fork().
+TEST_F(CATEGORY, mux_many_fork_task_rvalue) {
   test_async_main(ex(), []() -> tmc::task<void> {
     atomic_awaitable<int> block(1);
     auto immediate = [](int V) -> tmc::task<int> { co_return V; };
@@ -516,7 +507,7 @@ TEST_F(CATEGORY, mux_many_restart_task_rvalue) {
     EXPECT_EQ(idx, 0u);
     EXPECT_EQ(mux[0], 1);
 
-    mux.restart(0, immediate(4)); // TMC_TASK, movable rvalue
+    mux.fork(0, immediate(4)); // TMC_TASK, movable rvalue
     idx = co_await mux;
     EXPECT_EQ(idx, 0u);
     EXPECT_EQ(mux[0], 4);
@@ -530,7 +521,7 @@ TEST_F(CATEGORY, mux_many_restart_task_rvalue) {
 }
 
 // Mode TMC_TASK, void result. operator[] is a no-op.
-TEST_F(CATEGORY, mux_many_restart_void) {
+TEST_F(CATEGORY, mux_many_fork_void) {
   test_async_main(ex(), []() -> tmc::task<void> {
     atomic_awaitable<int> block(1);
     auto immediate = []() -> tmc::task<void> { co_return; };
@@ -543,7 +534,7 @@ TEST_F(CATEGORY, mux_many_restart_void) {
     EXPECT_EQ(idx, 0u);
     mux[0]; // void no-op
 
-    mux.restart(0, immediate()); // TMC_TASK, void
+    mux.fork(0, immediate()); // TMC_TASK, void
     idx = co_await mux;
     EXPECT_EQ(idx, 0u);
     mux[0];
@@ -557,9 +548,9 @@ TEST_F(CATEGORY, mux_many_restart_void) {
 }
 
 // Mode TMC_TASK, non-default-constructible result. The slot is wrapped in a
-// std::optional, exercising restart()'s ResultStorage match (the static_assert)
+// std::optional, exercising fork()'s ResultStorage match (the static_assert)
 // and the optional-wrapped slot.
-TEST_F(CATEGORY, mux_many_restart_non_default_constructible) {
+TEST_F(CATEGORY, mux_many_fork_non_default_constructible) {
   struct NoDefault {
     int v;
     NoDefault() = delete;
@@ -580,7 +571,7 @@ TEST_F(CATEGORY, mux_many_restart_non_default_constructible) {
     EXPECT_EQ(idx, 0u);
     EXPECT_EQ(mux[0]->v, 7); // mux[0] is std::optional<NoDefault>
 
-    mux.restart(0, immediate(11));
+    mux.fork(0, immediate(11));
     idx = co_await mux;
     EXPECT_EQ(idx, 0u);
     EXPECT_EQ(mux[0]->v, 11);
@@ -594,7 +585,7 @@ TEST_F(CATEGORY, mux_many_restart_non_default_constructible) {
 }
 
 // Mode COROUTINE, movable rvalue replacement.
-TEST_F(CATEGORY, mux_many_restart_coroutine_mode) {
+TEST_F(CATEGORY, mux_many_fork_coroutine_mode) {
   test_async_main(ex(), []() -> tmc::task<void> {
     atomic_awaitable<int> block(1);
     auto immediate = [](int V) -> tmc::task<int> { co_return V; };
@@ -610,7 +601,7 @@ TEST_F(CATEGORY, mux_many_restart_coroutine_mode) {
     EXPECT_EQ(idx, 0u);
     EXPECT_EQ(mux[0], 1);
 
-    mux.restart(0, mux_coroutine_op<int>{immediate(4)}); // COROUTINE, rvalue
+    mux.fork(0, mux_coroutine_op<int>{immediate(4)}); // COROUTINE, rvalue
     idx = co_await mux;
     EXPECT_EQ(idx, 0u);
     EXPECT_EQ(mux[0], 4);
@@ -625,7 +616,7 @@ TEST_F(CATEGORY, mux_many_restart_coroutine_mode) {
 
 // Mode WRAPPER, movable rvalue replacement. safe_wrap() moves the awaitable into
 // the wrapper coroutine (consume-once).
-TEST_F(CATEGORY, mux_many_restart_wrapper_rvalue) {
+TEST_F(CATEGORY, mux_many_fork_wrapper_rvalue) {
   test_async_main(ex(), []() -> tmc::task<void> {
     atomic_awaitable<int> block(1);
     auto immediate = [](int V) -> tmc::task<int> { co_return V; };
@@ -641,7 +632,7 @@ TEST_F(CATEGORY, mux_many_restart_wrapper_rvalue) {
     EXPECT_EQ(idx, 0u);
     EXPECT_EQ(mux[0], 1);
 
-    mux.restart(0, mux_wrapper_int{4}); // WRAPPER, movable rvalue
+    mux.fork(0, mux_wrapper_int{4}); // WRAPPER, movable rvalue
     idx = co_await mux;
     EXPECT_EQ(idx, 0u);
     EXPECT_EQ(mux[0], 4);
@@ -657,7 +648,7 @@ TEST_F(CATEGORY, mux_many_restart_wrapper_rvalue) {
 // Mode WRAPPER, lvalue replacement. safe_wrap() borrows the awaitable by
 // reference and awaits it as an lvalue (re-awaitable); the lvalue must outlive
 // the group, so it is a named local kept alive until the drain completes.
-TEST_F(CATEGORY, mux_many_restart_wrapper_lvalue) {
+TEST_F(CATEGORY, mux_many_fork_wrapper_lvalue) {
   test_async_main(ex(), []() -> tmc::task<void> {
     atomic_awaitable<int> block(1);
     auto immediate = [](int V) -> tmc::task<int> { co_return V; };
@@ -674,7 +665,7 @@ TEST_F(CATEGORY, mux_many_restart_wrapper_lvalue) {
     EXPECT_EQ(mux[0], 1);
 
     mux_wrapper_int w{4};
-    mux.restart(0, w); // WRAPPER, lvalue (borrowed by reference)
+    mux.fork(0, w); // WRAPPER, lvalue (borrowed by reference)
     idx = co_await mux;
     EXPECT_EQ(idx, 0u);
     EXPECT_EQ(mux[0], 4);
@@ -689,7 +680,7 @@ TEST_F(CATEGORY, mux_many_restart_wrapper_lvalue) {
 
 // Mode ASYNC_INITIATE, lvalue-qualified (async_initiate(self_type&)). The
 // replacement is borrowed as an lvalue and driven to completion via inc().
-TEST_F(CATEGORY, mux_many_restart_async_initiate_lvalue) {
+TEST_F(CATEGORY, mux_many_fork_async_initiate_lvalue) {
   test_async_main(ex(), []() -> tmc::task<void> {
     atomic_awaitable<int> block(1);
     auto immediate = []() -> tmc::task<void> { co_return; };
@@ -704,8 +695,8 @@ TEST_F(CATEGORY, mux_many_restart_async_initiate_lvalue) {
     // atomic_awaitable is an lvalue-qualified ASYNC_INITIATE awaitable (void
     // result, matching the void task it replaces).
     atomic_awaitable<int> repl(1);
-    mux.restart(0, repl); // lvalue
-    repl.inc();           // drive completion
+    mux.fork(0, repl); // lvalue
+    repl.inc();        // drive completion
     idx = co_await mux;
     EXPECT_EQ(idx, 0u);
 
@@ -721,7 +712,7 @@ TEST_F(CATEGORY, mux_many_restart_async_initiate_lvalue) {
 // replacement is a non-movable, consume-once awaitable; it is passed as an
 // rvalue but borrowed in place (it can't be moved) and so is a named local kept
 // alive until the drain completes, driven via complete().
-TEST_F(CATEGORY, mux_many_restart_async_initiate_rvalue) {
+TEST_F(CATEGORY, mux_many_fork_async_initiate_rvalue) {
   test_async_main(ex(), []() -> tmc::task<void> {
     atomic_awaitable<int> block(1);
     auto immediate = []() -> tmc::task<void> { co_return; };
@@ -733,9 +724,9 @@ TEST_F(CATEGORY, mux_many_restart_async_initiate_rvalue) {
     size_t idx = co_await mux;
     EXPECT_EQ(idx, 0u);
 
-    mux_rvalue_async_op repl;        // rvalue-qualified, non-movable, void result
-    mux.restart(0, std::move(repl)); // rvalue
-    repl.complete();                 // drive completion
+    mux_rvalue_async_op repl;     // rvalue-qualified, non-movable, void result
+    mux.fork(0, std::move(repl)); // rvalue
+    repl.complete();              // drive completion
     idx = co_await mux;
     EXPECT_EQ(idx, 0u);
 

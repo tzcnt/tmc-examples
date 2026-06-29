@@ -1,10 +1,10 @@
 // Shared awaitable helper types for the mux_tuple and mux_many tests. These
 // exercise every runtime mode of tmc::detail::awaitable_traits<T>::mode that
-// restart() can be handed (TMC_TASK and COROUTINE via tmc::task and
+// fork() can be handed (TMC_TASK and COROUTINE via tmc::task and
 // mux_coroutine_op, ASYNC_INITIATE - both lvalue- and rvalue-qualified - via
 // atomic_awaitable and mux_rvalue_async_op, and WRAPPER via mux_wrapper_int).
 // UNKNOWN is the not-an-awaitable case and is rejected by a static_assert inside
-// restart(), so it is not runtime-testable.
+// fork(), so it is not runtime-testable.
 
 #pragma once
 
@@ -78,7 +78,7 @@ template <IsMuxCoroutineOp Awaitable> struct awaitable_traits<Awaitable> {
 // An rvalue-qualified (consume-once), non-movable, void-result ASYNC_INITIATE
 // awaitable: its trait's async_initiate takes self_type&&. It is non-movable and
 // reads `this`, so even when passed as an rvalue it is borrowed (not moved) by
-// restart() and remains valid to drive in place. Completion is driven by
+// fork() and remains valid to drive in place. Completion is driven by
 // complete(). Mirrors the rvalue_cancellable_op used by the select() tests.
 struct MuxRvalueAsyncOpTag {};
 

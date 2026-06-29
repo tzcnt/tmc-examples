@@ -51,34 +51,27 @@ void check_exec_prio(Exec&& ExpectedExecutor, size_t ExpectedPriority) {
 }
 
 // Enter and exit the various executors and braids running on those executors.
-// Verify that the initial priority is properly captured and restored each time.
-static tmc::task<void> jump_around(
-  tmc::ex_braid* CpuBraid, tmc::ex_braid* AsioBraid, size_t ExpectedPriority
-) {
+// Verify that the initial priority is  properly captured and restored each time.
+static tmc::task<void>
+jump_around(tmc::ex_braid* CpuBraid, tmc::ex_braid* AsioBraid, size_t ExpectedPriority) {
   co_await tmc::change_priority(ExpectedPriority);
   EXPECT_EQ(
     tmc::current_executor(),
-    tmc::detail::get_executor_traits<tmc::ex_cpu>::type_erased(
-      tmc::cpu_executor()
-    )
+    tmc::detail::get_executor_traits<tmc::ex_cpu>::type_erased(tmc::cpu_executor())
   );
   EXPECT_EQ(tmc::current_priority(), ExpectedPriority);
 
   // Also test the exec_is, prio_is, and exec_prio_is detail functions
   EXPECT_TRUE(
     tmc::detail::this_thread::exec_is(
-      tmc::detail::get_executor_traits<tmc::ex_cpu>::type_erased(
-        tmc::cpu_executor()
-      )
+      tmc::detail::get_executor_traits<tmc::ex_cpu>::type_erased(tmc::cpu_executor())
     )
   );
   EXPECT_TRUE(tmc::detail::this_thread::prio_is(ExpectedPriority));
 
   EXPECT_TRUE(
     tmc::detail::this_thread::exec_prio_is(
-      tmc::detail::get_executor_traits<tmc::ex_cpu>::type_erased(
-        tmc::cpu_executor()
-      ),
+      tmc::detail::get_executor_traits<tmc::ex_cpu>::type_erased(tmc::cpu_executor()),
       ExpectedPriority
     )
   );
@@ -93,18 +86,14 @@ static tmc::task<void> jump_around(
   co_await cpuBraidScope.exit();
   EXPECT_EQ(
     tmc::current_executor(),
-    tmc::detail::get_executor_traits<tmc::ex_cpu>::type_erased(
-      tmc::cpu_executor()
-    )
+    tmc::detail::get_executor_traits<tmc::ex_cpu>::type_erased(tmc::cpu_executor())
   );
   EXPECT_EQ(tmc::current_priority(), ExpectedPriority);
 
   auto asioScope = co_await tmc::enter(tmc::asio_executor());
   EXPECT_EQ(
     tmc::current_executor(),
-    tmc::detail::get_executor_traits<tmc::ex_asio>::type_erased(
-      tmc::asio_executor()
-    )
+    tmc::detail::get_executor_traits<tmc::ex_asio>::type_erased(tmc::asio_executor())
   );
   EXPECT_EQ(tmc::current_priority(), ExpectedPriority);
 
@@ -229,9 +218,7 @@ TEST_F(CATEGORY, spawn_func_with_priority_run_on) {
     EXPECT_EQ(tmc::current_priority(), 0);
     co_await tmc::change_priority(1);
     EXPECT_EQ(tmc::current_priority(), 1);
-    co_await tmc::spawn_func([]() -> void {
-      EXPECT_EQ(tmc::current_priority(), 2);
-    })
+    co_await tmc::spawn_func([]() -> void { EXPECT_EQ(tmc::current_priority(), 2); })
       .run_on(tmc::asio_executor())
       .with_priority(2);
     EXPECT_EQ(tmc::current_priority(), 1);
@@ -352,7 +339,7 @@ TEST_F(CATEGORY, spawn_func_many_with_priority_run_on) {
 // mux_many has no run_on()/with_priority() fluent API (it initiates in its
 // constructor); instead it captures the current executor and priority at
 // construction. Constructed here on the cpu executor at priority 2, so its tasks
-// - and any restart()'d task that uses the default executor/priority - run on
+// - and any fork()'d task that uses the default executor/priority - run on
 // cpu@2, and the awaiting coroutine resumes on cpu@2. This is the closest
 // mux_many analogue of the spawn_many result_each().replace() +
 // run_on()/with_priority() test; the cross-executor resume that
@@ -363,7 +350,7 @@ TEST_F(CATEGORY, spawn_func_many_with_priority_run_on) {
 // task's frame pointing at a closure that is destroyed at the end of the
 // construction statement - a use-after-free of the captured reference once the
 // task is resumed.
-TEST_F(CATEGORY, mux_many_restart_with_priority) {
+TEST_F(CATEGORY, mux_many_fork_with_priority) {
   tmc::async_main([]() -> tmc::task<int> {
     EXPECT_EQ(tmc::current_priority(), 0);
     co_await tmc::change_priority(2);
@@ -382,7 +369,8 @@ TEST_F(CATEGORY, mux_many_restart_with_priority) {
         co_await Gate;
         check_exec_prio(tmc::cpu_executor(), 2);
         co_return 2;
-      }(gate)};
+      }(gate)
+    };
     auto mux = tmc::mux_many<2>(tasks.begin());
 
     auto idx = co_await mux;
@@ -391,7 +379,7 @@ TEST_F(CATEGORY, mux_many_restart_with_priority) {
     EXPECT_EQ(tmc::current_executor(), continuationExec);
     EXPECT_EQ(tmc::current_priority(), 2);
 
-    mux.restart(0, []() -> tmc::task<int> {
+    mux.fork(0, []() -> tmc::task<int> {
       check_exec_prio(tmc::cpu_executor(), 2);
       co_return 4;
     }());
@@ -418,11 +406,11 @@ TEST_F(CATEGORY, mux_many_restart_with_priority) {
   }());
 }
 
-// restart() takes an optional priority used to dispatch the awaitable. Each slot
+// fork() takes an optional priority used to dispatch the awaitable. Each slot
 // is dispatched at an explicit priority different from the consumer's priority
 // (1); confirm each awaitable runs at its requested priority while the consumer
 // always resumes at its own priority on its own executor.
-TEST_F(CATEGORY, mux_many_restart_custom_priority) {
+TEST_F(CATEGORY, mux_many_fork_custom_priority) {
   tmc::async_main([]() -> tmc::task<int> {
     co_await tmc::change_priority(1);
     EXPECT_EQ(tmc::current_priority(), 1);
@@ -430,7 +418,7 @@ TEST_F(CATEGORY, mux_many_restart_custom_priority) {
 
     auto mux = tmc::mux_many<int, 2>();
 
-    mux.restart(
+    mux.fork(
       0,
       []() -> tmc::task<int> {
         check_exec_prio(tmc::cpu_executor(), 3);
@@ -438,7 +426,7 @@ TEST_F(CATEGORY, mux_many_restart_custom_priority) {
       }(),
       tmc::cpu_executor(), 3
     );
-    mux.restart(
+    mux.fork(
       1,
       []() -> tmc::task<int> {
         check_exec_prio(tmc::cpu_executor(), 5);
@@ -463,11 +451,11 @@ TEST_F(CATEGORY, mux_many_restart_custom_priority) {
   }());
 }
 
-// restart() takes an optional executor used to dispatch the awaitable. One slot
+// fork() takes an optional executor used to dispatch the awaitable. One slot
 // is dispatched on the cpu executor (the default = current) and another on the
 // asio executor; confirm each runs on the requested executor while the consumer
 // always resumes on the executor that was current at construction (cpu).
-TEST_F(CATEGORY, mux_many_restart_custom_executor) {
+TEST_F(CATEGORY, mux_many_fork_custom_executor) {
   tmc::async_main([]() -> tmc::task<int> {
     co_await tmc::change_priority(1);
     auto continuationExec = tmc::current_executor(); // cpu
@@ -475,12 +463,12 @@ TEST_F(CATEGORY, mux_many_restart_custom_executor) {
     auto mux = tmc::mux_many<int, 2>();
 
     // Default executor = current executor (cpu).
-    mux.restart(0, []() -> tmc::task<int> {
+    mux.fork(0, []() -> tmc::task<int> {
       check_exec_prio(tmc::cpu_executor(), 1);
       co_return 10;
     }());
     // Explicit executor = asio; default priority = current (1).
-    mux.restart(
+    mux.fork(
       1,
       []() -> tmc::task<int> {
         check_exec_prio(tmc::asio_executor(), 1);
@@ -563,7 +551,7 @@ TEST_F(CATEGORY, mux_tuple_each_with_priority) {
 // mux_tuple has no run_on()/with_priority() fluent API (it initiates in its
 // constructor); instead it captures the current executor and priority at
 // construction. Constructed here on the cpu executor at priority 2, so its tasks
-// - and any restart()'d task - run on cpu@2, and the awaiting coroutine resumes
+// - and any fork()'d task - run on cpu@2, and the awaiting coroutine resumes
 // on cpu@2. This is the closest mux_tuple analogue of the spawn_tuple
 // result_each().replace() + run_on()/with_priority() test; the cross-executor
 // resume that run_on()/resume_on() exercise is not expressible with mux_tuple.
@@ -573,7 +561,7 @@ TEST_F(CATEGORY, mux_tuple_each_with_priority) {
 // task's frame pointing at a closure that is destroyed at the end of the
 // construction statement - a use-after-free of the captured reference once the
 // task is resumed.
-TEST_F(CATEGORY, mux_tuple_restart_with_priority) {
+TEST_F(CATEGORY, mux_tuple_fork_with_priority) {
   tmc::async_main([]() -> tmc::task<int> {
     EXPECT_EQ(tmc::current_priority(), 0);
     co_await tmc::change_priority(2);
@@ -601,7 +589,7 @@ TEST_F(CATEGORY, mux_tuple_restart_with_priority) {
     EXPECT_EQ(tmc::current_executor(), continuationExec);
     EXPECT_EQ(tmc::current_priority(), 2);
 
-    mux.restart<0>([]() -> tmc::task<int> {
+    mux.fork<0>([]() -> tmc::task<int> {
       check_exec_prio(tmc::cpu_executor(), 2);
       co_return 4;
     }());
@@ -628,11 +616,11 @@ TEST_F(CATEGORY, mux_tuple_restart_with_priority) {
   }());
 }
 
-// restart() takes an optional priority used to dispatch the awaitable. Each slot
+// fork() takes an optional priority used to dispatch the awaitable. Each slot
 // is dispatched at an explicit priority different from the consumer's priority
 // (1); confirm each awaitable runs at its requested priority while the consumer
 // always resumes at its own priority on its own executor.
-TEST_F(CATEGORY, mux_tuple_restart_custom_priority) {
+TEST_F(CATEGORY, mux_tuple_fork_custom_priority) {
   tmc::async_main([]() -> tmc::task<int> {
     co_await tmc::change_priority(1);
     EXPECT_EQ(tmc::current_priority(), 1);
@@ -640,14 +628,14 @@ TEST_F(CATEGORY, mux_tuple_restart_custom_priority) {
 
     tmc::mux_tuple<tmc::task<int>, tmc::task<int>> mux;
 
-    mux.restart<0>(
+    mux.fork<0>(
       []() -> tmc::task<int> {
         check_exec_prio(tmc::cpu_executor(), 3);
         co_return 10;
       }(),
       tmc::cpu_executor(), 3
     );
-    mux.restart<1>(
+    mux.fork<1>(
       []() -> tmc::task<int> {
         check_exec_prio(tmc::cpu_executor(), 5);
         co_return 20;
@@ -671,11 +659,11 @@ TEST_F(CATEGORY, mux_tuple_restart_custom_priority) {
   }());
 }
 
-// restart() takes an optional executor used to dispatch the awaitable. One slot
+// fork() takes an optional executor used to dispatch the awaitable. One slot
 // is dispatched on the cpu executor (the default = current) and another on the
 // asio executor; confirm each runs on the requested executor while the consumer
 // always resumes on the executor that was current at construction (cpu).
-TEST_F(CATEGORY, mux_tuple_restart_custom_executor) {
+TEST_F(CATEGORY, mux_tuple_fork_custom_executor) {
   tmc::async_main([]() -> tmc::task<int> {
     co_await tmc::change_priority(1);
     auto continuationExec = tmc::current_executor(); // cpu
@@ -683,12 +671,12 @@ TEST_F(CATEGORY, mux_tuple_restart_custom_executor) {
     tmc::mux_tuple<tmc::task<int>, tmc::task<int>> mux;
 
     // Default executor = current executor (cpu).
-    mux.restart<0>([]() -> tmc::task<int> {
+    mux.fork<0>([]() -> tmc::task<int> {
       check_exec_prio(tmc::cpu_executor(), 1);
       co_return 10;
     }());
     // Explicit executor = asio; default priority = current (1).
-    mux.restart<1>(
+    mux.fork<1>(
       []() -> tmc::task<int> {
         check_exec_prio(tmc::asio_executor(), 1);
         co_return 20;
@@ -717,9 +705,7 @@ TEST_F(CATEGORY, aw_asio) {
     EXPECT_EQ(tmc::current_priority(), 1);
 
     auto exec = tmc::current_executor();
-    co_await asio::steady_timer{
-      tmc::asio_executor(), std::chrono::milliseconds(0)
-    }
+    co_await asio::steady_timer{tmc::asio_executor(), std::chrono::milliseconds(0)}
       .async_wait(tmc::aw_asio);
     EXPECT_EQ(tmc::current_executor(), exec);
     EXPECT_EQ(tmc::current_priority(), 1);
@@ -733,9 +719,7 @@ TEST_F(CATEGORY, aw_asio_resume_on) {
     co_await tmc::change_priority(1);
     EXPECT_EQ(tmc::current_priority(), 1);
 
-    co_await asio::steady_timer{
-      tmc::asio_executor(), std::chrono::milliseconds(0)
-    }
+    co_await asio::steady_timer{tmc::asio_executor(), std::chrono::milliseconds(0)}
       .async_wait(tmc::aw_asio)
       .resume_on(tmc::asio_executor());
     EXPECT_EQ(tmc::current_executor(), tmc::asio_executor().type_erased());
@@ -752,8 +736,9 @@ TEST_F(CATEGORY, aw_asio_spawn_tuple) {
 
     auto exec = tmc::current_executor();
     co_await tmc::spawn_tuple(
-      asio::steady_timer{tmc::asio_executor(), std::chrono::milliseconds(0)}
-        .async_wait(tmc::aw_asio)
+      asio::steady_timer{tmc::asio_executor(), std::chrono::milliseconds(0)}.async_wait(
+        tmc::aw_asio
+      )
     );
     EXPECT_EQ(tmc::current_executor(), exec);
     EXPECT_EQ(tmc::current_priority(), 1);
@@ -768,8 +753,9 @@ TEST_F(CATEGORY, aw_asio_spawn_tuple_resume_on) {
     EXPECT_EQ(tmc::current_priority(), 1);
 
     co_await tmc::spawn_tuple(
-      asio::steady_timer{tmc::asio_executor(), std::chrono::milliseconds(0)}
-        .async_wait(tmc::aw_asio)
+      asio::steady_timer{tmc::asio_executor(), std::chrono::milliseconds(0)}.async_wait(
+        tmc::aw_asio
+      )
     )
       .resume_on(tmc::asio_executor());
     EXPECT_EQ(tmc::current_executor(), tmc::asio_executor().type_erased());
