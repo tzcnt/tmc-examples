@@ -11,6 +11,8 @@
 #include "tmc/current.hpp"
 #include "tmc/ex_cpu_st.hpp"
 #include "tmc/fork_group.hpp"
+#include "tmc/mux_many.hpp"
+#include "tmc/mux_tuple.hpp"
 #include "tmc/spawn.hpp"
 #include "tmc/spawn_group.hpp"
 #include "tmc/spawn_tuple.hpp"
@@ -715,6 +717,285 @@ TEST_F(CATEGORY, spawn_group_add_clang_void) {
 
       size_t alloc_count = tmc::debug::get_task_alloc_count();
       EXPECT_EQ(alloc_count, 6);
+    }
+  }());
+}
+
+// Test HALO with aw_mux_many::fork_clang()
+TEST_F(CATEGORY, mux_many_fork_clang) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    tmc::debug::set_task_alloc_count(0);
+    {
+      // HALO: fork_clang() is directly awaited for each slot
+      auto mux = tmc::mux_many<int, 3>();
+      co_await mux.fork_clang(0, task_int(5));
+      co_await mux.fork_clang(1, task_int(6));
+      co_await mux.fork_clang(2, task_int(7));
+
+      int sum = 0;
+      for (size_t i = co_await mux; i != mux.end(); i = co_await mux) {
+        sum += mux[i];
+      }
+      EXPECT_EQ(sum, 18);
+
+      size_t alloc_count = tmc::debug::get_task_alloc_count();
+      EXPECT_EQ(alloc_count, 0);
+    }
+    {
+      // HALO: fork_clang() is directly awaited for each slot
+      // (with custom executor and priority)
+      tmc::ex_cpu_st localEx;
+      localEx.set_priority_count(2).init();
+      auto mux = tmc::mux_many<int, 2>();
+      co_await mux.fork_clang(0, task_int(5), localEx, 1);
+      co_await mux.fork_clang(1, task_int(6), localEx, 1);
+
+      int sum = 0;
+      for (size_t i = co_await mux; i != mux.end(); i = co_await mux) {
+        sum += mux[i];
+      }
+      EXPECT_EQ(sum, 11);
+
+      size_t alloc_count = tmc::debug::get_task_alloc_count();
+      EXPECT_EQ(alloc_count, 0);
+    }
+    {
+      // Non-HALO: fork() without HALO attributes
+      auto mux = tmc::mux_many<int, 3>();
+      mux.fork(0, task_int(8));
+      mux.fork(1, task_int(9));
+      mux.fork(2, task_int(10));
+
+      int sum = 0;
+      for (size_t i = co_await mux; i != mux.end(); i = co_await mux) {
+        sum += mux[i];
+      }
+      EXPECT_EQ(sum, 27);
+
+      size_t alloc_count = tmc::debug::get_task_alloc_count();
+      EXPECT_EQ(alloc_count, 3);
+    }
+  }());
+}
+
+// Test HALO with aw_mux_many::fork_clang() void result
+TEST_F(CATEGORY, mux_many_fork_clang_void) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    tmc::debug::set_task_alloc_count(0);
+    {
+      // HALO: fork_clang() is directly awaited for each slot
+      auto mux = tmc::mux_many<void, 3>();
+      co_await mux.fork_clang(0, task_void());
+      co_await mux.fork_clang(1, task_void());
+      co_await mux.fork_clang(2, task_void());
+
+      size_t consumed = 0;
+      for (size_t i = co_await mux; i != mux.end(); i = co_await mux) {
+        ++consumed;
+      }
+      EXPECT_EQ(consumed, 3);
+
+      size_t alloc_count = tmc::debug::get_task_alloc_count();
+      EXPECT_EQ(alloc_count, 0);
+    }
+    {
+      // Non-HALO: fork() without HALO attributes
+      auto mux = tmc::mux_many<void, 3>();
+      mux.fork(0, task_void());
+      mux.fork(1, task_void());
+      mux.fork(2, task_void());
+
+      size_t consumed = 0;
+      for (size_t i = co_await mux; i != mux.end(); i = co_await mux) {
+        ++consumed;
+      }
+      EXPECT_EQ(consumed, 3);
+
+      size_t alloc_count = tmc::debug::get_task_alloc_count();
+      EXPECT_EQ(alloc_count, 3);
+    }
+  }());
+}
+
+// Test HALO with aw_mux_many::fork_clang() reading a result then forking again
+TEST_F(CATEGORY, mux_many_fork_clang_refork) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    tmc::debug::set_task_alloc_count(0);
+    {
+      // HALO: fork_clang() is directly awaited for each (re)fork
+      auto mux = tmc::mux_many<int, 2>();
+      co_await mux.fork_clang(0, task_int(1));
+      co_await mux.fork_clang(1, task_int(2));
+
+      int sum = 0;
+      size_t firstSlot = co_await mux;
+      sum += mux[firstSlot];
+      // Read the consumed slot's result, then launch new work into it.
+      co_await mux.fork_clang(firstSlot, task_int(10));
+
+      for (size_t i = co_await mux; i != mux.end(); i = co_await mux) {
+        sum += mux[i];
+      }
+      EXPECT_EQ(sum, 13);
+
+      size_t alloc_count = tmc::debug::get_task_alloc_count();
+      EXPECT_EQ(alloc_count, 0);
+    }
+  }());
+}
+
+// Test HALO with aw_mux_many::fork_clang() inside of an unpredictable
+// conditional.
+TEST_F(CATEGORY, mux_many_fork_clang_conditional) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    tmc::debug::set_task_alloc_count(0);
+    {
+      // HALO: fork_clang() is directly awaited for each slot
+      auto mux = tmc::mux_many<int, 4>();
+      size_t forked = 0;
+      if (flip) {
+        co_await mux.fork_clang(0, task_int(1));
+        ++forked;
+      }
+      flip = !flip;
+      if (flip) {
+        co_await mux.fork_clang(1, task_int(2));
+        ++forked;
+      }
+      flip = !flip;
+      if (flip) {
+        co_await mux.fork_clang(2, task_int(3));
+        ++forked;
+      }
+      flip = !flip;
+      if (flip) {
+        co_await mux.fork_clang(3, task_int(4));
+        ++forked;
+      }
+      EXPECT_EQ(forked, 2);
+
+      size_t consumed = 0;
+      for (size_t i = co_await mux; i != mux.end(); i = co_await mux) {
+        ++consumed;
+      }
+      EXPECT_EQ(consumed, 2);
+
+      size_t alloc_count = tmc::debug::get_task_alloc_count();
+      EXPECT_EQ(alloc_count, 0);
+    }
+  }());
+}
+
+// Test HALO with aw_mux_tuple::fork_clang()
+TEST_F(CATEGORY, mux_tuple_fork_clang) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    tmc::debug::set_task_alloc_count(0);
+    {
+      // HALO: fork_clang<I>() is directly awaited for each slot
+      tmc::mux_tuple<tmc::task<int>, tmc::task<int>, tmc::task<int>> mux;
+      co_await mux.fork_clang<0>(task_int(5));
+      co_await mux.fork_clang<1>(task_int(6));
+      co_await mux.fork_clang<2>(task_int(7));
+
+      int sum = 0;
+      for (size_t i = co_await mux; i != mux.end(); i = co_await mux) {
+        switch (i) {
+        case 0:
+          sum += mux.get<0>();
+          break;
+        case 1:
+          sum += mux.get<1>();
+          break;
+        case 2:
+          sum += mux.get<2>();
+          break;
+        }
+      }
+      EXPECT_EQ(sum, 18);
+
+      size_t alloc_count = tmc::debug::get_task_alloc_count();
+      EXPECT_EQ(alloc_count, 0);
+    }
+    {
+      // HALO: fork_clang<I>() is directly awaited for each slot
+      // (with custom executor and priority)
+      tmc::ex_cpu_st localEx;
+      localEx.set_priority_count(2).init();
+      tmc::mux_tuple<tmc::task<int>, tmc::task<int>> mux;
+      co_await mux.fork_clang<0>(task_int(5), localEx, 1);
+      co_await mux.fork_clang<1>(task_int(6), localEx, 1);
+
+      int sum = 0;
+      for (size_t i = co_await mux; i != mux.end(); i = co_await mux) {
+        switch (i) {
+        case 0:
+          sum += mux.get<0>();
+          break;
+        case 1:
+          sum += mux.get<1>();
+          break;
+        }
+      }
+      EXPECT_EQ(sum, 11);
+
+      size_t alloc_count = tmc::debug::get_task_alloc_count();
+      EXPECT_EQ(alloc_count, 0);
+    }
+    {
+      // Non-HALO: fork<I>() without HALO attributes
+      tmc::mux_tuple<tmc::task<int>, tmc::task<int>, tmc::task<int>> mux;
+      mux.fork<0>(task_int(8));
+      mux.fork<1>(task_int(9));
+      mux.fork<2>(task_int(10));
+
+      int sum = 0;
+      for (size_t i = co_await mux; i != mux.end(); i = co_await mux) {
+        switch (i) {
+        case 0:
+          sum += mux.get<0>();
+          break;
+        case 1:
+          sum += mux.get<1>();
+          break;
+        case 2:
+          sum += mux.get<2>();
+          break;
+        }
+      }
+      EXPECT_EQ(sum, 27);
+
+      size_t alloc_count = tmc::debug::get_task_alloc_count();
+      EXPECT_EQ(alloc_count, 3);
+    }
+  }());
+}
+
+// Test HALO with aw_mux_tuple::fork_clang() mixed types
+TEST_F(CATEGORY, mux_tuple_fork_clang_mixed) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    tmc::debug::set_task_alloc_count(0);
+    {
+      // HALO: fork_clang<I>() is directly awaited for each slot
+      tmc::mux_tuple<tmc::task<int>, tmc::task<void>, tmc::task<int>> mux;
+      co_await mux.fork_clang<0>(task_int(10));
+      co_await mux.fork_clang<1>(task_void());
+      co_await mux.fork_clang<2>(task_int(20));
+
+      int sum = 0;
+      for (size_t i = co_await mux; i != mux.end(); i = co_await mux) {
+        switch (i) {
+        case 0:
+          sum += mux.get<0>();
+          break;
+        case 2:
+          sum += mux.get<2>();
+          break;
+        }
+      }
+      EXPECT_EQ(sum, 30);
+
+      size_t alloc_count = tmc::debug::get_task_alloc_count();
+      EXPECT_EQ(alloc_count, 0);
     }
   }());
 }
