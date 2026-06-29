@@ -652,7 +652,7 @@ TEST_F(CATEGORY, tuple_compose_each_twice) {
 // TEST_F(CATEGORY, co_await_lvalue_many_each) {
 //   test_async_main(ex(), []() -> tmc::task<void> {
 //     tmc::task<int> t = work(0);
-//     auto x = co_await tmc::spawn_many(&t, 1).result_each();
+//     auto x = co_await tmc::mux_many(&t, 1);
 //   }());
 // }
 
@@ -674,7 +674,7 @@ TEST_F(CATEGORY, tuple_compose_each_twice) {
 //   test_async_main(ex(), []() -> tmc::task<void> {
 //     {
 //       tmc::task<int> t1 = work(0);
-//       auto tte = tmc::spawn_tuple(tmc::spawn_many(&t1, 1).result_each());
+//       auto tte = tmc::spawn_tuple(tmc::mux_many(&t1, 1));
 //       co_await std::move(tte);
 //     }
 //   }());

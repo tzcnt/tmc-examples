@@ -282,59 +282,28 @@ TEST_F(CATEGORY, spawn_many_with_priority_run_on) {
   }());
 }
 
-TEST_F(CATEGORY, spawn_many_each_with_priority) {
+// mux_many has no with_priority()/run_on() fluent API - it captures the current
+// executor and priority at construction. Constructed here at priority 2, so its
+// task runs at priority 2 and the awaiting coroutine resumes at priority 2. This
+// is the mux_many analogue of the spawn_many each with_priority (and
+// with_priority + run_on) tests; the cross-executor resume that run_on()
+// exercised is not expressible with mux_many.
+TEST_F(CATEGORY, mux_many_each_with_priority) {
   tmc::async_main([]() -> tmc::task<int> {
     EXPECT_EQ(tmc::current_priority(), 0);
-    co_await tmc::change_priority(1);
-    EXPECT_EQ(tmc::current_priority(), 1);
-    auto t = tmc::spawn_many(
-               tmc::iter_adapter(
-                 0,
-                 [](int) -> tmc::task<void> {
-                   EXPECT_EQ(tmc::current_priority(), 2);
-                   co_return;
-                 }
-               ),
-               1
-    )
-               .with_priority(2)
-               .result_each();
-    auto v = co_await t;
+    co_await tmc::change_priority(2);
+    EXPECT_EQ(tmc::current_priority(), 2);
+    auto mux = tmc::mux_many<1>(tmc::iter_adapter(0, [](int) -> tmc::task<void> {
+      EXPECT_EQ(tmc::current_priority(), 2);
+      co_return;
+    }));
+    auto v = co_await mux;
     EXPECT_EQ(v, 0);
-    EXPECT_EQ(tmc::current_priority(), 1);
+    EXPECT_EQ(tmc::current_priority(), 2);
 
-    v = co_await t;
-    EXPECT_EQ(v, t.end());
-    EXPECT_EQ(tmc::current_priority(), 1);
-    co_return 0;
-  }());
-}
-
-TEST_F(CATEGORY, spawn_many_each_with_priority_run_on) {
-  tmc::async_main([]() -> tmc::task<int> {
-    EXPECT_EQ(tmc::current_priority(), 0);
-    co_await tmc::change_priority(1);
-    EXPECT_EQ(tmc::current_priority(), 1);
-    auto t = tmc::spawn_many(
-               tmc::iter_adapter(
-                 0,
-                 [](int) -> tmc::task<void> {
-                   EXPECT_EQ(tmc::current_priority(), 2);
-                   co_return;
-                 }
-               ),
-               1
-    )
-               .run_on(tmc::asio_executor())
-               .with_priority(2)
-               .result_each();
-    auto v = co_await t;
-    EXPECT_EQ(v, 0);
-    EXPECT_EQ(tmc::current_priority(), 1);
-
-    v = co_await t;
-    EXPECT_EQ(v, t.end());
-    EXPECT_EQ(tmc::current_priority(), 1);
+    v = co_await mux;
+    EXPECT_EQ(v, mux.end());
+    EXPECT_EQ(tmc::current_priority(), 2);
     co_return 0;
   }());
 }
@@ -380,64 +349,156 @@ TEST_F(CATEGORY, spawn_func_many_with_priority_run_on) {
   }());
 }
 
-TEST_F(CATEGORY, spawn_many_each_replace_with_priority_run_on) {
+// mux_many has no run_on()/with_priority() fluent API (it initiates in its
+// constructor); instead it captures the current executor and priority at
+// construction. Constructed here on the cpu executor at priority 2, so its tasks
+// - and any restart()'d task that uses the default executor/priority - run on
+// cpu@2, and the awaiting coroutine resumes on cpu@2. This is the closest
+// mux_many analogue of the spawn_many result_each().replace() +
+// run_on()/with_priority() test; the cross-executor resume that
+// run_on()/resume_on() exercised is not expressible with mux_many.
+//
+// The blocked slot's task takes `gate` as a coroutine *parameter*, not a lambda
+// capture. A capturing lambda coroutine invoked as a temporary leaves the lazy
+// task's frame pointing at a closure that is destroyed at the end of the
+// construction statement - a use-after-free of the captured reference once the
+// task is resumed.
+TEST_F(CATEGORY, mux_many_restart_with_priority) {
   tmc::async_main([]() -> tmc::task<int> {
     EXPECT_EQ(tmc::current_priority(), 0);
-    co_await tmc::change_priority(1);
-    EXPECT_EQ(tmc::current_priority(), 1);
+    co_await tmc::change_priority(2);
+    EXPECT_EQ(tmc::current_priority(), 2);
 
     tmc::manual_reset_event gate;
     auto continuationExec = tmc::current_executor();
-    // The blocked task takes `gate` as a coroutine parameter, not a lambda
-    // capture: a capturing lambda coroutine invoked as a temporary here would
-    // leave each lazy task's frame pointing at a closure destroyed at the end of
-    // this initializer, a use-after-free once the task is resumed.
+
     std::array<tmc::task<int>, 2> tasks{
       []() -> tmc::task<int> {
-        check_exec_prio(tmc::asio_executor(), 2);
+        check_exec_prio(tmc::cpu_executor(), 2);
         co_return 1;
       }(),
       [](tmc::manual_reset_event& Gate) -> tmc::task<int> {
-        check_exec_prio(tmc::asio_executor(), 2);
+        check_exec_prio(tmc::cpu_executor(), 2);
         co_await Gate;
-        check_exec_prio(tmc::asio_executor(), 2);
+        check_exec_prio(tmc::cpu_executor(), 2);
         co_return 2;
       }(gate)};
+    auto mux = tmc::mux_many<2>(tasks.begin());
 
-    auto select = tmc::spawn_many<2>(tasks.begin())
-                    .run_on(tmc::asio_executor())
-                    .with_priority(2)
-                    .result_each();
-
-    auto idx = co_await select;
+    auto idx = co_await mux;
     EXPECT_EQ(idx, 0);
-    EXPECT_EQ(select[0], 1);
+    EXPECT_EQ(mux[0], 1);
     EXPECT_EQ(tmc::current_executor(), continuationExec);
-    EXPECT_EQ(tmc::current_priority(), 1);
+    EXPECT_EQ(tmc::current_priority(), 2);
 
-    select.replace(0, []() -> tmc::task<int> {
-      check_exec_prio(tmc::asio_executor(), 2);
+    mux.restart(0, []() -> tmc::task<int> {
+      check_exec_prio(tmc::cpu_executor(), 2);
       co_return 4;
     }());
 
-    idx = co_await select;
+    idx = co_await mux;
     EXPECT_EQ(idx, 0);
-    EXPECT_EQ(select[0], 4);
+    EXPECT_EQ(mux[0], 4);
     EXPECT_EQ(tmc::current_executor(), continuationExec);
-    EXPECT_EQ(tmc::current_priority(), 1);
+    EXPECT_EQ(tmc::current_priority(), 2);
 
     gate.set();
 
-    idx = co_await select;
+    idx = co_await mux;
     EXPECT_EQ(idx, 1);
-    EXPECT_EQ(select[1], 2);
+    EXPECT_EQ(mux[1], 2);
     EXPECT_EQ(tmc::current_executor(), continuationExec);
-    EXPECT_EQ(tmc::current_priority(), 1);
+    EXPECT_EQ(tmc::current_priority(), 2);
 
-    idx = co_await select;
-    EXPECT_EQ(idx, select.end());
+    idx = co_await mux;
+    EXPECT_EQ(idx, mux.end());
     EXPECT_EQ(tmc::current_executor(), continuationExec);
+    EXPECT_EQ(tmc::current_priority(), 2);
+    co_return 0;
+  }());
+}
+
+// restart() takes an optional priority used to dispatch the awaitable. Each slot
+// is dispatched at an explicit priority different from the consumer's priority
+// (1); confirm each awaitable runs at its requested priority while the consumer
+// always resumes at its own priority on its own executor.
+TEST_F(CATEGORY, mux_many_restart_custom_priority) {
+  tmc::async_main([]() -> tmc::task<int> {
+    co_await tmc::change_priority(1);
     EXPECT_EQ(tmc::current_priority(), 1);
+    auto continuationExec = tmc::current_executor();
+
+    auto mux = tmc::mux_many<int, 2>();
+
+    mux.restart(
+      0,
+      []() -> tmc::task<int> {
+        check_exec_prio(tmc::cpu_executor(), 3);
+        co_return 10;
+      }(),
+      tmc::cpu_executor(), 3
+    );
+    mux.restart(
+      1,
+      []() -> tmc::task<int> {
+        check_exec_prio(tmc::cpu_executor(), 5);
+        co_return 20;
+      }(),
+      tmc::cpu_executor(), 5
+    );
+
+    int sum = 0;
+    int count = 0;
+    for (auto idx = co_await mux; idx != mux.end(); idx = co_await mux) {
+      // The dispatch priority does not affect where/when the consumer resumes:
+      // it always resumes on the construction executor at its own priority.
+      EXPECT_EQ(tmc::current_executor(), continuationExec);
+      EXPECT_EQ(tmc::current_priority(), 1);
+      sum += mux[idx];
+      ++count;
+    }
+    EXPECT_EQ(count, 2);
+    EXPECT_EQ(sum, 30);
+    co_return 0;
+  }());
+}
+
+// restart() takes an optional executor used to dispatch the awaitable. One slot
+// is dispatched on the cpu executor (the default = current) and another on the
+// asio executor; confirm each runs on the requested executor while the consumer
+// always resumes on the executor that was current at construction (cpu).
+TEST_F(CATEGORY, mux_many_restart_custom_executor) {
+  tmc::async_main([]() -> tmc::task<int> {
+    co_await tmc::change_priority(1);
+    auto continuationExec = tmc::current_executor(); // cpu
+
+    auto mux = tmc::mux_many<int, 2>();
+
+    // Default executor = current executor (cpu).
+    mux.restart(0, []() -> tmc::task<int> {
+      check_exec_prio(tmc::cpu_executor(), 1);
+      co_return 10;
+    }());
+    // Explicit executor = asio; default priority = current (1).
+    mux.restart(
+      1,
+      []() -> tmc::task<int> {
+        check_exec_prio(tmc::asio_executor(), 1);
+        co_return 20;
+      }(),
+      tmc::asio_executor()
+    );
+
+    int sum = 0;
+    int count = 0;
+    for (auto idx = co_await mux; idx != mux.end(); idx = co_await mux) {
+      EXPECT_EQ(tmc::current_executor(), continuationExec);
+      EXPECT_EQ(tmc::current_priority(), 1);
+      sum += mux[idx];
+      ++count;
+    }
+    EXPECT_EQ(count, 2);
+    EXPECT_EQ(sum, 30);
     co_return 0;
   }());
 }

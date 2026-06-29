@@ -112,6 +112,7 @@ make_exe_base(
   assert_spawn_func.cpp
   assert_spawn_many.cpp
   assert_spawn_tuple.cpp
+  assert_mux_many.cpp
   assert_mux_tuple.cpp
   test_barrier.cpp
   test_latch.cpp

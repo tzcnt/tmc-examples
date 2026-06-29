@@ -382,53 +382,60 @@ TEST_F(CATEGORY, test_spawn_many_fork_run_resume) {
   }());
 }
 
-TEST_F(CATEGORY, spawn_many_each_run_resume) {
+// mux_many captures its resume (continuation) executor at construction; it has
+// no run_on()/resume_on() fluent API. restart() instead dispatches each slot to
+// an explicit executor. These two blocks confirm that, wherever a slot runs, the
+// consumer resumes on the executor that was current when the mux was
+// constructed.
+TEST_F(CATEGORY, mux_many_run_resume) {
   test_async_main(ex(), []() -> tmc::task<void> {
     tmc::ex_cpu localEx;
     localEx.set_thread_count(1).init();
-    std::array<tmc::task<void>, 1> tasks;
 
-    // run on localEx, resume on current ex
+    // Constructed on the fixture executor; slot dispatched to localEx. The
+    // consumer resumes on the fixture executor.
     {
-      atomic_awaitable<size_t> aa(1);
-      tasks[0] =
-        [](tmc::ex_any* Ex, atomic_awaitable<size_t>& AA) -> tmc::task<void> {
-        EXPECT_EQ(tmc::current_executor(), Ex);
-        AA.inc();
-        co_return;
-      }(localEx.type_erased(), aa);
+      auto mux = tmc::mux_many<void, 1>();
+      mux.restart(
+        0,
+        [](tmc::ex_any* Ex) -> tmc::task<void> {
+          EXPECT_EQ(tmc::current_executor(), Ex);
+          co_return;
+        }(localEx.type_erased()),
+        localEx
+      );
 
-      auto t = tmc::spawn_many(tasks).run_on(localEx).result_each();
-      // Ensure that the tasks complete first
-      co_await aa;
-
-      auto r = co_await t;
+      auto r = co_await mux;
       EXPECT_EQ(r, 0);
       EXPECT_EQ(tmc::current_executor(), ex().type_erased());
 
-      r = co_await t;
-      EXPECT_EQ(r, t.end());
+      r = co_await mux;
+      EXPECT_EQ(r, mux.end());
       EXPECT_EQ(tmc::current_executor(), ex().type_erased());
     }
 
-    // run on current ex, resume on localEx
+    // Constructed while running on localEx; slot dispatched to the fixture
+    // executor. The consumer resumes on localEx.
     {
-      atomic_awaitable<size_t> aa(1);
-      tasks[0] = [](atomic_awaitable<size_t>& AA) -> tmc::task<void> {
-        AA.inc();
-        co_return;
-      }(aa);
-      auto t = tmc::spawn_many(tasks).resume_on(localEx).result_each();
-      // Ensure that the tasks complete first
-      co_await aa;
-      EXPECT_EQ(tmc::current_executor(), ex().type_erased());
+      co_await tmc::resume_on(localEx);
+      EXPECT_EQ(tmc::current_executor(), localEx.type_erased());
 
-      auto r = co_await t;
+      auto mux = tmc::mux_many<void, 1>();
+      mux.restart(
+        0,
+        [](tmc::ex_any* Ex) -> tmc::task<void> {
+          EXPECT_EQ(tmc::current_executor(), Ex);
+          co_return;
+        }(ex().type_erased()),
+        ex()
+      );
+
+      auto r = co_await mux;
       EXPECT_EQ(r, 0);
       EXPECT_EQ(tmc::current_executor(), localEx.type_erased());
 
-      r = co_await t;
-      EXPECT_EQ(r, t.end());
+      r = co_await mux;
+      EXPECT_EQ(r, mux.end());
       EXPECT_EQ(tmc::current_executor(), localEx.type_erased());
     }
 
