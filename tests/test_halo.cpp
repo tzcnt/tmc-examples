@@ -62,6 +62,17 @@ static tmc::task<int> task_int(int value) { co_return value; }
 
 static tmc::task<void> task_void() { co_return; }
 
+// A WRAPPER-mode awaitable: directly awaitable (not a TMC task), tagged so it
+// isn't safe_wrap'd. fork_clang() handles these via its coroutine overload,
+// which wraps the awaitable in a HALO-able frame. Completes synchronously.
+struct wrapper_int : tmc::detail::AwaitTagNoGroupAsIs {
+  int value;
+  explicit wrapper_int(int Value) noexcept : value(Value) {}
+  bool await_ready() const noexcept { return true; }
+  void await_suspend(std::coroutine_handle<>) const noexcept {}
+  int await_resume() const noexcept { return value; }
+};
+
 // Test HALO with tmc::task
 TEST_F(CATEGORY, task) {
   test_async_main(ex(), []() -> tmc::task<void> {
@@ -1027,6 +1038,99 @@ TEST_F(CATEGORY, mux_many_fork_clang_drain_loop_switch) {
     }
     EXPECT_EQ(iterations, 102);
     // HALO still applies (no heap allocations across 100 reforks).
+    EXPECT_EQ(tmc::debug::get_task_alloc_count(), 0u);
+  }());
+}
+
+// WRAPPER-mode awaitables (not TMC tasks) also HALO through fork_clang<I>(),
+// which is a coroutine for these types. The wrapper frame that plain fork()
+// would heap-allocate (via safe_wrap) is elided into the parent instead.
+TEST_F(CATEGORY, mux_tuple_fork_clang_wrapper) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    tmc::debug::set_task_alloc_count(0);
+    {
+      // HALO: fork_clang<I>() is directly awaited for each WRAPPER slot
+      tmc::mux_tuple<int, int, int> mux;
+      co_await mux.fork_clang<0>(wrapper_int{5});
+      co_await mux.fork_clang<1>(wrapper_int{6});
+      co_await mux.fork_clang<2>(wrapper_int{7});
+
+      int sum = 0;
+      for (size_t i = co_await mux; i != mux.end(); i = co_await mux) {
+        switch (i) {
+        case 0:
+          sum += mux.get<0>();
+          break;
+        case 1:
+          sum += mux.get<1>();
+          break;
+        case 2:
+          sum += mux.get<2>();
+          break;
+        }
+      }
+      EXPECT_EQ(sum, 18);
+      EXPECT_EQ(tmc::debug::get_task_alloc_count(), 0u);
+    }
+    {
+      // Non-HALO: fork<I>() on a WRAPPER awaitable allocates a task_wrapper
+      tmc::mux_tuple<int, int, int> mux;
+      mux.fork<0>(wrapper_int{8});
+      mux.fork<1>(wrapper_int{9});
+      mux.fork<2>(wrapper_int{10});
+
+      int sum = 0;
+      for (size_t i = co_await mux; i != mux.end(); i = co_await mux) {
+        switch (i) {
+        case 0:
+          sum += mux.get<0>();
+          break;
+        case 1:
+          sum += mux.get<1>();
+          break;
+        case 2:
+          sum += mux.get<2>();
+          break;
+        }
+      }
+      EXPECT_EQ(sum, 27);
+      EXPECT_EQ(tmc::debug::get_task_alloc_count(), 3u);
+    }
+  }());
+}
+
+// The WRAPPER coroutine overload also survives the canonical drain loop: one
+// fork_clang<I>() call site per slot (forced by the compile-time index) keeps
+// each concurrently-active slot at a distinct source location.
+TEST_F(CATEGORY, mux_tuple_fork_clang_wrapper_drain_loop_switch) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    tmc::debug::set_task_alloc_count(0);
+    tmc::mux_tuple<int, int, int> mux;
+    co_await mux.fork_clang<0>(wrapper_int{0});
+    co_await mux.fork_clang<1>(wrapper_int{1});
+    co_await mux.fork_clang<2>(wrapper_int{2});
+
+    int iterations = 0;
+    for (size_t i = co_await mux; i != mux.end(); i = co_await mux) {
+      ++iterations;
+      if (iterations < 100) {
+        switch (i) {
+        case 0:
+          (void)mux.get<0>();
+          co_await mux.fork_clang<0>(wrapper_int{0});
+          break;
+        case 1:
+          (void)mux.get<1>();
+          co_await mux.fork_clang<1>(wrapper_int{1});
+          break;
+        case 2:
+          (void)mux.get<2>();
+          co_await mux.fork_clang<2>(wrapper_int{2});
+          break;
+        }
+      }
+    }
+    EXPECT_EQ(iterations, 102);
     EXPECT_EQ(tmc::debug::get_task_alloc_count(), 0u);
   }());
 }
