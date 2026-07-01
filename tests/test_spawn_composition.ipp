@@ -545,13 +545,13 @@ TEST_F(CATEGORY, multi_level_composition_lvalue) {
       tmc::task<int> t1 = work(0);
       tmc::task<int> t2 = work(1);
 
-      tmc::mux_tuple<tmc::task<int>> te1(std::move(t1));
-      tmc::mux_tuple<tmc::task<int>> te2(std::move(t2));
+      tmc::mux_tuple<int> te1(std::move(t1));
+      tmc::mux_tuple<int> te2(std::move(t2));
 
       // This is kind of an abuse of the rules - the lvalue only mux_tuple
       // awaitable is turned into an rvalue only awaitable with spawn()
       // which can then be passed to spawn_many().
-      std::array<tmc::aw_spawn<tmc::mux_tuple<tmc::task<int>>&>, 2>
+      std::array<tmc::aw_spawn<tmc::mux_tuple<int>&>, 2>
         tt{tmc::spawn(te1), tmc::spawn(te2)};
 
       // Spawn_many is always movable - however the type in the array that it
@@ -578,8 +578,8 @@ TEST_F(CATEGORY, multi_level_composition_lvalue) {
 TEST_F(CATEGORY, tuple_compose_each_twice) {
   test_async_main(ex(), []() -> tmc::task<void> {
     {
-      tmc::mux_tuple<tmc::task<int>, tmc::task<int>> te1(work(0), work(1));
-      tmc::mux_tuple<tmc::task<int>, tmc::task<int>> te2(work(2), work(3));
+      tmc::mux_tuple<int, int> te1(work(0), work(1));
+      tmc::mux_tuple<int, int> te2(work(2), work(3));
 
       int sum = 0;
 
@@ -664,7 +664,7 @@ TEST_F(CATEGORY, tuple_compose_each_twice) {
 //     {
 //       tmc::task<int> t1 = work(0);
 //       auto tte =
-//         tmc::spawn_tuple(tmc::mux_tuple<tmc::task<int>>(std::move(t1)));
+//         tmc::spawn_tuple(tmc::mux_tuple<int>(std::move(t1)));
 //       co_await std::move(tte);
 //     }
 //   }());

@@ -119,7 +119,7 @@ TEST_F(CATEGORY, fork_optional_slot_reset) {
         co_return no_default_counted{D, V};
       };
 
-      tmc::mux_tuple<tmc::task<no_default_counted>> mux;
+      tmc::mux_tuple<no_default_counted> mux;
       mux.fork<0>(make(&destroyed, 0));
       for (size_t k = 0; k < N; ++k) {
         size_t idx = co_await mux;

@@ -148,20 +148,20 @@ TEST_F(CATEGORY, mux_tuple_eager_resume_after) {
   }());
 }
 
-// Regression: CTAD on the eager constructor must apply forward_awaitable and
-// preserve the value category of a non-movable rvalue awaitable - storing it by
-// reference (mux_rvalue_async_op&&), not collapsing it to a by-value tuple
-// element (which is non-movable and would fail to compile). This guards the
-// constrained deduction guide: without the constraint, the eager constructor's
-// own (more-constrained) implicit guide would win and drop forward_awaitable.
+// Regression: the eager constructor must apply forward_awaitable and preserve
+// the value category of a non-movable rvalue awaitable - storing it by reference
+// internally, not collapsing it to a by-value tuple element (which is
+// non-movable and would fail to compile). CTAD deduces the slot result types
+// (here both void), so the deduced type erases how each awaitable is stored;
+// constructing from a non-movable rvalue without crashing is itself the
+// compile-time check that the by-reference storage is preserved.
 // `op` is declared before `mux` so it outlives the group that borrows it.
 TEST_F(CATEGORY, mux_tuple_eager_ctad_non_movable_rvalue) {
   test_async_main(ex(), []() -> tmc::task<void> {
     auto immediate = []() -> tmc::task<void> { co_return; };
     mux_rvalue_async_op op; // non-movable, rvalue-qualified ASYNC_INITIATE
     tmc::mux_tuple mux(immediate(), std::move(op));
-    static_assert(std::is_same_v<
-                  decltype(mux), tmc::mux_tuple<tmc::task<void>, mux_rvalue_async_op&&>>);
+    static_assert(std::is_same_v<decltype(mux), tmc::mux_tuple<void, void>>);
     op.complete();
     int count = 0;
     for (size_t i = co_await mux; i != mux.end(); i = co_await mux) {
@@ -185,7 +185,7 @@ TEST_F(CATEGORY, mux_tuple_empty_constructor_fork_all) {
       co_return 99;
     };
 
-    tmc::mux_tuple<tmc::task<int>, tmc::task<int>> mux; // storage only
+    tmc::mux_tuple<int, int> mux; // storage only
     mux.fork<0>(immediate(1));
     mux.fork<1>(blocker(block));
 
@@ -212,7 +212,7 @@ TEST_F(CATEGORY, mux_tuple_empty_constructor_fork_all) {
 // remaining_count == 0 path in await_suspend()/await_resume().
 TEST_F(CATEGORY, mux_tuple_empty_drain) {
   test_async_main(ex(), []() -> tmc::task<void> {
-    tmc::mux_tuple<tmc::task<int>> mux;
+    tmc::mux_tuple<int> mux;
     size_t idx = co_await mux;
     EXPECT_EQ(idx, mux.end());
   }());
@@ -224,7 +224,7 @@ TEST_F(CATEGORY, mux_tuple_fork_maintains_concurrency) {
   test_async_main(ex(), []() -> tmc::task<void> {
     auto work = [](int V) -> tmc::task<int> { co_return V; };
 
-    tmc::mux_tuple<tmc::task<int>, tmc::task<int>> mux;
+    tmc::mux_tuple<int, int> mux;
     mux.fork<0>(work(0));
     mux.fork<1>(work(1));
 
@@ -263,7 +263,7 @@ TEST_F(CATEGORY, mux_tuple_fork_maintains_concurrency) {
 TEST_F(CATEGORY, mux_tuple_fork_explicit_executor_priority) {
   test_async_main(ex(), []() -> tmc::task<void> {
     auto work = [](int V) -> tmc::task<int> { co_return V; };
-    tmc::mux_tuple<tmc::task<int>, tmc::task<int>> mux;
+    tmc::mux_tuple<int, int> mux;
     mux.fork<0>(work(1), ex(), 0);
     mux.fork<1>(work(2), ex(), 0);
 

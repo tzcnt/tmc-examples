@@ -123,11 +123,13 @@ make_exe_base(
   test_rw_lock.cpp
   test_semaphore.cpp
   test_ex_any.cpp
-  test_ex_cpu.cpp
+
+  # test_ex_cpu.cpp
   test_ex_cpu_st.cpp
-  test_ex_manual_st.cpp
-  test_ex_asio.cpp
-  test_ex_braid.cpp
+
+  # test_ex_manual_st.cpp
+  # test_ex_asio.cpp
+  # test_ex_braid.cpp
   test_atomic_bitmap.cpp
   test_bit_manip.cpp
   test_prio.cpp

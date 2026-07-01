@@ -888,7 +888,7 @@ TEST_F(CATEGORY, mux_tuple_fork_clang) {
     tmc::debug::set_task_alloc_count(0);
     {
       // HALO: fork_clang<I>() is directly awaited for each slot
-      tmc::mux_tuple<tmc::task<int>, tmc::task<int>, tmc::task<int>> mux;
+      tmc::mux_tuple<int, int, int> mux;
       co_await mux.fork_clang<0>(task_int(5));
       co_await mux.fork_clang<1>(task_int(6));
       co_await mux.fork_clang<2>(task_int(7));
@@ -917,7 +917,7 @@ TEST_F(CATEGORY, mux_tuple_fork_clang) {
       // (with custom executor and priority)
       tmc::ex_cpu_st localEx;
       localEx.set_priority_count(2).init();
-      tmc::mux_tuple<tmc::task<int>, tmc::task<int>> mux;
+      tmc::mux_tuple<int, int> mux;
       co_await mux.fork_clang<0>(task_int(5), localEx, 1);
       co_await mux.fork_clang<1>(task_int(6), localEx, 1);
 
@@ -939,7 +939,7 @@ TEST_F(CATEGORY, mux_tuple_fork_clang) {
     }
     {
       // Non-HALO: fork<I>() without HALO attributes
-      tmc::mux_tuple<tmc::task<int>, tmc::task<int>, tmc::task<int>> mux;
+      tmc::mux_tuple<int, int, int> mux;
       mux.fork<0>(task_int(8));
       mux.fork<1>(task_int(9));
       mux.fork<2>(task_int(10));
@@ -972,7 +972,7 @@ TEST_F(CATEGORY, mux_tuple_fork_clang_mixed) {
     tmc::debug::set_task_alloc_count(0);
     {
       // HALO: fork_clang<I>() is directly awaited for each slot
-      tmc::mux_tuple<tmc::task<int>, tmc::task<void>, tmc::task<int>> mux;
+      tmc::mux_tuple<int, void, int> mux;
       co_await mux.fork_clang<0>(task_int(10));
       co_await mux.fork_clang<1>(task_void());
       co_await mux.fork_clang<2>(task_int(20));
@@ -1036,7 +1036,7 @@ TEST_F(CATEGORY, mux_many_fork_clang_drain_loop_switch) {
 TEST_F(CATEGORY, mux_tuple_fork_clang_drain_loop_switch) {
   test_async_main(ex(), []() -> tmc::task<void> {
     tmc::debug::set_task_alloc_count(0);
-    tmc::mux_tuple<tmc::task<int>, tmc::task<int>, tmc::task<int>> mux;
+    tmc::mux_tuple<int, int, int> mux;
     co_await mux.fork_clang<0>(task_int(0));
     co_await mux.fork_clang<1>(task_int(1));
     co_await mux.fork_clang<2>(task_int(2));

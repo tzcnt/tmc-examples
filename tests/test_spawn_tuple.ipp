@@ -741,7 +741,7 @@ TEST_F(CATEGORY, select_cancellable_object_async) {
 // so exercise the full awaiter interface directly to document and cover its
 // (deliberately empty) contract.
 TEST_F(CATEGORY, select_cancel_noop_awaiter) {
-  tmc::detail::cancel_noop noop;
+  tmc::detail::noop_awaitable noop;
   EXPECT_TRUE(noop.await_ready());
   noop.await_suspend(std::noop_coroutine());
   noop.await_resume();

@@ -348,6 +348,10 @@ make_exe(asio_delay
     examples/asio/delay.cpp
 )
 
+make_exe(asio_batch_processor
+    examples/asio/batch_processor.cpp
+)
+
 make_exe(asio_timer_mem_bench
     examples/asio/timer_mem_bench.cpp
 )

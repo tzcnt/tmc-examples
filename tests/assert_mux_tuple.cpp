@@ -29,7 +29,7 @@ TEST(CATEGORY, fork_pending_slot) {
       tmc::ex_cpu ex;
       ex.set_thread_count(1).set_priority_count(1).init();
       test_async_main(ex, []() -> tmc::task<void> {
-        tmc::mux_tuple<tmc::task<int>> mux;
+        tmc::mux_tuple<int> mux;
         mux.fork<0>([]() -> tmc::task<int> { co_return 1; }());
         // Slot 0 is still pending (its result was never awaited).
         mux.fork<0>([]() -> tmc::task<int> { co_return 2; }());

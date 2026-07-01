@@ -626,7 +626,7 @@ TEST_F(CATEGORY, mux_tuple_fork_custom_priority) {
     EXPECT_EQ(tmc::current_priority(), 1);
     auto continuationExec = tmc::current_executor();
 
-    tmc::mux_tuple<tmc::task<int>, tmc::task<int>> mux;
+    tmc::mux_tuple<int, int> mux;
 
     mux.fork<0>(
       []() -> tmc::task<int> {
@@ -668,7 +668,7 @@ TEST_F(CATEGORY, mux_tuple_fork_custom_executor) {
     co_await tmc::change_priority(1);
     auto continuationExec = tmc::current_executor(); // cpu
 
-    tmc::mux_tuple<tmc::task<int>, tmc::task<int>> mux;
+    tmc::mux_tuple<int, int> mux;
 
     // Default executor = current executor (cpu).
     mux.fork<0>([]() -> tmc::task<int> {
