@@ -70,12 +70,12 @@ static tmc::task<void> timedBatchProcessor(tmc::qu_mpsc_unbounded<data>& q) {
       if (auto& elem = mux.get<0>()) {
         // Grab the data from the queue and restart the pull awaitable
         batch.push_back(std::move(*elem));
-        co_await mux.fork_clang<0>(q.pull());
+        mux.fork<0>(q.pull());
 
         if (!mux.is_active<1>()) {
           // This is the first element of the batch; (re)start the timer.
           timer.expires_after(duration);
-          co_await mux.fork_clang<1>(timer.async_wait(tmc::aw_asio));
+          mux.fork<1>(timer.async_wait(tmc::aw_asio));
         }
       } else {
         // Queue was closed. Cancel the timer if it's active.
