@@ -717,7 +717,7 @@ TEST_F(CATEGORY, spawn_group_add_clang_void) {
   }());
 }
 
-// Test HALO with aw_mux_many::fork_clang()
+// Test HALO with mux_many::fork_clang()
 TEST_F(CATEGORY, mux_many_fork_clang) {
   test_async_main(ex(), []() -> tmc::task<void> {
     tmc::debug::set_task_alloc_count(0);
@@ -774,7 +774,7 @@ TEST_F(CATEGORY, mux_many_fork_clang) {
   }());
 }
 
-// Test HALO with aw_mux_many::fork_clang() void result
+// Test HALO with mux_many::fork_clang() void result
 TEST_F(CATEGORY, mux_many_fork_clang_void) {
   test_async_main(ex(), []() -> tmc::task<void> {
     tmc::debug::set_task_alloc_count(0);
@@ -813,7 +813,7 @@ TEST_F(CATEGORY, mux_many_fork_clang_void) {
   }());
 }
 
-// Test HALO with aw_mux_many::fork_clang() reading a result then forking again
+// Test HALO with mux_many::fork_clang() reading a result then forking again
 TEST_F(CATEGORY, mux_many_fork_clang_refork) {
   test_async_main(ex(), []() -> tmc::task<void> {
     tmc::debug::set_task_alloc_count(0);
@@ -840,7 +840,7 @@ TEST_F(CATEGORY, mux_many_fork_clang_refork) {
   }());
 }
 
-// Test HALO with aw_mux_many::fork_clang() inside of an unpredictable
+// Test HALO with mux_many::fork_clang() inside of an unpredictable
 // conditional.
 TEST_F(CATEGORY, mux_many_fork_clang_conditional) {
   test_async_main(ex(), []() -> tmc::task<void> {

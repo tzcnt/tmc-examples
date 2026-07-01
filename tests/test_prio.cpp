@@ -280,7 +280,7 @@ TEST_F(CATEGORY, mux_many_each_with_priority) {
     EXPECT_EQ(tmc::current_priority(), 0);
     co_await tmc::change_priority(2);
     EXPECT_EQ(tmc::current_priority(), 2);
-    auto mux = tmc::mux_many<1>(tmc::iter_adapter(0, [](int) -> tmc::task<void> {
+    auto mux = tmc::mux_many<void, 1>(tmc::iter_adapter(0, [](int) -> tmc::task<void> {
       EXPECT_EQ(tmc::current_priority(), 2);
       co_return;
     }));
@@ -371,7 +371,7 @@ TEST_F(CATEGORY, mux_many_fork_with_priority) {
         co_return 2;
       }(gate)
     };
-    auto mux = tmc::mux_many<2>(tasks.begin());
+    auto mux = tmc::mux_many<int, 2>(tasks.begin());
 
     auto idx = co_await mux;
     EXPECT_EQ(idx, 0);

@@ -31,10 +31,10 @@
 template <int N> tmc::task<void> mux_many_static_sized_iterator() {
   auto iter = iter_of_static_size<N>();
   // We know that the iterator produces exactly N tasks.
-  // Provide the template parameter N to mux_many, so that tasks and results
-  // can be statically allocated in std::array.
+  // Provide the Result type and Count (N) to mux_many, so that tasks and
+  // results can be statically allocated in std::array.
   std::array<int, N> results;
-  auto mux = tmc::mux_many<N>(iter.begin());
+  auto mux = tmc::mux_many<int, N>(iter.begin());
   for (auto idx = co_await mux; idx != mux.end(); idx = co_await mux) {
     results[idx] = mux[idx];
   }
@@ -60,7 +60,7 @@ template <int N> tmc::task<void> mux_many_static_bounded_iterator() {
                   return t;
                 });
     std::array<int, N> results;
-    auto mux = tmc::mux_many<N>(iter.begin(), iter.end());
+    auto mux = tmc::mux_many<int, N>(iter.begin(), iter.end());
     for (auto idx = co_await mux; idx != mux.end(); idx = co_await mux) {
       results[idx] = mux[idx];
     }
@@ -87,7 +87,7 @@ template <int N> tmc::task<void> mux_many_static_bounded_iterator() {
                 });
 
     std::array<int, N> results;
-    auto mux = tmc::mux_many<N>(iter.begin(), iter.end());
+    auto mux = tmc::mux_many<int, N>(iter.begin(), iter.end());
     for (auto idx = co_await mux; idx != mux.end(); idx = co_await mux) {
       results[idx] = mux[idx];
     }
@@ -267,7 +267,7 @@ TEST_F(CATEGORY, mux_many_eager_wrapper_mode) {
       mux_wrapper_int{1}, mux_wrapper_int{2}, mux_wrapper_int{4}
     };
     std::array<int, 3> results{};
-    auto mux = tmc::mux_many<3>(arr.begin());
+    auto mux = tmc::mux_many<int, 3>(arr.begin());
     int count = 0;
     for (auto idx = co_await mux; idx != mux.end(); idx = co_await mux) {
       results[idx] = mux[idx];
@@ -501,7 +501,7 @@ TEST_F(CATEGORY, mux_many_fork_task_rvalue) {
     };
 
     std::array<tmc::task<int>, 2> tasks{immediate(1), blocker(block)};
-    auto mux = tmc::mux_many<2>(tasks.begin());
+    auto mux = tmc::mux_many<int, 2>(tasks.begin());
 
     size_t idx = co_await mux;
     EXPECT_EQ(idx, 0u);
@@ -528,7 +528,7 @@ TEST_F(CATEGORY, mux_many_fork_void) {
     auto blocker = [](atomic_awaitable<int>& B) -> tmc::task<void> { co_await B; };
 
     std::array<tmc::task<void>, 2> tasks{immediate(), blocker(block)};
-    auto mux = tmc::mux_many<2>(tasks.begin());
+    auto mux = tmc::mux_many<void, 2>(tasks.begin());
 
     size_t idx = co_await mux;
     EXPECT_EQ(idx, 0u);
@@ -565,7 +565,7 @@ TEST_F(CATEGORY, mux_many_fork_non_default_constructible) {
     };
 
     std::array<tmc::task<NoDefault>, 2> tasks{immediate(7), blocker(block)};
-    auto mux = tmc::mux_many<2>(tasks.begin()); // Result (NoDefault) is deduced
+    auto mux = tmc::mux_many<NoDefault, 2>(tasks.begin());
 
     size_t idx = co_await mux;
     EXPECT_EQ(idx, 0u);
@@ -595,7 +595,7 @@ TEST_F(CATEGORY, mux_many_fork_coroutine_mode) {
     };
 
     std::array<tmc::task<int>, 2> tasks{immediate(1), blocker(block)};
-    auto mux = tmc::mux_many<2>(tasks.begin());
+    auto mux = tmc::mux_many<int, 2>(tasks.begin());
 
     size_t idx = co_await mux;
     EXPECT_EQ(idx, 0u);
@@ -626,7 +626,7 @@ TEST_F(CATEGORY, mux_many_fork_wrapper_rvalue) {
     };
 
     std::array<tmc::task<int>, 2> tasks{immediate(1), blocker(block)};
-    auto mux = tmc::mux_many<2>(tasks.begin());
+    auto mux = tmc::mux_many<int, 2>(tasks.begin());
 
     size_t idx = co_await mux;
     EXPECT_EQ(idx, 0u);
@@ -658,7 +658,7 @@ TEST_F(CATEGORY, mux_many_fork_wrapper_lvalue) {
     };
 
     std::array<tmc::task<int>, 2> tasks{immediate(1), blocker(block)};
-    auto mux = tmc::mux_many<2>(tasks.begin());
+    auto mux = tmc::mux_many<int, 2>(tasks.begin());
 
     size_t idx = co_await mux;
     EXPECT_EQ(idx, 0u);
@@ -687,7 +687,7 @@ TEST_F(CATEGORY, mux_many_fork_async_initiate_lvalue) {
     auto blocker = [](atomic_awaitable<int>& B) -> tmc::task<void> { co_await B; };
 
     std::array<tmc::task<void>, 2> tasks{immediate(), blocker(block)};
-    auto mux = tmc::mux_many<2>(tasks.begin());
+    auto mux = tmc::mux_many<void, 2>(tasks.begin());
 
     size_t idx = co_await mux;
     EXPECT_EQ(idx, 0u);
@@ -719,7 +719,7 @@ TEST_F(CATEGORY, mux_many_fork_async_initiate_rvalue) {
     auto blocker = [](atomic_awaitable<int>& B) -> tmc::task<void> { co_await B; };
 
     std::array<tmc::task<void>, 2> tasks{immediate(), blocker(block)};
-    auto mux = tmc::mux_many<2>(tasks.begin());
+    auto mux = tmc::mux_many<void, 2>(tasks.begin());
 
     size_t idx = co_await mux;
     EXPECT_EQ(idx, 0u);

@@ -16,7 +16,7 @@ TEST(CATEGORY, not_awaited) {
       ex.set_thread_count(1).set_priority_count(1).init();
       test_async_main(ex, []() -> tmc::task<void> {
         std::array<tmc::task<void>, 1> arr{[]() -> tmc::task<void> { co_return; }()};
-        [[maybe_unused]] auto mux = tmc::mux_many<1>(arr.begin());
+        [[maybe_unused]] auto mux = tmc::mux_many<void, 1>(arr.begin());
         co_return;
       }());
     },
