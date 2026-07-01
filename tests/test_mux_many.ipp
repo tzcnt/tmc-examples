@@ -279,9 +279,9 @@ TEST_F(CATEGORY, mux_many_eager_wrapper_mode) {
 }
 
 // Eager construction from an unknown-sized iterator of COROUTINE-mode
-// awaitables. This exercises the constructor's uncountable-COROUTINE branch,
-// which collects the awaitables into a vector (preserving their type), binds
-// result pointers, then submits them in batches.
+// awaitables. The fixed-size std::array result storage keeps result pointers
+// stable, so each awaitable is prepared and type-erased into a work_item in a
+// single pass, then bulk-submitted.
 TEST_F(CATEGORY, mux_many_eager_coroutine_unknown) {
   test_async_main(ex(), []() -> tmc::task<void> {
     static constexpr int N = 5;
@@ -321,8 +321,8 @@ TEST_F(CATEGORY, mux_many_iterator_count_clamped) {
 }
 
 // Eager construction from an empty, unknown-sized iterator of coroutine tasks.
-// Exercises the uncountable branch's taskCount == 0 early-out (no tasks are
-// submitted; the first co_await immediately reports end()).
+// Exercises the taskCount == 0 early-out (no tasks are submitted; the first
+// co_await immediately reports end()).
 TEST_F(CATEGORY, mux_many_eager_empty_unknown_iterator) {
   test_async_main(ex(), []() -> tmc::task<void> {
     auto iter = iter_of_dynamic_unknown_size<0>();
@@ -333,8 +333,7 @@ TEST_F(CATEGORY, mux_many_eager_empty_unknown_iterator) {
 }
 
 // Eager construction from an empty, unknown-sized iterator of COROUTINE-mode
-// awaitables. Exercises the uncountable-COROUTINE branch's taskCount == 0
-// early-out.
+// awaitables. Exercises the COROUTINE-mode taskCount == 0 early-out.
 TEST_F(CATEGORY, mux_many_eager_empty_unknown_coroutine_iterator) {
   test_async_main(ex(), []() -> tmc::task<void> {
     auto iter =
@@ -382,13 +381,13 @@ TEST_F(CATEGORY, mux_many_empty_constructor_fork_all) {
   }());
 }
 
-// A runtime-sized (std::vector) empty mux_many: capacity is fixed at
-// construction, and each slot is launched with fork().
-TEST_F(CATEGORY, mux_many_empty_runtime_vector_fork_all) {
+// The empty constructor with a defaulted Count (TMC_PLATFORM_BITS - 1) allocates
+// full-size std::array storage. Only a few of the slots are forked here.
+TEST_F(CATEGORY, mux_many_empty_default_count_fork_all) {
   test_async_main(ex(), []() -> tmc::task<void> {
     auto work = [](int V) -> tmc::task<int> { co_return V; };
 
-    auto mux = tmc::mux_many<int>(size_t{3}); // runtime-sized storage
+    auto mux = tmc::mux_many<int>(); // Count defaults to TMC_PLATFORM_BITS - 1
     mux.fork(0, work(1));
     mux.fork(1, work(2));
     mux.fork(2, work(4));
@@ -404,15 +403,14 @@ TEST_F(CATEGORY, mux_many_empty_runtime_vector_fork_all) {
   }());
 }
 
-// A runtime-sized empty mux_many whose requested capacity exceeds the bitmask
-// limit (63 / 31) is clamped to TMC_PLATFORM_BITS - 1. The group remains usable
-// up to the clamped capacity.
-TEST_F(CATEGORY, mux_many_empty_runtime_vector_capacity_clamp) {
+// The defaulted Count is exactly TMC_PLATFORM_BITS - 1, so every index in
+// [0, TMC_PLATFORM_BITS - 1) is a valid slot. This forks the lowest and the
+// highest valid slot to confirm the full bitmask range is usable.
+TEST_F(CATEGORY, mux_many_empty_default_count_highest_slot) {
   test_async_main(ex(), []() -> tmc::task<void> {
     auto work = [](int V) -> tmc::task<int> { co_return V; };
 
-    // Request more than the bitmask can hold; capacity is clamped internally.
-    auto mux = tmc::mux_many<int>(static_cast<size_t>(TMC_PLATFORM_BITS + 8));
+    auto mux = tmc::mux_many<int>(); // Count defaults to TMC_PLATFORM_BITS - 1
     mux.fork(0, work(1));
     mux.fork(TMC_PLATFORM_BITS - 2, work(2)); // highest valid slot index
 
