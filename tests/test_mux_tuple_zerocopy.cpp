@@ -124,9 +124,8 @@ TEST_F(CATEGORY, fork_optional_slot_reset) {
       for (size_t k = 0; k < N; ++k) {
         size_t idx = co_await mux;
         EXPECT_EQ(0u, idx);
-        auto& slot = mux.get<0>(); // std::optional<no_default_counted>&
-        EXPECT_TRUE(slot.has_value());
-        EXPECT_EQ(k, slot->value);
+        no_default_counted& slot = mux.get<0>();
+        EXPECT_EQ(k, slot.value);
         if (k + 1 < N) {
           // Resets slot (destroys item k's optional value), then re-forks.
           mux.fork<0>(make(&destroyed, k + 1));

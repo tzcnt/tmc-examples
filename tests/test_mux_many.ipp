@@ -567,12 +567,13 @@ TEST_F(CATEGORY, mux_many_fork_non_default_constructible) {
 
     size_t idx = co_await mux;
     EXPECT_EQ(idx, 0u);
-    EXPECT_EQ(mux[0]->v, 7); // mux[0] is std::optional<NoDefault>
+    // mux[0] unwraps the std::optional and returns NoDefault&.
+    EXPECT_EQ(mux[0].v, 7);
 
     mux.fork(0, immediate(11));
     idx = co_await mux;
     EXPECT_EQ(idx, 0u);
-    EXPECT_EQ(mux[0]->v, 11);
+    EXPECT_EQ(mux[0].v, 11);
 
     block.inc();
     idx = co_await mux;

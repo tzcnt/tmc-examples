@@ -354,12 +354,13 @@ TEST_F(CATEGORY, mux_tuple_fork_non_default_constructible) {
 
     size_t idx = co_await mux;
     EXPECT_EQ(idx, 0u);
-    EXPECT_EQ(mux.get<0>()->v, 7); // get<0>() is std::optional<NoDefault>
+    // get<0>() unwraps the std::optional and returns NoDefault&.
+    EXPECT_EQ(mux.get<0>().v, 7);
 
     mux.fork<0>(immediate(11));
     idx = co_await mux;
     EXPECT_EQ(idx, 0u);
-    EXPECT_EQ(mux.get<0>()->v, 11);
+    EXPECT_EQ(mux.get<0>().v, 11);
 
     block.inc();
     idx = co_await mux;
