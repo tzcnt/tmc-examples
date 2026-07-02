@@ -25,10 +25,19 @@ class DevirtualizedCoroFrame:
 
         # Get the resume and destroy pointers.
         if frame_ptr_raw == 0:
+            # Null/empty coroutine handle (e.g. a default-constructed task). Initialize
+            # every attribute the populated path sets, so to_string()/get_function_name()
+            # and the frame decorators don't hit AttributeError on a null handle.
             self.resume_ptr = None
             self.destroy_ptr = None
             self.promise_ptr = None
             self.frame_ptr = gdb.Value(frame_ptr_raw).reinterpret_cast(gdb.lookup_type("void").pointer())
+            self.destroy_func = None
+            self.resume_func = None
+            self.resume_label = None
+            self.await_point_sal = None
+            self.suspension_point_index = None
+            self.is_gcc = False
             return
 
         # Get the resume and destroy pointers.
@@ -350,6 +359,91 @@ GetCoroFrame()
 
 
 """
+Devirtualize a coroutine frame from its raw frame pointer.
+
+Given the address of a coroutine frame (the value the CoroutineFrameDecorator reports
+as the frame's address), returns a typed pointer to the devirtualized coroutine frame
+struct. Dereference it to inspect the suspended coroutine's spilled locals:
+```
+p *$__coro_frame_at(0x555555de0a80)
+```
+
+This is the mechanism the debugger frontend uses to display the locals of a synthetic
+coroutine frame, which has no selectable "--frame" index (see MIEngine's
+`syntheticFrameLocalsExpression` launch option: "*$__coro_frame_at({address})").
+"""
+class CoroFrameAt(gdb.Function):
+    def __init__(self):
+        super(CoroFrameAt, self).__init__("__coro_frame_at")
+
+    def invoke(self, frame_ptr_raw):
+        return DevirtualizedCoroFrame(int(frame_ptr_raw)).frame_ptr
+
+CoroFrameAt()
+
+
+# Compiler-internal coroutine-frame fields that are not user-visible source locals.
+_INTERNAL_CORO_FIELDS = frozenset({
+    "__resume_fn", "__destroy_fn", "__promise", "__coro_index",
+    "_Coro_resume_fn", "_Coro_destroy_fn", "_Coro_promise", "_Coro_resume_index",
+    "_Coro_self_handle", "_Coro_frame_size", "_Coro_frame_ptr",
+})
+
+
+def _coro_frame_struct(coro_frame: 'DevirtualizedCoroFrame'):
+    """Return the dereferenced coroutine frame struct value, or None."""
+    fp = getattr(coro_frame, "frame_ptr", None)
+    if fp is None:
+        return None
+    try:
+        if fp.type.strip_typedefs().code != gdb.TYPE_CODE_PTR:
+            return None
+        struct = fp.dereference()
+        if struct.type.strip_typedefs().code != gdb.TYPE_CODE_STRUCT:
+            return None
+        return struct
+    except Exception:
+        return None
+
+
+def _coro_user_local_names(coro_frame: 'DevirtualizedCoroFrame'):
+    """Return the names of the coroutine's user-visible spilled locals, filtering out
+    compiler-internal bookkeeping fields and anonymous await/suspend spill temporaries."""
+    struct = _coro_frame_struct(coro_frame)
+    if struct is None:
+        return []
+    names = []
+    for field in struct.type.strip_typedefs().fields():
+        name = field.name
+        if not name or name in _INTERNAL_CORO_FIELDS:
+            continue
+        # Clang names anonymous spill temporaries with struct_/class_/union_ prefixes
+        # and a numeric suffix; these aren't source-level locals.
+        if re.match(r"^(struct|class|union)_.*_\d+$", name):
+            continue
+        names.append(name)
+    return names
+
+
+"""
+Get the space-separated list of a coroutine frame's user-visible local names.
+
+Given a coroutine frame pointer (the value CoroutineFrameDecorator reports as the frame's
+address), returns a string of the frame's spilled source-level local names. The frontend
+uses this to enumerate the members to display for a synthetic frame, then reads each one via
+`(*$__coro_frame_at(addr)).<name>` (see MIEngine's `syntheticFrameLocalNamesExpression`).
+"""
+class CoroLocalNames(gdb.Function):
+    def __init__(self):
+        super(CoroLocalNames, self).__init__("__coro_local_names")
+
+    def invoke(self, frame_ptr_raw):
+        return gdb.Value(" ".join(_coro_user_local_names(DevirtualizedCoroFrame(int(frame_ptr_raw)))))
+
+CoroLocalNames()
+
+
+"""
 Decorator for coroutine frames.
 
 Used by `CoroutineFrameFilter` to add the coroutine frames to the built-in `bt` command.
@@ -368,7 +462,14 @@ class CoroutineFrameDecorator(FrameDecorator):
         return prefix + "coroutine (coro_frame=" + str(self.coro_frame.frame_ptr_raw) + ")"
 
     def address(self):
-        # Return the resume function address for MI mode
+        # Report the coroutine frame pointer as this frame's address. It is a stable,
+        # unique-per-instance key that the frontend feeds to $__coro_frame_at(...) to fetch
+        # this frame's locals (synthetic frames have no --frame index). The resume-function
+        # address is NOT unique across concurrently-suspended coroutines of the same function,
+        # so it cannot serve as that key.
+        if self.coro_frame.frame_ptr_raw:
+            return int(self.coro_frame.frame_ptr_raw)
+        # Fall back to the resume address if the frame pointer is unavailable.
         if self.coro_frame.resume_ptr is not None:
             return int(self.coro_frame.resume_ptr)
         return None
@@ -390,8 +491,37 @@ class CoroutineFrameDecorator(FrameDecorator):
     def frame_args(self):
         return []
 
+    # Symbol/Value wrapper that holds a raw gdb.Value directly. GDB's built-in
+    # SymValueWrapper derives the value via frame.read_var(), which only works for
+    # real frames; a suspended coroutine's locals live in its frame struct, not in
+    # any live frame, so we supply the value ourselves.
+    class _CoroSymValue:
+        def __init__(self, name, value):
+            self._name = name
+            self._value = value
+
+        def symbol(self):
+            return self._name
+
+        def value(self):
+            return self._value
+
     def frame_locals(self):
-        return []
+        # A suspended coroutine's persistent locals are spilled into its coroutine
+        # frame struct. GDB gives synthetic frames no selectable --frame index, but
+        # the struct is reachable directly via the (devirtualized) frame pointer, so
+        # we expose each user field as a local. Reachability does not depend on the
+        # frame being selectable.
+        struct = _coro_frame_struct(self.coro_frame)
+        if struct is None:
+            return []
+        result = []
+        for name in _coro_user_local_names(self.coro_frame):
+            try:
+                result.append(self._CoroSymValue(name, struct[name]))
+            except Exception:
+                continue
+        return result
 
 
 def _get_continuation(promise: gdb.Value, is_gcc: bool) -> tuple[DevirtualizedCoroFrame | None, bool]:

@@ -1,5 +1,6 @@
 # coro_backtrace_lldb.py
 # LLDB ScriptedFrameProvider for C++20 coroutine stack unwinding
+import re
 import lldb
 from lldb.plugins.scripted_frame_provider import ScriptedFrameProvider
 from lldb.plugins.scripted_process import ScriptedFrame
@@ -12,10 +13,26 @@ def debug_log(msg):
         print(f"[coro-provider] {msg}")
 
 
+# Compiler-internal coroutine-frame fields that are not user-visible source locals.
+_INTERNAL_CORO_FIELDS = frozenset({
+    "__resume_fn", "__destroy_fn", "__promise", "__coro_index",
+    "_Coro_resume_fn", "_Coro_destroy_fn", "_Coro_promise", "_Coro_resume_index",
+    "_Coro_self_handle", "_Coro_frame_size", "_Coro_frame_ptr",
+})
+
+# Clang names anonymous await/suspend spill temporaries with struct_/class_/union_
+# prefixes and a numeric suffix; these aren't source-level locals.
+_SPILL_TEMP_RE = re.compile(r"^(struct|class|union)_.*_\d+$")
+
+
+def _is_user_coro_local(name):
+    return bool(name) and name not in _INTERNAL_CORO_FIELDS and not _SPILL_TEMP_RE.match(name)
+
+
 class CoroFrame(ScriptedFrame):
     """A synthetic frame representing a coroutine continuation."""
     
-    def __init__(self, thread, args, frame_id, pc, is_fork):
+    def __init__(self, thread, args, frame_id, pc, is_fork, coro_frame_addr=None, coro_type=None):
         # Don't call super().__init__ as it requires specific thread types
         try:
             self.thread = thread
@@ -25,6 +42,11 @@ class CoroFrame(ScriptedFrame):
             self._id = frame_id
             self._pc = pc
             self._is_fork = is_fork
+            # Coroutine frame pointer + devirtualized struct type, used to resolve the
+            # suspended coroutine's spilled locals (see get_variables). These have no
+            # register/frame context, so locals come from the frame struct in memory.
+            self._coro_frame_addr = coro_frame_addr
+            self._coro_type = coro_type
             self.register_info = None
             self.register_ctx = {}
             self.variables = []
@@ -37,6 +59,8 @@ class CoroFrame(ScriptedFrame):
             self._id = frame_id
             self._pc = pc
             self._is_fork = is_fork
+            self._coro_frame_addr = coro_frame_addr
+            self._coro_type = coro_type
             self.register_info = None
             self.register_ctx = {}
             self.variables = []
@@ -86,9 +110,44 @@ class CoroFrame(ScriptedFrame):
     
     def is_artificial(self):
         return True
-    
+
     def get_register_context(self):
         return None
+
+    def get_variables(self, filters):
+        """Provide the suspended coroutine's spilled locals.
+
+        A suspended coroutine has no register/frame context, so its locals cannot be
+        read the usual way. They live as fields of the coroutine frame struct in memory;
+        we materialize that struct at the frame pointer and expose each user field as a
+        local (filtering out compiler-internal bookkeeping and spill temporaries).
+
+        NOTE: As of LLDB 22.x this hook is defined in the ScriptedFrame Python API but
+        LLDB's C++ side does not yet invoke it for variable display (`frame variable`,
+        SBFrame.GetVariables, or the DAP Variables pane) - see LLVM PR #178575, which is
+        still in review. This implementation is therefore correct but dormant; it will
+        begin populating the Variables pane automatically once that support ships. The
+        GDB path (syntheticFrameLocalsExpression) provides this today.
+        """
+        variables = lldb.SBValueList()
+        try:
+            if self.target is None or self._coro_frame_addr is None or self._coro_type is None:
+                return variables
+            if not self._coro_type.IsValid():
+                return variables
+            addr = lldb.SBAddress(self._coro_frame_addr, self.target)
+            struct = self.target.CreateValueFromAddress("__coro_frame", addr, self._coro_type)
+            if not struct.IsValid():
+                return variables
+            for i in range(struct.GetNumChildren()):
+                child = struct.GetChildAtIndex(i)
+                if not child.IsValid():
+                    continue
+                if _is_user_coro_local(child.GetName()):
+                    variables.Append(child)
+        except Exception as e:
+            debug_log(f"Error in get_variables: {e}")
+        return variables
 
 
 class CoroFrameProvider(ScriptedFrameProvider):
@@ -340,6 +399,35 @@ class CoroFrameProvider(ScriptedFrameProvider):
             debug_log(f"Error in _find_await_point_pc_gcc: {e}")
             return instrs.GetInstructionAtIndex(store_idx).GetAddress().GetLoadAddress(self.target)
 
+    def _get_coro_frame_type(self, resume_fn, is_gcc):
+        """
+        Return the devirtualized coroutine frame struct SBType for a coroutine, looked up
+        from the `__coro_frame` (Clang) / `frame_ptr` (GCC) local of its resume function.
+        """
+        try:
+            addr = lldb.SBAddress(resume_fn, self.target)
+            func = addr.GetFunction()
+            if not func.IsValid():
+                return None
+            block = func.GetBlock()
+            if not block.IsValid():
+                return None
+            vars = block.GetVariables(self.target, True, True, True)
+            if not vars.IsValid():
+                return None
+            frame_var_name = "frame_ptr" if is_gcc else "__coro_frame"
+            for i in range(vars.GetSize()):
+                var = vars.GetValueAtIndex(i)
+                if var.GetName() == frame_var_name:
+                    coro_type = var.GetType()
+                    # GCC uses a pointer type; Clang uses the struct type directly.
+                    if is_gcc and coro_type.IsPointerType():
+                        coro_type = coro_type.GetPointeeType()
+                    return coro_type if coro_type.IsValid() else None
+        except Exception as e:
+            debug_log(f"Error in _get_coro_frame_type: {e}")
+        return None
+
     def _get_coro_index_offset(self, func, is_gcc):
         """
         Get the byte offset of the coro index within the coroutine frame type.
@@ -512,11 +600,15 @@ class CoroFrameProvider(ScriptedFrameProvider):
                 if coro_index is not None:
                     pc = self._get_await_point_pc(resume_fn, coro_index, is_gcc)
                 
-                # Create a CoroFrame for this continuation
+                # Create a CoroFrame for this continuation. Pass the coroutine frame
+                # pointer (cont_addr) and its devirtualized struct type so the frame can
+                # resolve the suspended coroutine's spilled locals (get_variables).
                 is_fork = current_done_count != 0
                 frame_id = len(self._frames) + len(frames)
+                coro_type = self._get_coro_frame_type(resume_fn, is_gcc)
                 coro_frame = CoroFrame(
-                    self.thread, self._args, frame_id, pc, is_fork
+                    self.thread, self._args, frame_id, pc, is_fork,
+                    coro_frame_addr=cont_addr, coro_type=coro_type
                 )
                 frames.append({"coro_frame": coro_frame})
                 

@@ -44,16 +44,26 @@
           "text": "-enable-pretty-printing",
           "ignoreFailures": true
         },
-        // // Note: Async backtrace script doesn't currently work in VS Code because
-        // // synthetic async frames don't have the `level` field. Use `bt` in Debug Console
-        // // instead, or use the LLDB debug configuration for full async stack support.
-        // {
-        //   "description": "Enable frame filters for MI mode",
-        //   "text": "-enable-frame-filters",
-        //   "ignoreFailures": true
-        // }
+        // Note: Async backtrace frames require a patched cpptools MIEngine adapter.
+        // Stock MIEngine crashes the stack walk on the synthetic async frames because
+        // they lack the `level` field (MICore's FindUint("level") throws). The patch
+        // (DebuggedThread.CreateContext / DebuggedProcess.GetParameterInfoOnly) falls
+        // back to the frame's position index when `level` is absent. Without that
+        // patch, use `bt` in the Debug Console or the LLDB configuration instead.
+        {
+          "description": "Enable frame filters for MI mode",
+          "text": "-enable-frame-filters",
+          "ignoreFailures": true
+        }
       ],
-      // "miDebuggerArgs": "-x ${workspaceFolder}/coro_backtrace_gdb.py",
+      "miDebuggerArgs": "-x ${workspaceFolder}/coro_backtrace_gdb.py",
+      // Show the locals of a suspended coroutine (a synthetic async frame) in the
+      // Variables pane. Such frames have no selectable `--frame` index, so MIEngine
+      // evaluates these expressions instead: the names expression yields the member
+      // names, and each local is read as "(<locals expr>).<name>". Requires the patched
+      // MIEngine adapter and the convenience functions in coro_backtrace_gdb.py.
+      "syntheticFrameLocalsExpression": "*$__coro_frame_at({address})",
+      "syntheticFrameLocalNamesExpression": "$__coro_local_names({address})",
     }
   ]
 }
