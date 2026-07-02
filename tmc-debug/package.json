@@ -1,0 +1,98 @@
+{
+  "name": "tmc-debug",
+  "displayName": "TooManyCooks Coroutine Debugging",
+  "description": "Async coroutine call stacks and locals for TooManyCooks, on top of the C/C++ (cppdbg) debugger. No patched debug adapter required.",
+  "version": "0.0.1",
+  "publisher": "tzcnt",
+  "license": "Unlicense",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tzcnt/tmc-examples.git",
+    "directory": "tmc-debug"
+  },
+  "bugs": {
+    "url": "https://github.com/tzcnt/tmc-examples/issues"
+  },
+  "homepage": "https://github.com/tzcnt/tmc-examples/tree/main/tmc-debug#readme",
+  "keywords": [
+    "c++",
+    "coroutines",
+    "gdb",
+    "debugging",
+    "TooManyCooks"
+  ],
+  "engines": {
+    "vscode": "^1.66.0"
+  },
+  "categories": [
+    "Debuggers"
+  ],
+  "scripts": {
+    "package": "npx --yes @vscode/vsce package"
+  },
+  "extensionDependencies": [
+    "ms-vscode.cpptools"
+  ],
+  "activationEvents": [
+    "onDebugResolve:cppdbg-tmc"
+  ],
+  "main": "./extension.js",
+  "contributes": {
+    "debuggers": [
+      {
+        "type": "cppdbg-tmc",
+        "label": "C++ (GDB) + TMC Coroutines",
+        "languages": [
+          "c",
+          "cpp"
+        ],
+        "configurationAttributes": {
+          "launch": {
+            "required": [
+              "program"
+            ],
+            "properties": {
+              "program": {
+                "type": "string",
+                "description": "Full path to the program executable."
+              },
+              "args": {
+                "type": "array",
+                "description": "Command line arguments.",
+                "items": {
+                  "type": "string"
+                },
+                "default": []
+              },
+              "cwd": {
+                "type": "string",
+                "description": "Working directory.",
+                "default": "${workspaceFolder}"
+              },
+              "miDebuggerPath": {
+                "type": "string",
+                "description": "Path to gdb."
+              },
+              "setupCommands": {
+                "type": "array",
+                "description": "Extra gdb/MI setup commands.",
+                "default": []
+              }
+            }
+          }
+        },
+        "initialConfigurations": [
+          {
+            "type": "cppdbg-tmc",
+            "request": "launch",
+            "name": "(gdb) Launch + TMC coroutines",
+            "program": "${workspaceFolder}/a.out",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "MIMode": "gdb"
+          }
+        ]
+      }
+    ]
+  }
+}

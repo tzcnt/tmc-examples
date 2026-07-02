@@ -1,0 +1,6 @@
+.vscodeignore
+.gitignore
+*.vsix
+node_modules/**
+proxy_test.py
+standalone.js

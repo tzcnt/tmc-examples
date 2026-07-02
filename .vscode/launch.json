@@ -20,6 +20,22 @@
       ]
     },
     {
+      "type": "cppdbg-tmc",
+      "request": "launch",
+      "name": "(gdb) Launch + TMC coroutines",
+      "program": "${command:cmake.launchTargetPath}",
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "environment": [
+        {
+          "name": "PATH",
+          "value": "$PATH:${command:cmake.launchTargetDirectory}"
+        }
+      ],
+      "MIMode": "gdb",
+      "externalConsole": false,
+    },
+    {
       "type": "cppdbg",
       "name": "(cppdbg) GDB launch current CMake target",
       "request": "launch",

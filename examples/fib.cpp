@@ -9,9 +9,14 @@
 #include <cstdlib>
 #include <utility>
 
+static size_t fib_leaf(size_t n) {
+  // return n synchronously.
+  return n;
+}
+
 static tmc::task<size_t> fib(size_t n) {
   if (n < 2) {
-    co_return n;
+    co_return fib_leaf(n);
   }
   /* Several different ways to spawn / await 2 child tasks */
 
@@ -62,7 +67,7 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
   // input arguments in the debug config.
   // Using a low number here to make synthetic async stack frame debugging
   // produce a consistent output.
-  size_t n = 3;
+  size_t n = 30;
 #else
   if (argc != 2) {
     printf("Usage: fib <n-th fibonacci number requested>\n");
@@ -82,8 +87,7 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
 
     auto endTime = std::chrono::high_resolution_clock::now();
     size_t totalTimeUs = static_cast<size_t>(
-      std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime)
-        .count()
+      std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count()
     );
     std::printf("%zu us\n", totalTimeUs / NRUNS);
     co_return 0;
