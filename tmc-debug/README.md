@@ -1,35 +1,50 @@
 # TooManyCooks Coroutine Debugging (VS Code)
 
 Shows the **async coroutine call stack** and each suspended coroutine's **locals** in VS Code,
-using the **stock** Microsoft C/C++ debugger (`cppdbg` / `OpenDebugAD7`) — **no patched debug
-adapter, no MIEngine fork**.
+on the **stock** debug adapters — **no patched adapter, no fork**:
+
+- **`cppdbg-tmc`** — GDB, via Microsoft's `cppdbg` / `OpenDebugAD7`.
+- **`lldb-dap-tmc`** — LLDB, via `lldb-dap`.
+
+Both run the stock adapter behind a thin **Debug Adapter Protocol proxy** that fixes the
+coroutine gaps at the DAP layer. The proxy runs inline in the extension host (no extra process).
 
 ## How it works
 
-A suspended coroutine's continuation chain and its spilled locals are not visible to a normal
-stack walk. GDB frame filters can synthesize those frames, but stock MIEngine crashes on them
-(the synthetic frames have no `level`). Instead of patching MIEngine, this extension runs the
-stock `OpenDebugAD7` behind a thin **Debug Adapter Protocol proxy** (`tmcProxy.js`):
+A suspended coroutine's continuation chain and spilled locals aren't visible to a normal stack
+walk. The two debuggers fall short in opposite ways, so each type applies a different fix:
 
-- It launches the debuggee with the GDB coroutine script (`coro_backtrace_gdb.py`) loaded but
-  **without** `-enable-frame-filters` — so stock MIEngine sees a normal stack and never crashes.
-- On each `stackTrace`, it evaluates `$__tmc_async_chain()` and **splices the async frames in**.
-- For those frames' `scopes`/`variables`, it evaluates `$__coro_local_names()` and
-  `(*$__coro_frame_at(addr)).<name>` to produce the locals.
-- Everything else passes straight through — ordinary debugging is untouched and native-speed.
+**GDB (`cppdbg-tmc`)** — GDB frame filters *can* synthesize the async frames, but stock MIEngine
+crashes on them (they have no `level`). So the proxy runs with frame filters **off** and
+reconstructs everything itself:
+- launches with `coro_backtrace_gdb.py` loaded but **without** `-enable-frame-filters`;
+- on `stackTrace`, evaluates `$__tmc_async_chain()` and **splices the async frames in** (building
+  a cached augmented stack — correct under paging and nested stops);
+- for their `scopes`/`variables`, evaluates `$__coro_local_names()` +
+  `(*$__coro_frame_at(addr)).<name>`.
 
-The proxy runs inline in the extension host (no extra process, no runtime dependency beyond the
-C/C++ extension it reuses).
+**LLDB (`lldb-dap-tmc`)** — LLDB's `ScriptedFrameProvider` already shows the async frames
+natively; the only gap is **locals** (LLDB 22.x doesn't yet invoke the `get_variables` hook —
+LLVM PR #178575). So the proxy passes frames through untouched and only synthesizes locals:
+- launches with `coro_backtrace_lldb.py` loaded (registers the frame provider + a
+  `tmc-coro-locals` command that reuses the exact `get_variables` logic);
+- notes which frames are `[async]`, and for their `scopes`/`variables` evaluates
+  `tmc-coro-locals` and slices out that frame's locals.
+
+Both stopgaps go away once the respective upstream fixes ship (MIEngine synthetic-frame support;
+LLVM PR #178575); the extension can then drop the proxy for that debugger.
 
 ## Requirements
 
-- The **C/C++ extension** (`ms-vscode.cpptools`) — reused for its bundled `OpenDebugAD7`.
-- **GDB** (with Python), and a debuggee built with debug info by Clang or GCC.
+- **GDB path:** the **C/C++ extension** (`ms-vscode.cpptools`, reused for its `OpenDebugAD7`) and **GDB** with Python.
+- **LLDB path:** **LLDB 22+** with `lldb-dap` (from the `llvm-vs-code-extensions.lldb-dap` extension or on `PATH`).
+- A debuggee built with debug info (Clang or GCC).
 
 ## Use
 
-Set your launch configuration `type` to **`cppdbg-tmc`**. Everything else is a normal `cppdbg`
-launch — the extension injects the GDB script and pretty-printing for you:
+Set your launch configuration `type` to **`cppdbg-tmc`** or **`lldb-dap-tmc`**. Everything else is
+a normal `cppdbg` / `lldb-dap` launch — the extension injects the coroutine script (and, for GDB,
+pretty-printing) for you:
 
 ```json
 {
@@ -39,6 +54,15 @@ launch — the extension injects the GDB script and pretty-printing for you:
   "program": "${workspaceFolder}/build/clang-linux-debug/fib",
   "cwd": "${workspaceFolder}",
   "MIMode": "gdb"
+}
+```
+```json
+{
+  "type": "lldb-dap-tmc",
+  "request": "launch",
+  "name": "(lldb) Launch + TMC coroutines",
+  "program": "${workspaceFolder}/build/clang-linux-debug/fib",
+  "cwd": "${workspaceFolder}"
 }
 ```
 
@@ -73,4 +97,9 @@ python3 proxy_test.py
 - Verified with Clang on Linux/GDB. The GCC path reuses the same decorators but hasn't been
   exercised through the proxy yet.
 - `$__coro_frame_at` / `$__coro_local_names` / `$__tmc_async_chain` live in
-  `coro_backtrace_gdb.py` (bundled). Keep this copy in sync with the canonical script.
+  `coro_backtrace_gdb.py`; `tmc-coro-locals` lives in `coro_backtrace_lldb.py` (both bundled).
+  Keep these copies in sync with the canonical scripts.
+- **LLDB locals are currently flat** (scalars show values; aggregates show `{...}` and aren't
+  expandable), because they're transported from a command rather than as live values. The GDB
+  path supports nested expansion. Full LLDB expansion arrives once LLVM PR #178575 ships and the
+  LLDB proxy can be dropped.

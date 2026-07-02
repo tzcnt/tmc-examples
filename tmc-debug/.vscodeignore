@@ -4,3 +4,5 @@
 node_modules/**
 proxy_test.py
 standalone.js
+lldb_probe.py
+lldb_proxy_test.py

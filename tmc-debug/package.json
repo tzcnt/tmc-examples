@@ -1,8 +1,8 @@
 {
   "name": "tmc-debug",
   "displayName": "TooManyCooks Coroutine Debugging",
-  "description": "Async coroutine call stacks and locals for TooManyCooks, on top of the C/C++ (cppdbg) debugger. No patched debug adapter required.",
-  "version": "0.0.1",
+  "description": "Async coroutine call stacks and locals for TooManyCooks, on top of the stock cppdbg (GDB) and lldb-dap (LLDB) debuggers. No patched debug adapter required.",
+  "version": "0.1.0",
   "publisher": "tzcnt",
   "license": "Unlicense",
   "repository": {
@@ -18,6 +18,7 @@
     "c++",
     "coroutines",
     "gdb",
+    "lldb",
     "debugging",
     "TooManyCooks"
   ],
@@ -30,11 +31,9 @@
   "scripts": {
     "package": "npx --yes @vscode/vsce package"
   },
-  "extensionDependencies": [
-    "ms-vscode.cpptools"
-  ],
   "activationEvents": [
-    "onDebugResolve:cppdbg-tmc"
+    "onDebugResolve:cppdbg-tmc",
+    "onDebugResolve:lldb-dap-tmc"
   ],
   "main": "./extension.js",
   "contributes": {
@@ -90,6 +89,59 @@
             "args": [],
             "cwd": "${workspaceFolder}",
             "MIMode": "gdb"
+          }
+        ]
+      },
+      {
+        "type": "lldb-dap-tmc",
+        "label": "C++ (LLDB) + TMC Coroutines",
+        "languages": [
+          "c",
+          "cpp"
+        ],
+        "configurationAttributes": {
+          "launch": {
+            "required": [
+              "program"
+            ],
+            "properties": {
+              "program": {
+                "type": "string",
+                "description": "Full path to the program executable."
+              },
+              "args": {
+                "type": "array",
+                "description": "Command line arguments.",
+                "items": {
+                  "type": "string"
+                },
+                "default": []
+              },
+              "cwd": {
+                "type": "string",
+                "description": "Working directory.",
+                "default": "${workspaceFolder}"
+              },
+              "lldbDapPath": {
+                "type": "string",
+                "description": "Path to the lldb-dap executable. Defaults to the lldb-dap extension's binary or lldb-dap on PATH."
+              },
+              "preRunCommands": {
+                "type": "array",
+                "description": "LLDB commands run before launching.",
+                "default": []
+              }
+            }
+          }
+        },
+        "initialConfigurations": [
+          {
+            "type": "lldb-dap-tmc",
+            "request": "launch",
+            "name": "(lldb) Launch + TMC coroutines",
+            "program": "${workspaceFolder}/a.out",
+            "args": [],
+            "cwd": "${workspaceFolder}"
           }
         ]
       }

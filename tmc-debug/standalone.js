@@ -1,17 +1,23 @@
-// Standalone stdio wrapper around TmcProxy, for headless testing with a DAP driver.
-// The real OpenDebugAD7 path comes from $AD7_REAL.
+// Standalone stdio wrapper around a proxy, for headless testing with a DAP driver.
+// Set $AD7_REAL for the GDB/cppdbg proxy, or $LLDB_DAP for the LLDB proxy.
 'use strict';
-const { TmcProxy } = require('./tmcProxy');
-
-const ad7 = process.env.AD7_REAL;
-if (!ad7) { process.stderr.write('AD7_REAL not set\n'); process.exit(2); }
 
 function sendToClient(msg) {
     const json = JSON.stringify(msg);
     process.stdout.write(`Content-Length: ${Buffer.byteLength(json, 'utf8')}\r\n\r\n${json}`);
 }
 
-const proxy = new TmcProxy(sendToClient, ad7, [], { stdio: ['pipe', 'pipe', 'pipe'] });
+const opts = { stdio: ['pipe', 'pipe', 'pipe'] };
+let proxy;
+if (process.env.LLDB_DAP) {
+    const { TmcLldbProxy } = require('./tmcLldbProxy');
+    proxy = new TmcLldbProxy(sendToClient, process.env.LLDB_DAP, [], opts);
+} else if (process.env.AD7_REAL) {
+    const { TmcProxy } = require('./tmcProxy');
+    proxy = new TmcProxy(sendToClient, process.env.AD7_REAL, [], opts);
+} else {
+    process.stderr.write('Set AD7_REAL (GDB) or LLDB_DAP (LLDB)\n'); process.exit(2);
+}
 proxy._onExit = (code) => process.exit(code || 0);
 
 // Parse Content-Length framed DAP from our stdin (the client) into the proxy.
