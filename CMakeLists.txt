@@ -336,8 +336,8 @@ make_exe(asio_prio
     examples/asio/prio.cpp
 )
 
-make_exe(asio_cancellation
-    examples/asio/result_each.cpp
+make_exe(asio_mux_timeout
+    examples/asio/mux_timeout.cpp
 )
 
 make_exe(asio_select
@@ -346,6 +346,10 @@ make_exe(asio_select
 
 make_exe(asio_delay
     examples/asio/delay.cpp
+)
+
+make_exe(asio_batch_processor
+    examples/asio/batch_processor.cpp
 )
 
 make_exe(asio_timer_mem_bench

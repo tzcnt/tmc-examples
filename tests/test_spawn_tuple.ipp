@@ -27,74 +27,6 @@ TEST_F(CATEGORY, spawn_tuple_task_detach) {
   }());
 }
 
-TEST_F(CATEGORY, spawn_tuple_task_each) {
-  test_async_main(ex(), []() -> tmc::task<void> {
-    auto ts = tmc::spawn_tuple(work(0), work(1), work(2));
-    auto each = std::move(ts).result_each();
-
-    int sum = 0;
-    for (size_t i = co_await each; i != each.end(); i = co_await each) {
-      switch (i) {
-      case 0:
-        sum += each.get<0>();
-        break;
-      case 1:
-        sum += each.get<1>();
-        break;
-      case 2:
-        sum += each.get<2>();
-        break;
-      default:
-        ADD_FAILURE() << "invalid index: " << i;
-        break;
-      }
-    }
-
-    EXPECT_EQ(sum, (1 << 3) - 1);
-  }());
-}
-
-TEST_F(CATEGORY, spawn_tuple_each_resume_after) {
-  test_async_main(ex(), []() -> tmc::task<void> {
-    auto make_task = [](int I, atomic_awaitable<size_t>& AA) -> tmc::task<int> {
-      AA.inc();
-      co_return 1 << I;
-    };
-    static constexpr int N = 5;
-    atomic_awaitable<size_t> aa(N);
-    auto ts = tmc::spawn_tuple(
-                make_task(0, aa), make_task(1, aa), make_task(2, aa), make_task(3, aa),
-                make_task(4, aa)
-    )
-                .result_each();
-    co_await aa;
-    int sum = 0;
-    for (auto idx = co_await ts; idx != ts.end(); idx = co_await ts) {
-      switch (idx) {
-      case 0:
-        sum += ts.get<0>();
-        break;
-      case 1:
-        sum += ts.get<1>();
-        break;
-      case 2:
-        sum += ts.get<2>();
-        break;
-      case 3:
-        sum += ts.get<3>();
-        break;
-      case 4:
-        sum += ts.get<4>();
-        break;
-      }
-    }
-
-    EXPECT_EQ(sum, (1 << N) - 1);
-
-    co_return;
-  }());
-}
-
 TEST_F(CATEGORY, spawn_tuple_empty) {
   test_async_main(ex(), []() -> tmc::task<void> {
     [[maybe_unused]] std::tuple<> results = co_await tmc::spawn_tuple();
@@ -181,6 +113,27 @@ TEST_F(CATEGORY, spawn_tuple_from_tuple) {
     EXPECT_EQ(sum, (1 << 2) - 1);
   }());
 }
+
+// aw_fork_tuple_clang (the dummy awaitable returned by fork_tuple_clang()) has an
+// await_ready() that returns true, so a normal co_await goes straight to
+// await_resume() and its await_suspend() is never reached. Exercise the awaiter
+// interface directly to cover and document that no-op suspend, then join the
+// fork so the forked tasks are consumed.
+TEST_F(CATEGORY, fork_tuple_clang_await_suspend_noop) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    auto dummy = tmc::fork_tuple_clang(
+      []() -> tmc::task<int> { co_return 3; }(), []() -> tmc::task<int> { co_return 4; }()
+    );
+    EXPECT_TRUE(dummy.await_ready());
+    dummy.await_suspend(std::noop_coroutine()); // no-op; never reached by co_await
+    auto forked = dummy.await_resume();
+    std::tuple<int, int> results = co_await std::move(forked);
+    EXPECT_EQ(std::get<0>(results), 3);
+    EXPECT_EQ(std::get<1>(results), 4);
+  }());
+}
+
+/*** select() tests ***/
 
 // A manufactured awaitable that is also its own cancellation handle: it can be
 // co_awaited (ASYNC_INITIATE) and exposes a .cancel() method, to exercise the
@@ -788,7 +741,7 @@ TEST_F(CATEGORY, select_cancellable_object_async) {
 // so exercise the full awaiter interface directly to document and cover its
 // (deliberately empty) contract.
 TEST_F(CATEGORY, select_cancel_noop_awaiter) {
-  tmc::detail::cancel_noop noop;
+  tmc::detail::noop_awaitable noop;
   EXPECT_TRUE(noop.await_ready());
   noop.await_suspend(std::noop_coroutine());
   noop.await_resume();
@@ -809,24 +762,5 @@ TEST_F(CATEGORY, select_self_cancellable_async) {
     );
 
     EXPECT_EQ(result.index(), 0u);
-  }());
-}
-
-// aw_fork_tuple_clang (the dummy awaitable returned by fork_tuple_clang()) has an
-// await_ready() that returns true, so a normal co_await goes straight to
-// await_resume() and its await_suspend() is never reached. Exercise the awaiter
-// interface directly to cover and document that no-op suspend, then join the
-// fork so the forked tasks are consumed.
-TEST_F(CATEGORY, fork_tuple_clang_await_suspend_noop) {
-  test_async_main(ex(), []() -> tmc::task<void> {
-    auto dummy = tmc::fork_tuple_clang(
-      []() -> tmc::task<int> { co_return 3; }(), []() -> tmc::task<int> { co_return 4; }()
-    );
-    EXPECT_TRUE(dummy.await_ready());
-    dummy.await_suspend(std::noop_coroutine()); // no-op; never reached by co_await
-    auto forked = dummy.await_resume();
-    std::tuple<int, int> results = co_await std::move(forked);
-    EXPECT_EQ(std::get<0>(results), 3);
-    EXPECT_EQ(std::get<1>(results), 4);
   }());
 }

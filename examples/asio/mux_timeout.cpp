@@ -1,7 +1,8 @@
-// Demonstrate how to use the spawn_tuple().result_each() function, which receives results
-// from multiple awaitables as they complete one-by-one, instead of waiting for them all
-// to complete. This is a contrived example to demonstrate the usage, since Asio
-// operations already support timeouts.
+// Demonstrate how to use tmc::mux_tuple, which receives results from multiple
+// awaitables as they complete one-by-one, instead of waiting for them all to
+// complete. This is a contrived example to demonstrate the usage, since Asio
+// operations already support timeouts. See batch_processor.cpp for a more
+// complete / realistic use case.
 
 #ifdef _WIN32
 #include <sdkddkver.h>
@@ -10,7 +11,7 @@
 #include "tmc/asio/aw_asio.hpp"
 #include "tmc/asio/ex_asio.hpp"
 #include "tmc/ex_cpu.hpp"
-#include "tmc/spawn_tuple.hpp"
+#include "tmc/mux_tuple.hpp"
 #include "tmc/task.hpp"
 
 #ifdef TMC_USE_BOOST_ASIO
@@ -83,13 +84,11 @@ int main() {
         co_return std::chrono::high_resolution_clock::now();
       }();
 
-      // Using the result_each() customizer allows us to receive each result immediately
-      // as it becomes ready, even if the other tasks are still running.
-      auto eachResult =
-        tmc::spawn_tuple(
-          mainOperationHandle.async_wait(tmc::aw_asio), std::move(timeoutTask)
-        )
-          .result_each();
+      // Using a mux_tuple allows us to receive each result immediately as it
+      // becomes ready, even if the other tasks are still running.
+      tmc::mux_tuple eachResult(
+        mainOperationHandle.async_wait(tmc::aw_asio), std::move(timeoutTask)
+      );
 
       // We must wait for all operations to complete before returning.
       for (auto readyIdx = co_await eachResult; readyIdx != eachResult.end();
