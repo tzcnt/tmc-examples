@@ -1,16 +1,6 @@
-// Demonstrate `tmc::select()`: await several operations and take the result of
-// whichever one completes first, automatically cancelling the rest.
-//
-// This is a contrived example, since Asio operations already support native timeouts, but
-// it could be used to provide a timeout cancellation with a non-Asio operation, or a
-// CPU-bound operation by setting a flag inside the cancellation lambda.
-//
-// `tmc::select()` receives several `tmc::cancellable`, a pair type.
-// Each `tmc::cancellable` holds:
-// - an awaitable
-// - a method to cancel the awaitable
-// The `tmc::cancellable` constructor accepts flexible 2nd parameter depending on the
-// cancellation method.
+// Demonstrates how to use `tmc::mux_tuple` to implement a timeout-based batch processor.
+// It receives results from a queue and starts a timer once the first result is received,
+// flushing the batch when the timer expires.
 
 #ifdef _WIN32
 #include <sdkddkver.h>
