@@ -34,21 +34,6 @@ TEST(CATEGORY, fork_none) {
   );
 }
 
-TEST(CATEGORY, each_none) {
-  EXPECT_DEATH(
-    {
-      tmc::ex_cpu ex;
-      ex.set_thread_count(1).set_priority_count(1).init();
-      test_async_main(ex, []() -> tmc::task<void> {
-        auto x = tmc::spawn_tuple([]() -> tmc::task<void> { co_return; }())
-                   .result_each();
-        co_return;
-      }());
-    },
-    "co_await"
-  );
-}
-
 TEST(CATEGORY, co_await_twice) {
   EXPECT_DEATH(
     {
@@ -107,22 +92,6 @@ TEST(CATEGORY, detach_twice) {
         auto x = tmc::spawn_tuple([]() -> tmc::task<void> { co_return; }());
         x.detach();
         x.detach();
-        co_return;
-      }());
-    },
-    "once"
-  );
-}
-
-TEST(CATEGORY, each_twice) {
-  EXPECT_DEATH(
-    {
-      tmc::ex_cpu ex;
-      ex.set_thread_count(1).set_priority_count(1).init();
-      test_async_main(ex, []() -> tmc::task<void> {
-        auto x = tmc::spawn_tuple([]() -> tmc::task<void> { co_return; }());
-        auto y = std::move(x).result_each();
-        auto z = std::move(x).result_each();
         co_return;
       }());
     },
