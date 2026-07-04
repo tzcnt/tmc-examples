@@ -195,7 +195,8 @@ TEST_F(CATEGORY, fork_loop_destruct_once) {
       size_t seen = 0;
       tmc::mux_tuple mux(q.pull());
       while (true) {
-        co_await mux;
+        size_t idx = co_await mux;
+        EXPECT_EQ(0u, idx); // only one slot
         auto& r = mux.get<0>();
         if (!r) {
           break;
