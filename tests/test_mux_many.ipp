@@ -439,6 +439,39 @@ TEST_F(CATEGORY, mux_many_eager_empty_unknown_coroutine_iterator) {
   }());
 }
 
+// capacity() reports the fixed number of slots (the `Count` template argument /
+// std::array storage size). It is independent of how many awaitables were
+// initiated or how many slots are currently active.
+TEST_F(CATEGORY, mux_many_capacity) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    // Empty (storage-only) group with an explicit Count.
+    auto mux4 = tmc::mux_many<int, 4>();
+    EXPECT_EQ(mux4.capacity(), 4u);
+
+    // Default Count is TMC_PLATFORM_BITS - 1.
+    auto muxDefault = tmc::mux_many<int>();
+    EXPECT_EQ(muxDefault.capacity(), static_cast<size_t>(TMC_PLATFORM_BITS - 1));
+
+    // Zero-slot degenerate group.
+    auto mux0 = tmc::mux_many<int, 0>();
+    EXPECT_EQ(mux0.capacity(), 0u);
+
+    // capacity() is the storage size, not the number of initiated awaitables:
+    // this group has storage for 3 slots but only 2 are eagerly initiated. It
+    // also does not change as the group is drained.
+    std::array<tmc::task<int>, 2> tasks{work(0), work(1)};
+    auto mux3 = tmc::mux_many<int, 3>(tasks.begin(), tasks.end());
+    EXPECT_EQ(mux3.capacity(), 3u);
+    int count = 0;
+    for (auto idx = co_await mux3; idx != mux3.end(); idx = co_await mux3) {
+      ++count;
+      EXPECT_EQ(mux3.capacity(), 3u); // unchanged while draining
+    }
+    EXPECT_EQ(count, 2);
+    EXPECT_EQ(mux3.capacity(), 3u);
+  }());
+}
+
 /*** Empty constructors (storage only; fork(idx, ...) to launch work) ***/
 
 // The empty constructor allocates result storage but initiates nothing. The

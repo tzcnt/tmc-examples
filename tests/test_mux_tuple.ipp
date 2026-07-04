@@ -213,6 +213,35 @@ TEST_F(CATEGORY, mux_tuple_await_on_second_executor) {
   }());
 }
 
+// capacity() reports the fixed number of slots, equal to the number of `Result`
+// template arguments. It is independent of how many slots are currently active
+// and stays constant as the group is forked and drained.
+TEST_F(CATEGORY, mux_tuple_capacity) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    // Empty (storage-only) group: capacity reflects the template arity, not the
+    // number of forked/active slots (none are active here).
+    tmc::mux_tuple<int, int, int> mux3;
+    EXPECT_EQ(mux3.capacity(), 3u);
+    EXPECT_EQ(mux3.active_bitset(), 0u);
+
+    // Single-slot group.
+    tmc::mux_tuple<int> mux1;
+    EXPECT_EQ(mux1.capacity(), 1u);
+
+    // Eager (CTAD) group: capacity equals the deduced arity and does not change
+    // as the slots are drained.
+    tmc::mux_tuple mux2(work(0), work(1));
+    EXPECT_EQ(mux2.capacity(), 2u);
+    int count = 0;
+    for (size_t i = co_await mux2; i != mux2.end(); i = co_await mux2) {
+      ++count;
+      EXPECT_EQ(mux2.capacity(), 2u); // unchanged while draining
+    }
+    EXPECT_EQ(count, 2);
+    EXPECT_EQ(mux2.capacity(), 2u);
+  }());
+}
+
 /*** Empty constructor (storage only; fork<I>() to launch work) ***/
 
 // The empty constructor allocates result storage but initiates nothing. The
