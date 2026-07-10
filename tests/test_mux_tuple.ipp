@@ -244,7 +244,7 @@ TEST_F(CATEGORY, mux_tuple_capacity) {
 
 // poll() is a non-suspending check for a ready result with three outcomes: it
 // consumes and returns the index of a ready slot (exactly as co_await would),
-// returns none() when results are pending but none is ready, or returns end()
+// returns pending() when results are pending but none is ready, or returns end()
 // when no submitted results remain. A slot consumed by poll() is re-forkable.
 //
 // mux_immediate_async_op completes synchronously inside fork(), so its slot is
@@ -259,7 +259,7 @@ TEST_F(CATEGORY, mux_tuple_poll) {
     };
 
     // An empty (never-forked) group has no pending results, so poll() reports
-    // end() - not none().
+    // end() - not pending().
     tmc::mux_tuple<int, int> mux;
     EXPECT_EQ(mux.poll(), mux.end());
 
@@ -273,8 +273,8 @@ TEST_F(CATEGORY, mux_tuple_poll) {
     EXPECT_EQ(mux.get<0>(), 1);
     EXPECT_FALSE(mux.is_active<0>()); // consumed by poll(): now re-forkable
 
-    // Slot 1 is still pending (block not yet incremented): none(), not end().
-    EXPECT_EQ(mux.poll(), mux.none());
+    // Slot 1 is still pending (block not yet incremented): pending(), not end().
+    EXPECT_EQ(mux.poll(), mux.pending());
 
     // The slot poll() consumed can be re-armed, just like after co_await.
     mux.fork<0>(mux_immediate_async_op(2));
