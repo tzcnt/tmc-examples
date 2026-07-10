@@ -242,6 +242,60 @@ TEST_F(CATEGORY, mux_tuple_capacity) {
   }());
 }
 
+// poll() is a non-suspending check for a ready result with three outcomes: it
+// consumes and returns the index of a ready slot (exactly as co_await would),
+// returns pending() when results are pending but none is ready, or returns end()
+// when no submitted results remain. A slot consumed by poll() is re-forkable.
+//
+// mux_immediate_async_op completes synchronously inside fork(), so its slot is
+// ready the moment fork() returns - poll() observes it with no suspension or
+// spinning, deterministically on every executor. The pending slot uses a blocker
+// task that never completes until released, and is drained via co_await.
+TEST_F(CATEGORY, mux_tuple_poll) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    auto blocker = [](atomic_awaitable<int>& B) -> tmc::task<int> {
+      co_await B;
+      co_return 99;
+    };
+
+    // An empty (never-forked) group has no pending results, so poll() reports
+    // end() - not pending().
+    tmc::mux_tuple<int, int> mux;
+    EXPECT_EQ(mux.poll(), mux.end());
+
+    atomic_awaitable<int> block(1);
+    mux.fork<0>(mux_immediate_async_op(1)); // ready synchronously
+    mux.fork<1>(blocker(block));            // stays pending until block.inc()
+
+    // Slot 0 is ready; slot 1 is pending. poll() consumes slot 0.
+    size_t idx = mux.poll();
+    EXPECT_EQ(idx, 0u);
+    EXPECT_EQ(mux.get<0>(), 1);
+    EXPECT_FALSE(mux.is_active<0>()); // consumed by poll(): now re-forkable
+
+    // Slot 1 is still pending (block not yet incremented): pending(), not end().
+    EXPECT_EQ(mux.poll(), mux.pending());
+
+    // The slot poll() consumed can be re-armed, just like after co_await.
+    mux.fork<0>(mux_immediate_async_op(2));
+    idx = mux.poll();
+    EXPECT_EQ(idx, 0u);
+    EXPECT_EQ(mux.get<0>(), 2);
+
+    // Release slot 1 and drain the remainder with co_await.
+    block.inc();
+    idx = co_await mux;
+    EXPECT_EQ(idx, 1u);
+    EXPECT_EQ(mux.get<1>(), 99);
+    idx = co_await mux;
+    EXPECT_EQ(idx, mux.end());
+
+    // Fully drained (remaining_count == 0): poll() reports end(), like the
+    // terminal co_await.
+    EXPECT_EQ(mux.poll(), mux.end());
+  }());
+}
+
 /*** Empty constructor (storage only; fork<I>() to launch work) ***/
 
 // The empty constructor allocates result storage but initiates nothing. The
