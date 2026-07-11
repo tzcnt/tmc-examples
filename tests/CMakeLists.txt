@@ -120,6 +120,7 @@ make_exe_base(
   test_auto_reset_event.cpp
   test_manual_reset_event.cpp
   test_mutex.cpp
+  test_tiny_mutex.cpp
   test_rw_lock.cpp
   test_semaphore.cpp
   test_ex_any.cpp
@@ -127,6 +128,7 @@ make_exe_base(
   test_ex_cpu_st.cpp
   test_ex_manual_st.cpp
   test_ex_asio.cpp
+  test_safe_asio.cpp
   test_ex_braid.cpp
   test_atomic_bitmap.cpp
   test_bit_manip.cpp

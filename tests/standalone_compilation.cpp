@@ -18,6 +18,10 @@
 #define TMC_IMPL
 #include "tmc/all_headers.hpp" // IWYU pragma: keep
 
+// tmc::tiny_mutex is used by the tmc-asio safe_* objects but is not included
+// in all_headers.hpp, so its impl must be provided explicitly.
+#include "tmc/detail/tiny_mutex.hpp" // IWYU pragma: keep
+
 // If building with TMC_WINDOWS_DLL, and you want to use the global
 // `tmc::asio_executor()` provided by tmc-asio, then this impl must also be
 // provided.
