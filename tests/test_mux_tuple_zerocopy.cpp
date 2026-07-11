@@ -67,7 +67,8 @@ struct zc_config : tmc::qu_mpsc_unbounded_default_config {
 struct counted {
   std::atomic<size_t>* count;
   size_t value;
-  counted(std::atomic<size_t>* C, size_t V) noexcept : count{C}, value{V} {}
+  counted(std::atomic<size_t>* C TMC_LIFETIMEBOUND, size_t V) noexcept
+      : count{C}, value{V} {}
   counted(counted const&) = delete;
   counted& operator=(counted const&) = delete;
   ~counted() {
@@ -85,7 +86,8 @@ struct no_default_counted {
   std::atomic<size_t>* count;
   size_t value;
   no_default_counted() = delete;
-  no_default_counted(std::atomic<size_t>* C, size_t V) noexcept : count{C}, value{V} {}
+  no_default_counted(std::atomic<size_t>* C TMC_LIFETIMEBOUND, size_t V) noexcept
+      : count{C}, value{V} {}
   no_default_counted(no_default_counted const&) = delete;
   no_default_counted& operator=(no_default_counted const&) = delete;
   no_default_counted(no_default_counted&& Other) noexcept

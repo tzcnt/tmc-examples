@@ -401,7 +401,8 @@ TEST_F(CATEGORY, wrapper_throw_move_only_unknown) {
 template <bool Known>
 struct aw_throw_on_other_executor_void : public KnownTag<Known> {
   tmc::ex_braid& other_ex;
-  aw_throw_on_other_executor_void(tmc::ex_braid& OtherEx) : other_ex{OtherEx} {}
+  aw_throw_on_other_executor_void(tmc::ex_braid& OtherEx TMC_LIFETIMEBOUND)
+      : other_ex{OtherEx} {}
   bool await_ready() { return false; }
   void await_suspend(std::coroutine_handle<> Outer) {
     tmc::detail::post_checked(other_ex.type_erased(), std::move(Outer));
@@ -412,7 +413,8 @@ struct aw_throw_on_other_executor_void : public KnownTag<Known> {
 template <bool Known>
 struct aw_throw_on_other_executor_int : public KnownTag<Known> {
   tmc::ex_braid& other_ex;
-  aw_throw_on_other_executor_int(tmc::ex_braid& OtherEx) : other_ex{OtherEx} {}
+  aw_throw_on_other_executor_int(tmc::ex_braid& OtherEx TMC_LIFETIMEBOUND)
+      : other_ex{OtherEx} {}
   bool await_ready() { return false; }
   void await_suspend(std::coroutine_handle<> Outer) {
     tmc::detail::post_checked(other_ex.type_erased(), std::move(Outer));

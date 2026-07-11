@@ -41,7 +41,7 @@ template <typename Awaitable> struct callback_awaitable_impl {
   tmc::detail::result_storage_t<typename Awaitable::ResultTuple> result;
 
   friend Awaitable;
-  callback_awaitable_impl(Awaitable& Handle) : handle(Handle) {}
+  callback_awaitable_impl(Awaitable& Handle TMC_LIFETIMEBOUND) : handle(Handle) {}
 
   bool await_ready() { return false; }
 
@@ -121,7 +121,7 @@ template <typename... ResultArgs> struct wrapper {
       );
     }
 
-    callback_awaitable_impl<callback_awaitable> operator co_await() {
+    callback_awaitable_impl<callback_awaitable> operator co_await() TMC_LIFETIMEBOUND {
       return callback_awaitable_impl<callback_awaitable>(*this);
     }
   };
@@ -166,7 +166,7 @@ template <IsAwCallback Awaitable> struct awaitable_traits<Awaitable> {
   using self_type = Awaitable;
 
   // Values controlling the behavior when awaited directly in a tmc::task
-  static decltype(auto) get_awaiter(self_type&& awaitable) {
+  static decltype(auto) get_awaiter(self_type&& awaitable TMC_LIFETIMEBOUND) {
     return std::forward<self_type>(awaitable).operator co_await();
   }
 

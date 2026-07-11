@@ -54,7 +54,7 @@ public:
     });
   }
 
-  Result& await_resume() & noexcept { return result; }
+  Result& await_resume() & noexcept TMC_LIFETIMEBOUND { return result; }
   Result&& await_resume() && noexcept { return std::move(result); }
 
   ~external_awaitable() {
