@@ -86,7 +86,7 @@ public:
   /// This object shares a lifetime with this executor, and can be used for
   /// pointer-based equality comparison against
   /// the thread-local `tmc::current_executor()`.
-  tmc::ex_any* type_erased() { return &type_erased_this; }
+  tmc::ex_any* type_erased() TMC_LIFETIMEBOUND { return &type_erased_this; }
 };
 
 // A complete, minimal implementation of executor_traits.
@@ -105,7 +105,7 @@ template <> struct tmc::detail::executor_traits<tmc_external_executor> {
     Ex.post_bulk(std::forward<It>(Items), Count, Priority, ThreadHint);
   }
 
-  static inline tmc::ex_any* type_erased(tmc_external_executor& Ex) {
+  static inline tmc::ex_any* type_erased(tmc_external_executor& Ex TMC_LIFETIMEBOUND) {
     return Ex.type_erased();
   }
 

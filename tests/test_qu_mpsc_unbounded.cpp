@@ -33,7 +33,7 @@ template <size_t Pack> struct q_config : tmc::qu_mpsc_unbounded_default_config {
 struct mpsc_destructor_counter {
   std::atomic<size_t>* count;
   [[maybe_unused]] mpsc_destructor_counter() noexcept : count{nullptr} {}
-  mpsc_destructor_counter(std::atomic<size_t>* C) noexcept : count{C} {}
+  mpsc_destructor_counter(std::atomic<size_t>* C TMC_LIFETIMEBOUND) noexcept : count{C} {}
   mpsc_destructor_counter(mpsc_destructor_counter const& Other) = delete;
   mpsc_destructor_counter& operator=(mpsc_destructor_counter const& Other) = delete;
 

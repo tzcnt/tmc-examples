@@ -38,7 +38,7 @@ template <typename T> struct atomic_awaitable : private AtomicAwaitableTag {
   }
 
   std::atomic<T>& ref() { return value; }
-  operator std::atomic<T>&() { return value; }
+  operator std::atomic<T>&() TMC_LIFETIMEBOUND { return value; }
   T load() { return value.load(); }
 
   void async_initiate() {
@@ -84,7 +84,9 @@ template <IsAwAtomic Awaitable> struct awaitable_traits<Awaitable> {
   using self_type = Awaitable;
 
   // Values controlling the behavior when awaited directly in a tmc::task
-  static decltype(auto) get_awaiter(self_type& awaitable) noexcept { return awaitable; }
+  static decltype(auto) get_awaiter(self_type& awaitable TMC_LIFETIMEBOUND) noexcept {
+    return awaitable;
+  }
 
   // Values controlling the behavior when wrapped by a utility function
   // such as tmc::spawn_*()

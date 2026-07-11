@@ -52,7 +52,7 @@ TEST_F(CATEGORY, lambda) {
 struct inv {
   int* r;
   int* d;
-  inv(int& R, int& D) : r(&R), d(&D) {}
+  inv(int& R TMC_LIFETIMEBOUND, int& D TMC_LIFETIMEBOUND) : r(&R), d(&D) {}
   void operator()() {
     EXPECT_NE(r, nullptr);
     *r = 1;

@@ -44,7 +44,7 @@ template <typename Arr> tmc::task<size_t> inc_task_int(Arr& arr, size_t idx) {
 
 struct destructor_counter {
   std::atomic<size_t>* count;
-  destructor_counter(std::atomic<size_t>* C) noexcept : count{C} {}
+  destructor_counter(std::atomic<size_t>* C TMC_LIFETIMEBOUND) noexcept : count{C} {}
   destructor_counter(destructor_counter const& Other) = delete;
   destructor_counter& operator=(destructor_counter const& Other) = delete;
 

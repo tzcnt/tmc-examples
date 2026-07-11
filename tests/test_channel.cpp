@@ -417,7 +417,8 @@ struct move_counter {
   int value;
   std::atomic<size_t>* count;
 
-  move_counter(int v, std::atomic<size_t>* c) noexcept : value(v), count(c) {}
+  move_counter(int v, std::atomic<size_t>* c TMC_LIFETIMEBOUND) noexcept
+      : value(v), count(c) {}
 
   move_counter(move_counter&& Other) noexcept : value(Other.value), count(Other.count) {
     Other.count = nullptr;
@@ -541,7 +542,9 @@ struct immovable_destructor_counter {
   size_t value;
   std::atomic<size_t>* count;
 
-  immovable_destructor_counter(size_t v, std::atomic<size_t>* c) noexcept
+  immovable_destructor_counter(
+    size_t v, std::atomic<size_t>* c TMC_LIFETIMEBOUND
+  ) noexcept
       : value(v), count(c) {}
 
   ~immovable_destructor_counter() { ++(*count); }

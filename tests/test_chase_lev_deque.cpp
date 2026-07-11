@@ -358,7 +358,12 @@ TEST_F(CATEGORY, concurrent_owner_and_stealers) {
   stealers.reserve(NUM_STEALERS);
   for (size_t s = 0; s < NUM_STEALERS; ++s) {
     stealers.emplace_back([&, s]() {
+      // The invalidation warning is a false positive: push_back on the inner
+      // vector cannot invalidate `out`, which refers to the inner vector
+      // object itself (not to its elements).
+      TMC_DISABLE_WARNING_LIFETIME_INVALIDATION_BEGIN
       auto& out = stolen[static_cast<size_t>(s)];
+      TMC_DISABLE_WARNING_LIFETIME_INVALIDATION_END
       out.reserve(N / NUM_STEALERS);
       size_t v = 0;
       while (true) {
@@ -446,7 +451,12 @@ TEST_F(CATEGORY, concurrent_post_bulk_with_stealers) {
   stealers.reserve(NUM_STEALERS);
   for (size_t s = 0; s < NUM_STEALERS; ++s) {
     stealers.emplace_back([&, s]() {
+      // The invalidation warning is a false positive: push_back on the inner
+      // vector cannot invalidate `out`, which refers to the inner vector
+      // object itself (not to its elements).
+      TMC_DISABLE_WARNING_LIFETIME_INVALIDATION_BEGIN
       auto& out = stolen[static_cast<size_t>(s)];
+      TMC_DISABLE_WARNING_LIFETIME_INVALIDATION_END
       size_t v = 0;
       while (true) {
         if (q.steal(v)) {

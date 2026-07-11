@@ -310,7 +310,7 @@ TEST_F(CATEGORY, mux_many_eager_async_initiate_unknown_sized_iterator) {
       int i;
       using value_type = mux_immediate_async_op;
       value_type operator*() const { return mux_immediate_async_op(1 << i); }
-      op_iter& operator++() {
+      op_iter& operator++() TMC_LIFETIMEBOUND {
         ++i;
         return *this;
       }

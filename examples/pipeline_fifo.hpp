@@ -43,11 +43,11 @@ template <class F> class with_result_of_t {
 
 public:
   using T = decltype(std::declval<F&&>()());
-  explicit with_result_of_t(F&& f) : fun(std::forward<F>(f)) {}
+  explicit with_result_of_t(F&& f TMC_LIFETIMEBOUND) : fun(std::forward<F>(f)) {}
   operator T() noexcept { return fun(); }
 };
 
-template <class F> inline with_result_of_t<F> with_result_of(F&& f) {
+template <class F> inline with_result_of_t<F> with_result_of(F&& f TMC_LIFETIMEBOUND) {
   return with_result_of_t<F>(std::forward<F>(f));
 }
 

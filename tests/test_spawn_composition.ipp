@@ -284,7 +284,7 @@ static inline tmc::task<void> spawn_many_compose_spawn_func_many() {
         return tmc::spawn_func_many<2>(
           (
             std::ranges::views::iota(void_results.data() + (i * 2)) |
-            std::ranges::views::transform([](int* j) -> auto {
+            std::ranges::views::transform([](int* j TMC_LIFETIMEBOUND) -> auto {
               return [j]() { *j = (1 << *j); };
             })
           ).begin()

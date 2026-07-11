@@ -4,6 +4,17 @@
 #include <exception>
 #include <utility>
 
+// This example type deliberately has no knowledge of TMC, so it defines its
+// own equivalent of TMC_LIFETIMEBOUND rather than using tmc/detail/compat.hpp.
+#if defined(__has_cpp_attribute)
+#if __has_cpp_attribute(clang::lifetimebound)
+#define EXTERNAL_CORO_LIFETIMEBOUND [[clang::lifetimebound]]
+#endif
+#endif
+#ifndef EXTERNAL_CORO_LIFETIMEBOUND
+#define EXTERNAL_CORO_LIFETIMEBOUND
+#endif
+
 // A simple "external" awaitable coroutine type that has no knowledge of TMC.
 template <typename Result> class aw_external_coro;
 template <typename Result> struct external_coro_promise;
@@ -80,7 +91,7 @@ public:
     p.result_ptr = &result;
     return handle;
   }
-  inline Result& await_resume() & noexcept {
+  inline Result& await_resume() & noexcept EXTERNAL_CORO_LIFETIMEBOUND {
     handle.destroy();
     return result;
   }
