@@ -144,7 +144,7 @@ static tmc::task<void> echo_server(tmc::SafeAcceptor& Acc) {
   auto [wec, wn] = co_await safe.async_write(asio_impl::buffer(buf, 5));
   EXPECT_FALSE(wec);
   EXPECT_EQ(wn, 5u);
-  auto sec = co_await safe.shutdown_full();
+  auto sec = co_await safe.close();
   EXPECT_FALSE(sec);
 }
 
@@ -161,7 +161,7 @@ static tmc::task<void> echo_client(tcp::endpoint Ep) {
   EXPECT_FALSE(rec);
   EXPECT_EQ(rn, 5u);
   EXPECT_EQ(0, std::memcmp(out, in, 5));
-  auto sec = co_await safe.shutdown_full();
+  auto sec = co_await safe.close();
   EXPECT_FALSE(sec);
 }
 
@@ -203,7 +203,7 @@ static tmc::task<void> big_server(tmc::SafeAcceptor& Acc) {
   auto [wec, wn] = co_await safe.async_write(asio_impl::buffer(&ack, 1));
   EXPECT_FALSE(wec);
   EXPECT_EQ(wn, 1u);
-  auto sec = co_await safe.shutdown_full();
+  auto sec = co_await safe.close();
   EXPECT_FALSE(sec);
 }
 
@@ -223,7 +223,7 @@ static tmc::task<void> big_client(tcp::endpoint Ep) {
   EXPECT_FALSE(rec);
   EXPECT_EQ(rn, 1u);
   EXPECT_EQ(ack, 'A');
-  auto sec = co_await safe.shutdown_full();
+  auto sec = co_await safe.close();
   EXPECT_FALSE(sec);
 }
 
@@ -232,7 +232,8 @@ TEST_F(CATEGORY, socket_large_transfer_multibuffer) {
     tmc::SafeAcceptor acc{tmc::SafeAcceptor::acceptor_type{tmc::asio_executor()}};
     auto ep = co_await listen_local(acc);
     co_await tmc::spawn_tuple(big_server(acc), big_client(ep));
-    co_await acc.close();
+    auto ec = co_await acc.close();
+    EXPECT_FALSE(ec);
   }());
 }
 
@@ -246,7 +247,8 @@ static tmc::task<void> eof_server(tmc::SafeAcceptor& Acc) {
   auto [rec, rn] = co_await safe.async_read(asio_impl::buffer(buf));
   EXPECT_EQ(rec, asio_impl::error::eof);
   EXPECT_EQ(rn, 5u);
-  co_await safe.shutdown_full();
+  auto cec = co_await safe.close();
+  EXPECT_FALSE(cec);
 }
 
 static tmc::task<void> eof_client(tcp::endpoint Ep) {
@@ -257,7 +259,7 @@ static tmc::task<void> eof_client(tcp::endpoint Ep) {
   auto [wec, wn] = co_await safe.async_write(asio_impl::buffer(out, 5));
   EXPECT_FALSE(wec);
   EXPECT_EQ(wn, 5u);
-  auto sec = co_await safe.shutdown_full(); // sends FIN
+  auto sec = co_await safe.shutdown(tcp::socket::shutdown_send); // sends FIN
   EXPECT_FALSE(sec);
 }
 
@@ -266,7 +268,8 @@ TEST_F(CATEGORY, socket_partial_read_eof) {
     tmc::SafeAcceptor acc{tmc::SafeAcceptor::acceptor_type{tmc::asio_executor()}};
     auto ep = co_await listen_local(acc);
     co_await tmc::spawn_tuple(eof_server(acc), eof_client(ep));
-    co_await acc.close();
+    auto ec = co_await acc.close();
+    EXPECT_FALSE(ec);
   }());
 }
 
@@ -280,11 +283,11 @@ static tmc::task<void> pending_reader(tmc::SafeSocket& S) {
 static tmc::task<void> concurrent_closer(tmc::SafeSocket& S) {
   tmc::SafeTimer t{make_timer()};
   co_await t.async_wait_for(std::chrono::milliseconds(1));
-  auto ec = co_await S.shutdown_full();
+  auto ec = co_await S.close();
   EXPECT_FALSE(ec);
 }
 
-// shutdown_full() from one coroutine while another coroutine's async_read is
+// close() from one coroutine while another coroutine's async_read is
 // pending on the same socket. All initiations are serialized by the internal
 // mutex, so the read must fail cleanly at a chunk boundary.
 TEST_F(CATEGORY, socket_shutdown_during_read) {
@@ -299,9 +302,11 @@ TEST_F(CATEGORY, socket_shutdown_during_read) {
       EXPECT_FALSE(aec);
       tmc::SafeSocket server{std::move(ssock)};
       co_await tmc::spawn_tuple(pending_reader(server), concurrent_closer(server));
-      co_await client.shutdown_full();
+      auto clec = co_await client.close();
+      EXPECT_FALSE(clec);
     }
-    co_await acc.close();
+    auto ec = co_await acc.close();
+    EXPECT_FALSE(ec);
   }());
 }
 
