@@ -1,5 +1,6 @@
 #include "atomic_awaitable.hpp"
 #include "test_common.hpp"
+#include "tmc/current.hpp"
 #include "tmc/manual_reset_event.hpp"
 #include "tmc/rw_lock.hpp"
 #include "waiter_count_accessor.hpp"
@@ -14,16 +15,53 @@
 
 class CATEGORY : public testing::Test {
 protected:
+  // A second executor, used to exercise waking waiters that resume on
+  // different executors.
+  static inline tmc::ex_cpu otherExec;
+
   static void SetUpTestSuite() {
     tmc::cpu_executor().set_thread_count(4).set_priority_count(2).init();
+    otherExec.set_thread_count(4).set_priority_count(2).init();
   }
 
-  static void TearDownTestSuite() { tmc::cpu_executor().teardown(); }
+  static void TearDownTestSuite() {
+    otherExec.teardown();
+    tmc::cpu_executor().teardown();
+  }
 
   static tmc::ex_cpu& ex() { return tmc::cpu_executor(); }
 
   using waiter_count_accessor = tmc::tests::waiter_count_accessor;
 };
+
+// Acquires a read lock, then increments AA and releases.
+static tmc::task<void> rw_read_and_inc(tmc::rw_lock& RW, atomic_awaitable<int>& AA) {
+  co_await RW.lock_read();
+  AA.inc();
+  RW.unlock_read();
+}
+
+// Acquires a read lock, asserts it resumed on ExpectedExec, then increments AA
+// and releases.
+static tmc::task<void> rw_read_check_exec_and_inc(
+  tmc::rw_lock& RW, atomic_awaitable<int>& AA, tmc::ex_any* ExpectedExec
+) {
+  co_await RW.lock_read();
+  EXPECT_EQ(tmc::current_executor(), ExpectedExec);
+  AA.inc();
+  RW.unlock_read();
+}
+
+// Acquires a read lock, asserts it resumed at ExpectedPrio, then increments AA
+// and releases.
+static tmc::task<void> rw_read_check_prio_and_inc(
+  tmc::rw_lock& RW, atomic_awaitable<int>& AA, size_t ExpectedPrio
+) {
+  co_await RW.lock_read();
+  EXPECT_EQ(tmc::current_priority(), ExpectedPrio);
+  AA.inc();
+  RW.unlock_read();
+}
 
 TEST_F(CATEGORY, nonblocking) {
   test_async_main(ex(), []() -> tmc::task<void> {
@@ -560,6 +598,89 @@ TEST_F(CATEGORY, fork_temporary_lock_scopes) {
       EXPECT_EQ(rw.is_write_locked(), true);
     }
     EXPECT_EQ(rw.is_write_locked(), false);
+  }());
+}
+
+// A writer holds the lock while more than one batch worth of readers queue
+// behind it (the batch size is 64). Releasing the writer wakes every reader as
+// a single bulk operation, posting them to the executor as a full batch
+// followed by a partial trailing batch.
+TEST_F(CATEGORY, many_reader_waiters) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    // 200 spans three full batches (192) plus a partial trailing batch.
+    static constexpr size_t COUNT = 200;
+    tmc::rw_lock rw;
+    co_await rw.lock_write();
+    atomic_awaitable<int> aa(COUNT);
+    std::vector<tmc::task<void>> tasks(COUNT);
+    for (size_t i = 0; i < COUNT; ++i) {
+      tasks[i] = rw_read_and_inc(rw, aa);
+    }
+    auto t = tmc::spawn_many(tasks.data(), COUNT).fork();
+    co_await waiter_count_accessor::wait_for_waiter_count(rw, COUNT);
+    EXPECT_EQ(aa.load(), 0);
+    rw.unlock_write();
+    co_await aa;
+    EXPECT_EQ(aa.load(), static_cast<int>(COUNT));
+    co_await std::move(t);
+  }());
+}
+
+// Wake readers that resume on different executors. A batch can only be posted
+// to a single executor, so a new batch must be started whenever the executor
+// changes.
+TEST_F(CATEGORY, readers_different_executors) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    // Enough readers per executor that the interleaving also crosses a batch
+    // boundary (64).
+    static constexpr size_t PER = 50;
+    tmc::rw_lock rw;
+    co_await rw.lock_write();
+    atomic_awaitable<int> aa(2 * PER);
+    std::vector<tmc::task<void>> tasksA(PER);
+    std::vector<tmc::task<void>> tasksB(PER);
+    for (size_t i = 0; i < PER; ++i) {
+      tasksA[i] = rw_read_check_exec_and_inc(rw, aa, tmc::cpu_executor().type_erased());
+      tasksB[i] = rw_read_check_exec_and_inc(rw, aa, otherExec.type_erased());
+    }
+    auto ta = tmc::spawn_many(tasksA.data(), PER).run_on(tmc::cpu_executor()).fork();
+    auto tb = tmc::spawn_many(tasksB.data(), PER).run_on(otherExec).fork();
+    co_await waiter_count_accessor::wait_for_waiter_count(rw, 2 * PER);
+    EXPECT_EQ(aa.load(), 0);
+    rw.unlock_write();
+    co_await aa;
+    EXPECT_EQ(aa.load(), static_cast<int>(2 * PER));
+    co_await std::move(ta);
+    co_await std::move(tb);
+  }());
+}
+
+// Wake readers that resume at different priorities. A batch can only be posted
+// at a single priority, so a new batch must be started whenever the priority
+// changes.
+TEST_F(CATEGORY, readers_different_priorities) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    // Enough readers per priority that the interleaving also crosses a batch
+    // boundary (64).
+    static constexpr size_t PER = 50;
+    tmc::rw_lock rw;
+    co_await rw.lock_write();
+    atomic_awaitable<int> aa(2 * PER);
+    std::vector<tmc::task<void>> tasks0(PER);
+    std::vector<tmc::task<void>> tasks1(PER);
+    for (size_t i = 0; i < PER; ++i) {
+      tasks0[i] = rw_read_check_prio_and_inc(rw, aa, 0);
+      tasks1[i] = rw_read_check_prio_and_inc(rw, aa, 1);
+    }
+    auto t0 = tmc::spawn_many(tasks0.data(), PER).with_priority(0).fork();
+    auto t1 = tmc::spawn_many(tasks1.data(), PER).with_priority(1).fork();
+    co_await waiter_count_accessor::wait_for_waiter_count(rw, 2 * PER);
+    EXPECT_EQ(aa.load(), 0);
+    rw.unlock_write();
+    co_await aa;
+    EXPECT_EQ(aa.load(), static_cast<int>(2 * PER));
+    co_await std::move(t0);
+    co_await std::move(t1);
   }());
 }
 
