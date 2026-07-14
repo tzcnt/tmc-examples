@@ -42,11 +42,15 @@ TEST_F(CATEGORY, with_tmc_task) {
 }
 
 // Test spawn_group with tmc::spawn() (WRAPPER mode)
+// add_clang() cannot be used with WRAPPER-mode elements (it would fail a
+// static_assert, since the internal wrapper task couldn't be elided). See
+// spawn_group_add_clang_as_task in test_halo.cpp for the HALO-friendly
+// alternative using tmc::as_task().
 TEST_F(CATEGORY, with_wrapper) {
   test_async_main(ex(), []() -> tmc::task<void> {
     auto sg = tmc::spawn_group(tmc::spawn(task_int(10)));
     sg.add(tmc::spawn(task_int(20)));
-    co_await sg.add_clang(tmc::spawn(task_int(30)));
+    sg.add(tmc::spawn(task_int(30)));
     auto results = co_await std::move(sg);
     EXPECT_EQ(results[0], 10);
     EXPECT_EQ(results[1], 20);

@@ -872,6 +872,45 @@ TEST_F(CATEGORY, detail_forward_awaitable) {
   );
 }
 
+struct AsTaskMovableAwaitable {
+  int value;
+
+  bool await_ready() const noexcept { return true; }
+  void await_suspend(std::coroutine_handle<>) const noexcept {}
+  int await_resume() const noexcept { return value; }
+};
+
+struct AsTaskCopyOnlyAwaitable {
+  int value;
+
+  explicit AsTaskCopyOnlyAwaitable(int Value) noexcept : value(Value) {}
+  AsTaskCopyOnlyAwaitable(const AsTaskCopyOnlyAwaitable&) = default;
+  AsTaskCopyOnlyAwaitable(AsTaskCopyOnlyAwaitable&&) = delete;
+
+  bool await_ready() const noexcept { return true; }
+  void await_suspend(std::coroutine_handle<>) const noexcept {}
+  int await_resume() const noexcept { return value; }
+};
+
+TEST_F(CATEGORY, as_task_forwards_like_forward_awaitable) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    AsTaskMovableAwaitable movable{1};
+    auto movableTask = tmc::as_task(movable);
+    movable.value = 2;
+    EXPECT_EQ(co_await std::move(movableTask), 2);
+
+    AsTaskCopyOnlyAwaitable copyOnly{3};
+    auto copyOnlyTask = tmc::as_task(copyOnly);
+    copyOnly.value = 4;
+    EXPECT_EQ(co_await std::move(copyOnlyTask), 4);
+
+    auto ownedTask = tmc::as_task(AsTaskMovableAwaitable{5});
+    EXPECT_EQ(co_await std::move(ownedTask), 5);
+
+    EXPECT_EQ(co_await tmc::as_task(AsTaskCopyOnlyAwaitable{6}), 6);
+  }());
+}
+
 /************** AwaitResumeIsWellFormed Concept Tests **************/
 
 TEST_F(CATEGORY, detail_AwaitResumeIsWellFormed) {

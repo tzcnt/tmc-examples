@@ -43,10 +43,13 @@ TEST_F(CATEGORY, fork_clang_void) {
 }
 
 // Test fork_clang with wrapper type awaitable returning int
-// This probably doesn't allow the coro to be elided, but it should compile.
+// Wrapper-type awaitables must be wrapped in tmc::as_task() so that the
+// wrapper task's allocation can be elided. Passing them to fork_clang()
+// directly would fail a static_assert.
 TEST_F(CATEGORY, fork_clang_wrapper) {
   test_async_main(ex(), []() -> tmc::task<void> {
-    auto forked = co_await tmc::fork_clang(tmc::spawn(task_int(42)));
+    auto forked =
+      co_await tmc::fork_clang(tmc::as_task(tmc::spawn(task_int(42))));
     auto result = co_await std::move(forked);
     EXPECT_EQ(result, 42);
   }());
@@ -119,20 +122,21 @@ TEST_F(CATEGORY, fork_tuple_clang_single) {
   }());
 }
 
-// Test fork_clang with tmc::spawn() wrapper
+// Test fork_clang with tmc::spawn() wrapper (via tmc::as_task())
 TEST_F(CATEGORY, fork_clang_with_wrapper) {
   test_async_main(ex(), []() -> tmc::task<void> {
-    auto forked = co_await tmc::fork_clang(tmc::spawn(task_int(50)));
+    auto forked =
+      co_await tmc::fork_clang(tmc::as_task(tmc::spawn(task_int(50))));
     auto result = co_await std::move(forked);
     EXPECT_EQ(result, 50);
   }());
 }
 
-// Test fork_tuple_clang with tmc::spawn() wrappers
+// Test fork_tuple_clang with tmc::spawn() wrappers (via tmc::as_task())
 TEST_F(CATEGORY, fork_tuple_clang_with_wrapper) {
   test_async_main(ex(), []() -> tmc::task<void> {
     auto forked = co_await tmc::fork_tuple_clang(
-      tmc::spawn(task_int(5)), tmc::spawn(task_int(6))
+      tmc::as_task(tmc::spawn(task_int(5))), tmc::as_task(tmc::spawn(task_int(6)))
     );
     auto results = co_await std::move(forked);
     EXPECT_EQ(std::get<0>(results), 5);

@@ -70,8 +70,12 @@ TEST_F(CATEGORY, spawn_clang_custom_both) {
 
 TEST_F(CATEGORY, spawn_clang_wrapper) {
   test_async_main(ex(), []() -> tmc::task<void> {
-    auto result =
-      co_await tmc::spawn_clang(tmc::spawn(spawn_clang_task_int(42)));
+    // Wrapper-type awaitables must be wrapped in tmc::as_task() so that the
+    // wrapper task's allocation can be elided. Passing them to spawn_clang()
+    // directly would fail a static_assert.
+    auto result = co_await tmc::spawn_clang(
+      tmc::as_task(tmc::spawn(spawn_clang_task_int(42)))
+    );
     EXPECT_EQ(result, 42);
   }());
 }
