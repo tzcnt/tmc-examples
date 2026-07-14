@@ -343,4 +343,49 @@ TEST_F(CATEGORY, acceptor_cancel_pending_accept) {
   }());
 }
 
+static tmc::task<void>
+read_expect_abort(tmc::SafeSocket& S, std::atomic<bool>& Done) {
+  char buf[64]{};
+  // The peer never sends these bytes, so this read only completes via cancel().
+  auto [ec, n] = co_await S.async_read(asio_impl::buffer(buf));
+  Done.store(true, std::memory_order_relaxed);
+  EXPECT_EQ(ec, asio_impl::error::operation_aborted);
+  EXPECT_EQ(n, 0u);
+}
+
+static tmc::task<void>
+cancel_read_until_done(tmc::SafeSocket& S, std::atomic<bool>& Done) {
+  tmc::SafeTimer delay{make_timer()};
+  // Retry until the read has been initiated and aborted. cancel() must abort it
+  // whether it lands on the pending read_some or between chunks.
+  while (!Done.load(std::memory_order_relaxed)) {
+    auto ec = co_await S.cancel();
+    EXPECT_FALSE(ec);
+    co_await delay.async_wait_for(std::chrono::milliseconds(1));
+  }
+}
+
+// cancel() aborts an in-progress async_read() that is waiting for data the peer
+// never sends.
+TEST_F(CATEGORY, socket_cancel_pending_read) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    tmc::SafeAcceptor acc{tmc::SafeAcceptor::acceptor_type{tmc::asio_executor()}};
+    auto ep = co_await listen_local(acc);
+    tmc::SafeSocket client{make_socket()};
+    auto [cec] = co_await client.async_connect(ep);
+    EXPECT_FALSE(cec);
+    auto [aec, ssock] = co_await acc.async_accept();
+    EXPECT_FALSE(aec);
+    tmc::SafeSocket server{std::move(ssock)};
+    std::atomic<bool> done{false};
+    co_await tmc::spawn_tuple(
+      read_expect_abort(server, done), cancel_read_until_done(server, done)
+    );
+    auto clec = co_await client.close();
+    EXPECT_FALSE(clec);
+    auto ec = co_await acc.close();
+    EXPECT_FALSE(ec);
+  }());
+}
+
 #undef CATEGORY
