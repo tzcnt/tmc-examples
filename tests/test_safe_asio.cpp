@@ -388,4 +388,130 @@ TEST_F(CATEGORY, socket_cancel_pending_read) {
   }());
 }
 
+// ---- Accessor / option / send-receive coverage for the new forwarded methods.
+
+TEST_F(CATEGORY, timer_accessors) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    tmc::safe_timer timer{make_timer()};
+    auto before = std::chrono::steady_clock::now();
+    // expires_after sets the expiry without initiating a wait; nothing to cancel.
+    std::size_t cancelled = co_await timer.expires_after(std::chrono::seconds(60));
+    EXPECT_EQ(cancelled, 0u);
+    auto exp = co_await timer.expiry();
+    EXPECT_GE(exp, before + std::chrono::seconds(59));
+    // No outstanding waits, so cancel_one cancels nothing.
+    std::size_t one = co_await timer.cancel_one();
+    EXPECT_EQ(one, 0u);
+    // expires_at sets an absolute expiry that reads back exactly.
+    auto target = std::chrono::steady_clock::now() + std::chrono::seconds(30);
+    co_await timer.expires_at(target);
+    EXPECT_EQ(co_await timer.expiry(), target);
+    (void)co_await timer.get_executor();
+  }());
+}
+
+static tmc::task<void> accessors_server(tmc::safe_acceptor& Acc) {
+  auto [aec, sock, peer] = co_await Acc.async_accept_endpoint();
+  EXPECT_FALSE(aec);
+  EXPECT_TRUE(peer.address().is_loopback());
+  tmc::safe_socket safe{std::move(sock)};
+
+  // no_delay round-trips through set_option / get_option.
+  auto sec = co_await safe.set_option(tcp::no_delay{true});
+  EXPECT_FALSE(sec);
+  auto [gec, nd] = co_await safe.get_option(tcp::no_delay{});
+  EXPECT_FALSE(gec);
+  EXPECT_TRUE(nd.value());
+
+  // Receive with flags, echo back with flags.
+  char buf[5]{};
+  auto [rec, rn] = co_await safe.async_receive(asio_impl::buffer(buf), 0);
+  EXPECT_FALSE(rec);
+  EXPECT_EQ(rn, 5u);
+  auto [wec, wn] = co_await safe.async_send(asio_impl::buffer(buf, rn), 0);
+  EXPECT_FALSE(wec);
+  EXPECT_EQ(wn, 5u);
+
+  auto cec = co_await safe.close();
+  EXPECT_FALSE(cec);
+}
+
+static tmc::task<void> accessors_client(tcp::endpoint Ep) {
+  tmc::safe_socket safe{make_socket()};
+  auto [cec] = co_await safe.async_connect(Ep);
+  EXPECT_FALSE(cec);
+
+  // Endpoint accessors.
+  auto [lec, lep] = co_await safe.local_endpoint();
+  EXPECT_FALSE(lec);
+  EXPECT_TRUE(lep.address().is_loopback());
+  auto [rec, rep] = co_await safe.remote_endpoint();
+  EXPECT_FALSE(rec);
+  EXPECT_EQ(rep, Ep);
+
+  // non_blocking getter/setter round-trip.
+  EXPECT_FALSE(co_await safe.non_blocking(true));
+  EXPECT_TRUE(co_await safe.non_blocking());
+  EXPECT_FALSE(co_await safe.non_blocking(false));
+
+  // Instantiate/smoke-test the remaining accessors (results are platform- or
+  // state-dependent, so only the error codes are checked where meaningful).
+  (void)co_await safe.native_non_blocking();
+  (void)co_await safe.get_executor();
+  (void)co_await safe.native_handle();
+  asio_impl::socket_base::bytes_readable cmd;
+  auto [icec, ic] = co_await safe.io_control(cmd);
+  EXPECT_FALSE(icec);
+  (void)ic.get();
+  auto [avec, avail] = co_await safe.available();
+  EXPECT_FALSE(avec);
+  (void)avail;
+  auto [amec, marked] = co_await safe.at_mark();
+  EXPECT_FALSE(amec);
+  (void)marked;
+
+  // A connected socket is immediately ready to write.
+  auto [wwec] = co_await safe.async_wait(asio_impl::socket_base::wait_write);
+  EXPECT_FALSE(wwec);
+
+  // Send with flags, receive the echo without flags.
+  char out[5] = {'h', 'e', 'l', 'l', 'o'};
+  auto [wec, wn] = co_await safe.async_send(asio_impl::buffer(out), 0);
+  EXPECT_FALSE(wec);
+  EXPECT_EQ(wn, 5u);
+  char in[5]{};
+  auto [rrec, rrn] = co_await safe.async_receive(asio_impl::buffer(in));
+  EXPECT_FALSE(rrec);
+  EXPECT_EQ(rrn, 5u);
+  EXPECT_EQ(0, std::memcmp(out, in, 5));
+
+  auto scec = co_await safe.close();
+  EXPECT_FALSE(scec);
+}
+
+TEST_F(CATEGORY, socket_accessors_and_send_receive) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    tmc::safe_acceptor acc{tmc::safe_acceptor::acceptor_type{tmc::asio_executor()}};
+    auto ep = co_await listen_local(acc);
+
+    // Acceptor accessors.
+    auto [lec, lep] = co_await acc.local_endpoint();
+    EXPECT_FALSE(lec);
+    EXPECT_EQ(lep, ep);
+    auto [oec, ra] = co_await acc.get_option(asio_impl::socket_base::reuse_address{});
+    EXPECT_FALSE(oec);
+    (void)ra.value();
+    (void)co_await acc.get_executor();
+    (void)co_await acc.native_handle();
+    (void)co_await acc.non_blocking();
+    (void)co_await acc.native_non_blocking();
+    asio_impl::socket_base::bytes_readable acmd;
+    (void)co_await acc.io_control(acmd);
+
+    co_await tmc::spawn_tuple(accessors_server(acc), accessors_client(ep));
+    auto ec = co_await acc.close();
+    EXPECT_FALSE(ec);
+  }());
+}
+
 #undef CATEGORY
