@@ -1,6 +1,7 @@
-// Tests for the tmc-asio safe_* objects (safe_acceptor, safe_socket, safe_timer).
-// These serialize all operation initiations on the underlying asio object, so operations
-// may be initiated from different coroutines running on different executors/threads.
+// Tests for the tmc-asio safe_* objects (asio_safe_acceptor, asio_safe_socket,
+// asio_safe_timer). These serialize all operation initiations on the underlying asio
+// object, so operations may be initiated from different coroutines running on different
+// executors/threads.
 
 // Only operation initiation is serialized. This does not serialize access to any other
 // variables, and it does not prevent violation of the "only 1 read + 1 write may be
@@ -33,10 +34,10 @@
 // The same alias the safe_* headers use to abstract over
 // boost::asio / standalone asio.
 namespace asio_ns = tmc::detail::asio_ns;
-// Serialize the common TCP acceptor/socket. basic_safe_* is templated on the
+// Serialize the common TCP acceptor/socket. asio_safe_* is templated on the
 // underlying Asio object and can wrap other protocols.
-using safe_acceptor = tmc::basic_safe_acceptor<>;
-using safe_socket = tmc::basic_safe_socket<>;
+using safe_acceptor = tmc::asio_safe_acceptor<>;
+using safe_socket = tmc::asio_safe_socket<>;
 using tcp = safe_acceptor::protocol_type;
 
 class CATEGORY : public testing::Test {
@@ -54,8 +55,8 @@ protected:
   static tmc::ex_cpu& ex() { return tmc::cpu_executor(); }
 };
 
-static tmc::safe_timer::timer_type make_timer() {
-  return tmc::safe_timer::timer_type{tmc::asio_executor()};
+static tmc::asio_safe_timer::timer_type make_timer() {
+  return tmc::asio_safe_timer::timer_type{tmc::asio_executor()};
 }
 
 static safe_socket::socket_type make_socket() {
@@ -77,7 +78,7 @@ static tmc::task<tcp::endpoint> listen_local(safe_acceptor& Acc) {
 
 TEST_F(CATEGORY, timer_wait) {
   test_async_main(ex(), []() -> tmc::task<void> {
-    tmc::safe_timer timer{make_timer()};
+    tmc::asio_safe_timer timer{make_timer()};
     auto start = std::chrono::steady_clock::now();
     auto [ec] = co_await timer.async_wait_for(std::chrono::milliseconds(20));
     auto elapsed = std::chrono::steady_clock::now() - start;
@@ -88,7 +89,7 @@ TEST_F(CATEGORY, timer_wait) {
 
 TEST_F(CATEGORY, timer_wait_until) {
   test_async_main(ex(), []() -> tmc::task<void> {
-    tmc::safe_timer timer{make_timer()};
+    tmc::asio_safe_timer timer{make_timer()};
     auto expiry = std::chrono::steady_clock::now() + std::chrono::milliseconds(20);
     auto [ec] = co_await timer.async_wait_until(expiry);
     EXPECT_FALSE(ec);
@@ -96,7 +97,7 @@ TEST_F(CATEGORY, timer_wait_until) {
   }());
 }
 
-static tmc::task<int> timed_wait_report_abort(tmc::safe_timer& T) {
+static tmc::task<int> timed_wait_report_abort(tmc::asio_safe_timer& T) {
   auto [ec] = co_await T.async_wait_for(std::chrono::milliseconds(50));
   co_return ec == asio_ns::error::operation_aborted ? 1 : 0;
 }
@@ -105,7 +106,7 @@ static tmc::task<int> timed_wait_report_abort(tmc::safe_timer& T) {
 // expiry, aborting the wait that was initiated first.
 TEST_F(CATEGORY, timer_rearm_aborts_prior_wait) {
   test_async_main(ex(), []() -> tmc::task<void> {
-    tmc::safe_timer timer{make_timer()};
+    tmc::asio_safe_timer timer{make_timer()};
     auto [a, b] = co_await tmc::spawn_tuple(
       timed_wait_report_abort(timer), timed_wait_report_abort(timer)
     );
@@ -115,16 +116,16 @@ TEST_F(CATEGORY, timer_rearm_aborts_prior_wait) {
   }());
 }
 
-static tmc::task<int> long_wait_report_abort(tmc::safe_timer& T) {
+static tmc::task<int> long_wait_report_abort(tmc::asio_safe_timer& T) {
   auto [ec] = co_await T.async_wait_for(std::chrono::seconds(60));
   co_return ec == asio_ns::error::operation_aborted ? 1 : 0;
 }
 
 TEST_F(CATEGORY, timer_cancel_count) {
   test_async_main(ex(), []() -> tmc::task<void> {
-    tmc::safe_timer timer{make_timer()};
+    tmc::asio_safe_timer timer{make_timer()};
     auto waiter = tmc::spawn(long_wait_report_abort(timer)).fork();
-    tmc::safe_timer delay{make_timer()};
+    tmc::asio_safe_timer delay{make_timer()};
     std::size_t cancelled = co_await timer.cancel();
     while (cancelled == 0) {
       // The forked wait may not have been initiated yet; retry.
@@ -285,7 +286,7 @@ static tmc::task<void> pending_reader(safe_socket& S) {
 }
 
 static tmc::task<void> concurrent_closer(safe_socket& S) {
-  tmc::safe_timer t{make_timer()};
+  tmc::asio_safe_timer t{make_timer()};
   co_await t.async_wait_for(std::chrono::milliseconds(1));
   auto ec = co_await S.close();
   EXPECT_FALSE(ec);
@@ -322,7 +323,7 @@ static tmc::task<void> accept_expect_abort(safe_acceptor& Acc, std::atomic<bool>
 }
 
 static tmc::task<void> cancel_until_done(safe_acceptor& Acc, std::atomic<bool>& Done) {
-  tmc::safe_timer delay{make_timer()};
+  tmc::asio_safe_timer delay{make_timer()};
   // Retry until the accept has actually been initiated and aborted.
   while (!Done.load(std::memory_order_relaxed)) {
     auto cec = co_await Acc.cancel();
@@ -355,7 +356,7 @@ static tmc::task<void> read_expect_abort(safe_socket& S, std::atomic<bool>& Done
 }
 
 static tmc::task<void> cancel_read_until_done(safe_socket& S, std::atomic<bool>& Done) {
-  tmc::safe_timer delay{make_timer()};
+  tmc::asio_safe_timer delay{make_timer()};
   // Retry until the read has been initiated and aborted. cancel() must abort it
   // whether it lands on the pending read_some or between chunks.
   while (!Done.load(std::memory_order_relaxed)) {
@@ -392,7 +393,7 @@ TEST_F(CATEGORY, socket_cancel_pending_read) {
 
 TEST_F(CATEGORY, timer_accessors) {
   test_async_main(ex(), []() -> tmc::task<void> {
-    tmc::safe_timer timer{make_timer()};
+    tmc::asio_safe_timer timer{make_timer()};
     auto before = std::chrono::steady_clock::now();
     // expires_after sets the expiry without initiating a wait; nothing to cancel.
     std::size_t cancelled = co_await timer.expires_after(std::chrono::seconds(60));
