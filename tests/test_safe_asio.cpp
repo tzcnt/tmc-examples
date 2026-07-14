@@ -1,4 +1,4 @@
-// Tests for the tmc-asio safe_* objects (SafeAcceptor, SafeSocket, SafeTimer).
+// Tests for the tmc-asio safe_* objects (safe_acceptor, safe_socket, safe_timer).
 // These serialize all operation initiations on the underlying asio object, so operations
 // may be initiated from different coroutines running on different executors/threads.
 
@@ -33,7 +33,7 @@
 // The same alias the safe_* headers use to abstract over
 // boost::asio / standalone asio.
 namespace asio_impl = tmc::detail::asio_impl;
-using tcp = tmc::SafeAcceptor::protocol_type;
+using tcp = tmc::safe_acceptor::protocol_type;
 
 class CATEGORY : public testing::Test {
 protected:
@@ -50,16 +50,16 @@ protected:
   static tmc::ex_cpu& ex() { return tmc::cpu_executor(); }
 };
 
-static tmc::SafeTimer::timer_type make_timer() {
-  return tmc::SafeTimer::timer_type{tmc::asio_executor()};
+static tmc::safe_timer::timer_type make_timer() {
+  return tmc::safe_timer::timer_type{tmc::asio_executor()};
 }
 
-static tmc::SafeSocket::socket_type make_socket() {
-  return tmc::SafeSocket::socket_type{tmc::asio_executor()};
+static tmc::safe_socket::socket_type make_socket() {
+  return tmc::safe_socket::socket_type{tmc::asio_executor()};
 }
 
 // Opens, binds, and listens on an ephemeral localhost port.
-static tmc::task<tcp::endpoint> listen_local(tmc::SafeAcceptor& Acc) {
+static tmc::task<tcp::endpoint> listen_local(tmc::safe_acceptor& Acc) {
   auto ec = co_await Acc.open(tcp::v4());
   EXPECT_FALSE(ec);
   ec = co_await Acc.set_option(asio_impl::socket_base::reuse_address{true});
@@ -73,7 +73,7 @@ static tmc::task<tcp::endpoint> listen_local(tmc::SafeAcceptor& Acc) {
 
 TEST_F(CATEGORY, timer_wait) {
   test_async_main(ex(), []() -> tmc::task<void> {
-    tmc::SafeTimer timer{make_timer()};
+    tmc::safe_timer timer{make_timer()};
     auto start = std::chrono::steady_clock::now();
     auto [ec] = co_await timer.async_wait_for(std::chrono::milliseconds(20));
     auto elapsed = std::chrono::steady_clock::now() - start;
@@ -84,7 +84,7 @@ TEST_F(CATEGORY, timer_wait) {
 
 TEST_F(CATEGORY, timer_wait_until) {
   test_async_main(ex(), []() -> tmc::task<void> {
-    tmc::SafeTimer timer{make_timer()};
+    tmc::safe_timer timer{make_timer()};
     auto expiry = std::chrono::steady_clock::now() + std::chrono::milliseconds(20);
     auto [ec] = co_await timer.async_wait_until(expiry);
     EXPECT_FALSE(ec);
@@ -92,7 +92,7 @@ TEST_F(CATEGORY, timer_wait_until) {
   }());
 }
 
-static tmc::task<int> timed_wait_report_abort(tmc::SafeTimer& T) {
+static tmc::task<int> timed_wait_report_abort(tmc::safe_timer& T) {
   auto [ec] = co_await T.async_wait_for(std::chrono::milliseconds(50));
   co_return ec == asio_impl::error::operation_aborted ? 1 : 0;
 }
@@ -101,7 +101,7 @@ static tmc::task<int> timed_wait_report_abort(tmc::SafeTimer& T) {
 // expiry, aborting the wait that was initiated first.
 TEST_F(CATEGORY, timer_rearm_aborts_prior_wait) {
   test_async_main(ex(), []() -> tmc::task<void> {
-    tmc::SafeTimer timer{make_timer()};
+    tmc::safe_timer timer{make_timer()};
     auto [a, b] = co_await tmc::spawn_tuple(
       timed_wait_report_abort(timer), timed_wait_report_abort(timer)
     );
@@ -111,16 +111,16 @@ TEST_F(CATEGORY, timer_rearm_aborts_prior_wait) {
   }());
 }
 
-static tmc::task<int> long_wait_report_abort(tmc::SafeTimer& T) {
+static tmc::task<int> long_wait_report_abort(tmc::safe_timer& T) {
   auto [ec] = co_await T.async_wait_for(std::chrono::seconds(60));
   co_return ec == asio_impl::error::operation_aborted ? 1 : 0;
 }
 
 TEST_F(CATEGORY, timer_cancel_count) {
   test_async_main(ex(), []() -> tmc::task<void> {
-    tmc::SafeTimer timer{make_timer()};
+    tmc::safe_timer timer{make_timer()};
     auto waiter = tmc::spawn(long_wait_report_abort(timer)).fork();
-    tmc::SafeTimer delay{make_timer()};
+    tmc::safe_timer delay{make_timer()};
     std::size_t cancelled = co_await timer.cancel();
     while (cancelled == 0) {
       // The forked wait may not have been initiated yet; retry.
@@ -133,10 +133,10 @@ TEST_F(CATEGORY, timer_cancel_count) {
   }());
 }
 
-static tmc::task<void> echo_server(tmc::SafeAcceptor& Acc) {
+static tmc::task<void> echo_server(tmc::safe_acceptor& Acc) {
   auto [ec, sock] = co_await Acc.async_accept();
   EXPECT_FALSE(ec);
-  tmc::SafeSocket safe{std::move(sock)};
+  tmc::safe_socket safe{std::move(sock)};
   char buf[5]{};
   auto [rec, rn] = co_await safe.async_read(asio_impl::buffer(buf, 5));
   EXPECT_FALSE(rec);
@@ -149,7 +149,7 @@ static tmc::task<void> echo_server(tmc::SafeAcceptor& Acc) {
 }
 
 static tmc::task<void> echo_client(tcp::endpoint Ep) {
-  tmc::SafeSocket safe{make_socket()};
+  tmc::safe_socket safe{make_socket()};
   auto [cec] = co_await safe.async_connect(Ep);
   EXPECT_FALSE(cec);
   char out[5] = {'h', 'e', 'l', 'l', 'o'};
@@ -167,7 +167,7 @@ static tmc::task<void> echo_client(tcp::endpoint Ep) {
 
 TEST_F(CATEGORY, socket_echo) {
   test_async_main(ex(), []() -> tmc::task<void> {
-    tmc::SafeAcceptor acc{tmc::SafeAcceptor::acceptor_type{tmc::asio_executor()}};
+    tmc::safe_acceptor acc{tmc::safe_acceptor::acceptor_type{tmc::asio_executor()}};
     auto ep = co_await listen_local(acc);
     co_await tmc::spawn_tuple(echo_server(acc), echo_client(ep));
     auto ec = co_await acc.close();
@@ -181,10 +181,10 @@ static constexpr std::size_t BIG_SIZE = 2 * 1024 * 1024;
 
 static char big_pattern(std::size_t I) { return static_cast<char>(I * 31u); }
 
-static tmc::task<void> big_server(tmc::SafeAcceptor& Acc) {
+static tmc::task<void> big_server(tmc::safe_acceptor& Acc) {
   auto [ec, sock] = co_await Acc.async_accept();
   EXPECT_FALSE(ec);
-  tmc::SafeSocket safe{std::move(sock)};
+  tmc::safe_socket safe{std::move(sock)};
   std::vector<char> data(BIG_SIZE);
   // Read into a multi-buffer sequence to exercise buffer iteration.
   std::array<asio_impl::mutable_buffer, 2> bufs{
@@ -208,7 +208,7 @@ static tmc::task<void> big_server(tmc::SafeAcceptor& Acc) {
 }
 
 static tmc::task<void> big_client(tcp::endpoint Ep) {
-  tmc::SafeSocket safe{make_socket()};
+  tmc::safe_socket safe{make_socket()};
   auto [cec] = co_await safe.async_connect(Ep);
   EXPECT_FALSE(cec);
   std::vector<char> data(BIG_SIZE);
@@ -229,7 +229,7 @@ static tmc::task<void> big_client(tcp::endpoint Ep) {
 
 TEST_F(CATEGORY, socket_large_transfer_multibuffer) {
   test_async_main(ex(), []() -> tmc::task<void> {
-    tmc::SafeAcceptor acc{tmc::SafeAcceptor::acceptor_type{tmc::asio_executor()}};
+    tmc::safe_acceptor acc{tmc::safe_acceptor::acceptor_type{tmc::asio_executor()}};
     auto ep = co_await listen_local(acc);
     co_await tmc::spawn_tuple(big_server(acc), big_client(ep));
     auto ec = co_await acc.close();
@@ -237,10 +237,10 @@ TEST_F(CATEGORY, socket_large_transfer_multibuffer) {
   }());
 }
 
-static tmc::task<void> eof_server(tmc::SafeAcceptor& Acc) {
+static tmc::task<void> eof_server(tmc::safe_acceptor& Acc) {
   auto [ec, sock] = co_await Acc.async_accept();
   EXPECT_FALSE(ec);
-  tmc::SafeSocket safe{std::move(sock)};
+  tmc::safe_socket safe{std::move(sock)};
   char buf[10]{};
   // The peer sends only 5 bytes and then closes; expect a partial read
   // terminated by EOF, like asio::async_read.
@@ -252,7 +252,7 @@ static tmc::task<void> eof_server(tmc::SafeAcceptor& Acc) {
 }
 
 static tmc::task<void> eof_client(tcp::endpoint Ep) {
-  tmc::SafeSocket safe{make_socket()};
+  tmc::safe_socket safe{make_socket()};
   auto [cec] = co_await safe.async_connect(Ep);
   EXPECT_FALSE(cec);
   char out[5] = {'a', 'b', 'c', 'd', 'e'};
@@ -265,7 +265,7 @@ static tmc::task<void> eof_client(tcp::endpoint Ep) {
 
 TEST_F(CATEGORY, socket_partial_read_eof) {
   test_async_main(ex(), []() -> tmc::task<void> {
-    tmc::SafeAcceptor acc{tmc::SafeAcceptor::acceptor_type{tmc::asio_executor()}};
+    tmc::safe_acceptor acc{tmc::safe_acceptor::acceptor_type{tmc::asio_executor()}};
     auto ep = co_await listen_local(acc);
     co_await tmc::spawn_tuple(eof_server(acc), eof_client(ep));
     auto ec = co_await acc.close();
@@ -273,15 +273,15 @@ TEST_F(CATEGORY, socket_partial_read_eof) {
   }());
 }
 
-static tmc::task<void> pending_reader(tmc::SafeSocket& S) {
+static tmc::task<void> pending_reader(tmc::safe_socket& S) {
   char buf[64]{};
   auto [ec, n] = co_await S.async_read(asio_impl::buffer(buf));
   EXPECT_TRUE(static_cast<bool>(ec));
   EXPECT_EQ(n, 0u);
 }
 
-static tmc::task<void> concurrent_closer(tmc::SafeSocket& S) {
-  tmc::SafeTimer t{make_timer()};
+static tmc::task<void> concurrent_closer(tmc::safe_socket& S) {
+  tmc::safe_timer t{make_timer()};
   co_await t.async_wait_for(std::chrono::milliseconds(1));
   auto ec = co_await S.close();
   EXPECT_FALSE(ec);
@@ -292,15 +292,15 @@ static tmc::task<void> concurrent_closer(tmc::SafeSocket& S) {
 // mutex, so the read must fail cleanly at a chunk boundary.
 TEST_F(CATEGORY, socket_shutdown_during_read) {
   test_async_main(ex(), []() -> tmc::task<void> {
-    tmc::SafeAcceptor acc{tmc::SafeAcceptor::acceptor_type{tmc::asio_executor()}};
+    tmc::safe_acceptor acc{tmc::safe_acceptor::acceptor_type{tmc::asio_executor()}};
     auto ep = co_await listen_local(acc);
     for (int i = 0; i < 10; ++i) {
-      tmc::SafeSocket client{make_socket()};
+      tmc::safe_socket client{make_socket()};
       auto [cec] = co_await client.async_connect(ep);
       EXPECT_FALSE(cec);
       auto [aec, ssock] = co_await acc.async_accept();
       EXPECT_FALSE(aec);
-      tmc::SafeSocket server{std::move(ssock)};
+      tmc::safe_socket server{std::move(ssock)};
       co_await tmc::spawn_tuple(pending_reader(server), concurrent_closer(server));
       auto clec = co_await client.close();
       EXPECT_FALSE(clec);
@@ -311,7 +311,7 @@ TEST_F(CATEGORY, socket_shutdown_during_read) {
 }
 
 static tmc::task<void>
-accept_expect_abort(tmc::SafeAcceptor& Acc, std::atomic<bool>& Done) {
+accept_expect_abort(tmc::safe_acceptor& Acc, std::atomic<bool>& Done) {
   auto [aec, sock] = co_await Acc.async_accept();
   Done.store(true, std::memory_order_relaxed);
   EXPECT_EQ(aec, asio_impl::error::operation_aborted);
@@ -319,8 +319,8 @@ accept_expect_abort(tmc::SafeAcceptor& Acc, std::atomic<bool>& Done) {
 }
 
 static tmc::task<void>
-cancel_until_done(tmc::SafeAcceptor& Acc, std::atomic<bool>& Done) {
-  tmc::SafeTimer delay{make_timer()};
+cancel_until_done(tmc::safe_acceptor& Acc, std::atomic<bool>& Done) {
+  tmc::safe_timer delay{make_timer()};
   // Retry until the accept has actually been initiated and aborted.
   while (!Done.load(std::memory_order_relaxed)) {
     auto cec = co_await Acc.cancel();
@@ -332,7 +332,7 @@ cancel_until_done(tmc::SafeAcceptor& Acc, std::atomic<bool>& Done) {
 // cancel() aborts a pending accept.
 TEST_F(CATEGORY, acceptor_cancel_pending_accept) {
   test_async_main(ex(), []() -> tmc::task<void> {
-    tmc::SafeAcceptor acc{tmc::SafeAcceptor::acceptor_type{tmc::asio_executor()}};
+    tmc::safe_acceptor acc{tmc::safe_acceptor::acceptor_type{tmc::asio_executor()}};
     co_await listen_local(acc);
     std::atomic<bool> done{false};
     co_await tmc::spawn_tuple(
@@ -344,7 +344,7 @@ TEST_F(CATEGORY, acceptor_cancel_pending_accept) {
 }
 
 static tmc::task<void>
-read_expect_abort(tmc::SafeSocket& S, std::atomic<bool>& Done) {
+read_expect_abort(tmc::safe_socket& S, std::atomic<bool>& Done) {
   char buf[64]{};
   // The peer never sends these bytes, so this read only completes via cancel().
   auto [ec, n] = co_await S.async_read(asio_impl::buffer(buf));
@@ -354,8 +354,8 @@ read_expect_abort(tmc::SafeSocket& S, std::atomic<bool>& Done) {
 }
 
 static tmc::task<void>
-cancel_read_until_done(tmc::SafeSocket& S, std::atomic<bool>& Done) {
-  tmc::SafeTimer delay{make_timer()};
+cancel_read_until_done(tmc::safe_socket& S, std::atomic<bool>& Done) {
+  tmc::safe_timer delay{make_timer()};
   // Retry until the read has been initiated and aborted. cancel() must abort it
   // whether it lands on the pending read_some or between chunks.
   while (!Done.load(std::memory_order_relaxed)) {
@@ -369,14 +369,14 @@ cancel_read_until_done(tmc::SafeSocket& S, std::atomic<bool>& Done) {
 // never sends.
 TEST_F(CATEGORY, socket_cancel_pending_read) {
   test_async_main(ex(), []() -> tmc::task<void> {
-    tmc::SafeAcceptor acc{tmc::SafeAcceptor::acceptor_type{tmc::asio_executor()}};
+    tmc::safe_acceptor acc{tmc::safe_acceptor::acceptor_type{tmc::asio_executor()}};
     auto ep = co_await listen_local(acc);
-    tmc::SafeSocket client{make_socket()};
+    tmc::safe_socket client{make_socket()};
     auto [cec] = co_await client.async_connect(ep);
     EXPECT_FALSE(cec);
     auto [aec, ssock] = co_await acc.async_accept();
     EXPECT_FALSE(aec);
-    tmc::SafeSocket server{std::move(ssock)};
+    tmc::safe_socket server{std::move(ssock)};
     std::atomic<bool> done{false};
     co_await tmc::spawn_tuple(
       read_expect_abort(server, done), cancel_read_until_done(server, done)
