@@ -32,7 +32,7 @@
 
 // The same alias the safe_* headers use to abstract over
 // boost::asio / standalone asio.
-namespace asio_impl = tmc::detail::asio_impl;
+namespace asio_ns = tmc::detail::asio_ns;
 // Serialize the common TCP acceptor/socket. basic_safe_* is templated on the
 // underlying Asio object and can wrap other protocols.
 using safe_acceptor = tmc::basic_safe_acceptor<>;
@@ -66,9 +66,9 @@ static safe_socket::socket_type make_socket() {
 static tmc::task<tcp::endpoint> listen_local(safe_acceptor& Acc) {
   auto ec = co_await Acc.open(tcp::v4());
   EXPECT_FALSE(ec);
-  ec = co_await Acc.set_option(asio_impl::socket_base::reuse_address{true});
+  ec = co_await Acc.set_option(asio_ns::socket_base::reuse_address{true});
   EXPECT_FALSE(ec);
-  ec = co_await Acc.bind({asio_impl::ip::make_address("127.0.0.1"), 0});
+  ec = co_await Acc.bind({asio_ns::ip::make_address("127.0.0.1"), 0});
   EXPECT_FALSE(ec);
   ec = co_await Acc.listen();
   EXPECT_FALSE(ec);
@@ -98,7 +98,7 @@ TEST_F(CATEGORY, timer_wait_until) {
 
 static tmc::task<int> timed_wait_report_abort(tmc::safe_timer& T) {
   auto [ec] = co_await T.async_wait_for(std::chrono::milliseconds(50));
-  co_return ec == asio_impl::error::operation_aborted ? 1 : 0;
+  co_return ec == asio_ns::error::operation_aborted ? 1 : 0;
 }
 
 // Two coroutines share one timer: the second async_wait_for re-arms the
@@ -117,7 +117,7 @@ TEST_F(CATEGORY, timer_rearm_aborts_prior_wait) {
 
 static tmc::task<int> long_wait_report_abort(tmc::safe_timer& T) {
   auto [ec] = co_await T.async_wait_for(std::chrono::seconds(60));
-  co_return ec == asio_impl::error::operation_aborted ? 1 : 0;
+  co_return ec == asio_ns::error::operation_aborted ? 1 : 0;
 }
 
 TEST_F(CATEGORY, timer_cancel_count) {
@@ -142,10 +142,10 @@ static tmc::task<void> echo_server(safe_acceptor& Acc) {
   EXPECT_FALSE(ec);
   safe_socket safe{std::move(sock)};
   char buf[5]{};
-  auto [rec, rn] = co_await safe.async_read(asio_impl::buffer(buf, 5));
+  auto [rec, rn] = co_await safe.async_read(asio_ns::buffer(buf, 5));
   EXPECT_FALSE(rec);
   EXPECT_EQ(rn, 5u);
-  auto [wec, wn] = co_await safe.async_write(asio_impl::buffer(buf, 5));
+  auto [wec, wn] = co_await safe.async_write(asio_ns::buffer(buf, 5));
   EXPECT_FALSE(wec);
   EXPECT_EQ(wn, 5u);
   auto sec = co_await safe.close();
@@ -157,11 +157,11 @@ static tmc::task<void> echo_client(tcp::endpoint Ep) {
   auto [cec] = co_await safe.async_connect(Ep);
   EXPECT_FALSE(cec);
   char out[5] = {'h', 'e', 'l', 'l', 'o'};
-  auto [wec, wn] = co_await safe.async_write(asio_impl::buffer(out, 5));
+  auto [wec, wn] = co_await safe.async_write(asio_ns::buffer(out, 5));
   EXPECT_FALSE(wec);
   EXPECT_EQ(wn, 5u);
   char in[5]{};
-  auto [rec, rn] = co_await safe.async_read(asio_impl::buffer(in, 5));
+  auto [rec, rn] = co_await safe.async_read(asio_ns::buffer(in, 5));
   EXPECT_FALSE(rec);
   EXPECT_EQ(rn, 5u);
   EXPECT_EQ(0, std::memcmp(out, in, 5));
@@ -191,9 +191,9 @@ static tmc::task<void> big_server(safe_acceptor& Acc) {
   safe_socket safe{std::move(sock)};
   std::vector<char> data(BIG_SIZE);
   // Read into a multi-buffer sequence to exercise buffer iteration.
-  std::array<asio_impl::mutable_buffer, 2> bufs{
-    asio_impl::buffer(data.data(), BIG_SIZE / 2),
-    asio_impl::buffer(data.data() + BIG_SIZE / 2, BIG_SIZE - BIG_SIZE / 2)
+  std::array<asio_ns::mutable_buffer, 2> bufs{
+    asio_ns::buffer(data.data(), BIG_SIZE / 2),
+    asio_ns::buffer(data.data() + BIG_SIZE / 2, BIG_SIZE - BIG_SIZE / 2)
   };
   auto [rec, rn] = co_await safe.async_read(bufs);
   EXPECT_FALSE(rec);
@@ -204,7 +204,7 @@ static tmc::task<void> big_server(safe_acceptor& Acc) {
   }
   EXPECT_TRUE(ok);
   char ack = 'A';
-  auto [wec, wn] = co_await safe.async_write(asio_impl::buffer(&ack, 1));
+  auto [wec, wn] = co_await safe.async_write(asio_ns::buffer(&ack, 1));
   EXPECT_FALSE(wec);
   EXPECT_EQ(wn, 1u);
   auto sec = co_await safe.close();
@@ -219,11 +219,11 @@ static tmc::task<void> big_client(tcp::endpoint Ep) {
   for (std::size_t i = 0; i < BIG_SIZE; ++i) {
     data[i] = big_pattern(i);
   }
-  auto [wec, wn] = co_await safe.async_write(asio_impl::buffer(data));
+  auto [wec, wn] = co_await safe.async_write(asio_ns::buffer(data));
   EXPECT_FALSE(wec);
   EXPECT_EQ(wn, BIG_SIZE);
   char ack{};
-  auto [rec, rn] = co_await safe.async_read(asio_impl::buffer(&ack, 1));
+  auto [rec, rn] = co_await safe.async_read(asio_ns::buffer(&ack, 1));
   EXPECT_FALSE(rec);
   EXPECT_EQ(rn, 1u);
   EXPECT_EQ(ack, 'A');
@@ -248,8 +248,8 @@ static tmc::task<void> eof_server(safe_acceptor& Acc) {
   char buf[10]{};
   // The peer sends only 5 bytes and then closes; expect a partial read
   // terminated by EOF, like asio::async_read.
-  auto [rec, rn] = co_await safe.async_read(asio_impl::buffer(buf));
-  EXPECT_EQ(rec, asio_impl::error::eof);
+  auto [rec, rn] = co_await safe.async_read(asio_ns::buffer(buf));
+  EXPECT_EQ(rec, asio_ns::error::eof);
   EXPECT_EQ(rn, 5u);
   auto cec = co_await safe.close();
   EXPECT_FALSE(cec);
@@ -260,7 +260,7 @@ static tmc::task<void> eof_client(tcp::endpoint Ep) {
   auto [cec] = co_await safe.async_connect(Ep);
   EXPECT_FALSE(cec);
   char out[5] = {'a', 'b', 'c', 'd', 'e'};
-  auto [wec, wn] = co_await safe.async_write(asio_impl::buffer(out, 5));
+  auto [wec, wn] = co_await safe.async_write(asio_ns::buffer(out, 5));
   EXPECT_FALSE(wec);
   EXPECT_EQ(wn, 5u);
   auto sec = co_await safe.shutdown(tcp::socket::shutdown_send); // sends FIN
@@ -279,7 +279,7 @@ TEST_F(CATEGORY, socket_partial_read_eof) {
 
 static tmc::task<void> pending_reader(safe_socket& S) {
   char buf[64]{};
-  auto [ec, n] = co_await S.async_read(asio_impl::buffer(buf));
+  auto [ec, n] = co_await S.async_read(asio_ns::buffer(buf));
   EXPECT_TRUE(static_cast<bool>(ec));
   EXPECT_EQ(n, 0u);
 }
@@ -314,16 +314,14 @@ TEST_F(CATEGORY, socket_shutdown_during_read) {
   }());
 }
 
-static tmc::task<void>
-accept_expect_abort(safe_acceptor& Acc, std::atomic<bool>& Done) {
+static tmc::task<void> accept_expect_abort(safe_acceptor& Acc, std::atomic<bool>& Done) {
   auto [aec, sock] = co_await Acc.async_accept();
   Done.store(true, std::memory_order_relaxed);
-  EXPECT_EQ(aec, asio_impl::error::operation_aborted);
+  EXPECT_EQ(aec, asio_ns::error::operation_aborted);
   (void)sock;
 }
 
-static tmc::task<void>
-cancel_until_done(safe_acceptor& Acc, std::atomic<bool>& Done) {
+static tmc::task<void> cancel_until_done(safe_acceptor& Acc, std::atomic<bool>& Done) {
   tmc::safe_timer delay{make_timer()};
   // Retry until the accept has actually been initiated and aborted.
   while (!Done.load(std::memory_order_relaxed)) {
@@ -347,18 +345,16 @@ TEST_F(CATEGORY, acceptor_cancel_pending_accept) {
   }());
 }
 
-static tmc::task<void>
-read_expect_abort(safe_socket& S, std::atomic<bool>& Done) {
+static tmc::task<void> read_expect_abort(safe_socket& S, std::atomic<bool>& Done) {
   char buf[64]{};
   // The peer never sends these bytes, so this read only completes via cancel().
-  auto [ec, n] = co_await S.async_read(asio_impl::buffer(buf));
+  auto [ec, n] = co_await S.async_read(asio_ns::buffer(buf));
   Done.store(true, std::memory_order_relaxed);
-  EXPECT_EQ(ec, asio_impl::error::operation_aborted);
+  EXPECT_EQ(ec, asio_ns::error::operation_aborted);
   EXPECT_EQ(n, 0u);
 }
 
-static tmc::task<void>
-cancel_read_until_done(safe_socket& S, std::atomic<bool>& Done) {
+static tmc::task<void> cancel_read_until_done(safe_socket& S, std::atomic<bool>& Done) {
   tmc::safe_timer delay{make_timer()};
   // Retry until the read has been initiated and aborted. cancel() must abort it
   // whether it lands on the pending read_some or between chunks.
@@ -429,10 +425,10 @@ static tmc::task<void> accessors_server(safe_acceptor& Acc) {
 
   // Receive with flags, echo back with flags.
   char buf[5]{};
-  auto [rec, rn] = co_await safe.async_receive(asio_impl::buffer(buf), 0);
+  auto [rec, rn] = co_await safe.async_receive(asio_ns::buffer(buf), 0);
   EXPECT_FALSE(rec);
   EXPECT_EQ(rn, 5u);
-  auto [wec, wn] = co_await safe.async_send(asio_impl::buffer(buf, rn), 0);
+  auto [wec, wn] = co_await safe.async_send(asio_ns::buffer(buf, rn), 0);
   EXPECT_FALSE(wec);
   EXPECT_EQ(wn, 5u);
 
@@ -463,7 +459,7 @@ static tmc::task<void> accessors_client(tcp::endpoint Ep) {
   (void)co_await safe.native_non_blocking();
   (void)co_await safe.get_executor();
   (void)co_await safe.native_handle();
-  asio_impl::socket_base::bytes_readable cmd;
+  asio_ns::socket_base::bytes_readable cmd;
   auto [icec, ic] = co_await safe.io_control(cmd);
   EXPECT_FALSE(icec);
   (void)ic.get();
@@ -475,16 +471,16 @@ static tmc::task<void> accessors_client(tcp::endpoint Ep) {
   (void)marked;
 
   // A connected socket is immediately ready to write.
-  auto [wwec] = co_await safe.async_wait(asio_impl::socket_base::wait_write);
+  auto [wwec] = co_await safe.async_wait(asio_ns::socket_base::wait_write);
   EXPECT_FALSE(wwec);
 
   // Send with flags, receive the echo without flags.
   char out[5] = {'h', 'e', 'l', 'l', 'o'};
-  auto [wec, wn] = co_await safe.async_send(asio_impl::buffer(out), 0);
+  auto [wec, wn] = co_await safe.async_send(asio_ns::buffer(out), 0);
   EXPECT_FALSE(wec);
   EXPECT_EQ(wn, 5u);
   char in[5]{};
-  auto [rrec, rrn] = co_await safe.async_receive(asio_impl::buffer(in));
+  auto [rrec, rrn] = co_await safe.async_receive(asio_ns::buffer(in));
   EXPECT_FALSE(rrec);
   EXPECT_EQ(rrn, 5u);
   EXPECT_EQ(0, std::memcmp(out, in, 5));
@@ -502,14 +498,14 @@ TEST_F(CATEGORY, socket_accessors_and_send_receive) {
     auto [lec, lep] = co_await acc.local_endpoint();
     EXPECT_FALSE(lec);
     EXPECT_EQ(lep, ep);
-    auto [oec, ra] = co_await acc.get_option(asio_impl::socket_base::reuse_address{});
+    auto [oec, ra] = co_await acc.get_option(asio_ns::socket_base::reuse_address{});
     EXPECT_FALSE(oec);
     (void)ra.value();
     (void)co_await acc.get_executor();
     (void)co_await acc.native_handle();
     (void)co_await acc.non_blocking();
     (void)co_await acc.native_non_blocking();
-    asio_impl::socket_base::bytes_readable acmd;
+    asio_ns::socket_base::bytes_readable acmd;
     (void)co_await acc.io_control(acmd);
 
     co_await tmc::spawn_tuple(accessors_server(acc), accessors_client(ep));
