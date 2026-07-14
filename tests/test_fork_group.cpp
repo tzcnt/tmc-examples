@@ -72,12 +72,15 @@ TEST_F(CATEGORY, with_wrapper) {
 }
 
 // Test fork_group with tmc::spawn() using fork_clang (WRAPPER mode)
+// Wrapper-type awaitables must be wrapped in tmc::as_task() so that the
+// wrapper task's allocation can be elided. Passing them to fork_clang()
+// directly would fail a static_assert.
 TEST_F(CATEGORY, with_wrapper_clang) {
   test_async_main(ex(), []() -> tmc::task<void> {
     auto fg = tmc::fork_group<3, int>();
-    co_await fg.fork_clang(tmc::spawn(task_int(10)));
-    co_await fg.fork_clang(tmc::spawn(task_int(20)));
-    co_await fg.fork_clang(tmc::spawn(task_int(30)));
+    co_await fg.fork_clang(tmc::as_task(tmc::spawn(task_int(10))));
+    co_await fg.fork_clang(tmc::as_task(tmc::spawn(task_int(20))));
+    co_await fg.fork_clang(tmc::as_task(tmc::spawn(task_int(30))));
     auto results = co_await std::move(fg);
     EXPECT_EQ(results[0], 10);
     EXPECT_EQ(results[1], 20);

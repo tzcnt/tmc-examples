@@ -20,6 +20,7 @@
 
 #include <gtest/gtest.h>
 
+#include <coroutine>
 #include <cstddef>
 #include <cstdio>
 #include <utility>
@@ -1063,6 +1064,274 @@ TEST_F(CATEGORY, mux_tuple_fork_clang_drain_loop_switch) {
     }
     EXPECT_EQ(iterations, 102);
     EXPECT_EQ(tmc::debug::get_task_alloc_count(), 0u);
+  }());
+}
+
+// An awaitable type that has no tmc::detail::awaitable_traits specialization.
+// tmc::as_task() wraps these in a tmc::detail::task_wrapper coroutine, which
+// restores the awaiting task to its original executor and priority.
+struct unknown_awaitable_int {
+  int value;
+  bool await_ready() const noexcept { return true; }
+  void await_suspend(std::coroutine_handle<>) const noexcept {}
+  int await_resume() const noexcept { return value; }
+};
+
+struct unknown_awaitable_void {
+  bool await_ready() const noexcept { return true; }
+  void await_suspend(std::coroutine_handle<>) const noexcept {}
+  void await_resume() const noexcept {}
+};
+
+// Mutates itself when awaited, to observe whether as_task() holds lvalues by
+// reference (the original is mutated) or by copy (it isn't).
+struct unknown_awaitable_counter {
+  int value;
+  bool await_ready() const noexcept { return true; }
+  void await_suspend(std::coroutine_handle<>) const noexcept {}
+  int await_resume() noexcept { return ++value; }
+};
+
+// Test HALO with tmc::as_task() awaited directly.
+// as_task() of a known (WRAPPER mode) awaitable returns a tmc::task.
+// as_task() of an unknown awaitable returns a tmc::detail::task_wrapper.
+// Both are coroutines whose allocations can be elided.
+TEST_F(CATEGORY, as_task) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    tmc::debug::set_task_alloc_count(0);
+    {
+      // HALO: as_task() of a known (WRAPPER mode) awaitable is directly
+      // awaited. Both the as_task() coroutine and the inner task are elided.
+      auto result = co_await tmc::as_task(tmc::spawn(task_int(1)));
+      EXPECT_EQ(result, 1);
+      size_t alloc_count = tmc::debug::get_task_alloc_count();
+      EXPECT_EQ(alloc_count, 0);
+    }
+    {
+      // HALO: as_task() of an unknown awaitable is directly awaited
+      auto result = co_await tmc::as_task(unknown_awaitable_int{2});
+      EXPECT_EQ(result, 2);
+      size_t alloc_count = tmc::debug::get_task_alloc_count();
+      EXPECT_EQ(alloc_count, 0);
+    }
+    {
+      // HALO: as_task() of an lvalue holds it by reference (matching
+      // forward_awaitable): awaiting operates on the original object, not a
+      // copy.
+      unknown_awaitable_counter counter{0};
+      auto r1 = co_await tmc::as_task(counter);
+      auto r2 = co_await tmc::as_task(counter);
+      EXPECT_EQ(r1, 1);
+      EXPECT_EQ(r2, 2);
+      EXPECT_EQ(counter.value, 2);
+      size_t alloc_count = tmc::debug::get_task_alloc_count();
+      EXPECT_EQ(alloc_count, 0);
+    }
+    {
+      // Non-HALO: as_task() stored in a variable before being awaited.
+      // This proves that task_wrapper allocations are counted.
+      auto t = tmc::as_task(unknown_awaitable_int{3});
+      auto result = co_await std::move(t);
+      EXPECT_EQ(result, 3);
+      size_t alloc_count = tmc::debug::get_task_alloc_count();
+      EXPECT_EQ(alloc_count, 1);
+    }
+  }());
+}
+
+// Test HALO with tmc::spawn_clang() + tmc::as_task()
+// Passing these awaitables to spawn_clang() directly (without as_task) would
+// fail a static_assert, because the internal wrapper task couldn't be elided.
+TEST_F(CATEGORY, spawn_clang_as_task) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    tmc::debug::set_task_alloc_count(0);
+    {
+      // HALO: as_task() of a known (WRAPPER mode) awaitable
+      auto result =
+        co_await tmc::spawn_clang(tmc::as_task(tmc::spawn(task_int(1))));
+      EXPECT_EQ(result, 1);
+      size_t alloc_count = tmc::debug::get_task_alloc_count();
+      EXPECT_EQ(alloc_count, 0);
+    }
+    {
+      // HALO: as_task() of an unknown awaitable
+      auto result =
+        co_await tmc::spawn_clang(tmc::as_task(unknown_awaitable_int{2}));
+      EXPECT_EQ(result, 2);
+      size_t alloc_count = tmc::debug::get_task_alloc_count();
+      EXPECT_EQ(alloc_count, 0);
+    }
+    {
+      // Non-HALO: as_task() stored in a variable before being spawned
+      auto t = tmc::as_task(unknown_awaitable_int{3});
+      auto result = co_await tmc::spawn_clang(std::move(t));
+      EXPECT_EQ(result, 3);
+      size_t alloc_count = tmc::debug::get_task_alloc_count();
+      EXPECT_EQ(alloc_count, 1);
+    }
+  }());
+}
+
+// Test HALO with tmc::fork_clang() + tmc::as_task()
+TEST_F(CATEGORY, fork_clang_as_task) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    tmc::debug::set_task_alloc_count(0);
+    {
+      // HALO: as_task() of a known (WRAPPER mode) awaitable
+      auto forked =
+        co_await tmc::fork_clang(tmc::as_task(tmc::spawn(task_int(5))));
+      auto result = co_await std::move(forked);
+      EXPECT_EQ(result, 5);
+      size_t alloc_count = tmc::debug::get_task_alloc_count();
+      EXPECT_EQ(alloc_count, 0);
+    }
+    {
+      // HALO: as_task() of an unknown awaitable
+      auto forked =
+        co_await tmc::fork_clang(tmc::as_task(unknown_awaitable_int{6}));
+      auto result = co_await std::move(forked);
+      EXPECT_EQ(result, 6);
+      size_t alloc_count = tmc::debug::get_task_alloc_count();
+      EXPECT_EQ(alloc_count, 0);
+    }
+  }());
+}
+
+// Test HALO with tmc::fork_tuple_clang() + tmc::as_task()
+TEST_F(CATEGORY, fork_tuple_clang_as_task) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    tmc::debug::set_task_alloc_count(0);
+    {
+      // HALO: as_task() of known (WRAPPER mode) and unknown awaitables
+      auto forked = co_await tmc::fork_tuple_clang(
+        tmc::as_task(tmc::spawn(task_int(10))),
+        tmc::as_task(unknown_awaitable_int{20}),
+        tmc::as_task(tmc::spawn(task_void()))
+      );
+      auto results = co_await std::move(forked);
+
+      EXPECT_EQ(std::get<0>(results), 10);
+      EXPECT_EQ(std::get<1>(results), 20);
+
+      size_t alloc_count = tmc::debug::get_task_alloc_count();
+      EXPECT_EQ(alloc_count, 0);
+    }
+  }());
+}
+
+// Test HALO with aw_fork_group::fork_clang() + tmc::as_task()
+TEST_F(CATEGORY, fork_group_fork_clang_as_task) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    tmc::debug::set_task_alloc_count(0);
+    {
+      // HALO: as_task() of known (WRAPPER mode) and unknown awaitables
+      auto fg = tmc::fork_group<2, int>();
+      co_await fg.fork_clang(tmc::as_task(tmc::spawn(task_int(5))));
+      co_await fg.fork_clang(tmc::as_task(unknown_awaitable_int{6}));
+      auto results = co_await std::move(fg);
+
+      EXPECT_EQ(results[0], 5);
+      EXPECT_EQ(results[1], 6);
+
+      size_t alloc_count = tmc::debug::get_task_alloc_count();
+      EXPECT_EQ(alloc_count, 0);
+    }
+    {
+      // HALO: void results
+      auto fg = tmc::fork_group();
+      co_await fg.fork_clang(tmc::as_task(tmc::spawn(task_void())));
+      co_await fg.fork_clang(tmc::as_task(unknown_awaitable_void{}));
+      co_await std::move(fg);
+
+      size_t alloc_count = tmc::debug::get_task_alloc_count();
+      EXPECT_EQ(alloc_count, 0);
+    }
+  }());
+}
+
+// Test HALO with aw_spawn_group::add_clang() + tmc::as_task()
+TEST_F(CATEGORY, spawn_group_add_clang_as_task) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    tmc::debug::set_task_alloc_count(0);
+    {
+      // HALO: as_task() of a known (WRAPPER mode) awaitable produces a
+      // tmc::task
+      auto sg = tmc::spawn_group<2, tmc::task<int>>();
+      co_await sg.add_clang(tmc::as_task(tmc::spawn(task_int(11))));
+      co_await sg.add_clang(tmc::as_task(tmc::spawn(task_int(22))));
+      auto results = co_await std::move(sg);
+
+      EXPECT_EQ(results[0], 11);
+      EXPECT_EQ(results[1], 22);
+
+      size_t alloc_count = tmc::debug::get_task_alloc_count();
+      EXPECT_EQ(alloc_count, 0);
+    }
+    {
+      // HALO: as_task() of an unknown awaitable produces a
+      // tmc::detail::task_wrapper
+      auto sg = tmc::spawn_group<2, tmc::detail::task_wrapper<int>>();
+      co_await sg.add_clang(tmc::as_task(unknown_awaitable_int{33}));
+      co_await sg.add_clang(tmc::as_task(unknown_awaitable_int{44}));
+      auto results = co_await std::move(sg);
+
+      EXPECT_EQ(results[0], 33);
+      EXPECT_EQ(results[1], 44);
+
+      size_t alloc_count = tmc::debug::get_task_alloc_count();
+      EXPECT_EQ(alloc_count, 0);
+    }
+  }());
+}
+
+// Test HALO with mux_many::fork_clang() + tmc::as_task()
+TEST_F(CATEGORY, mux_many_fork_clang_as_task) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    tmc::debug::set_task_alloc_count(0);
+    {
+      // HALO: as_task() of known (WRAPPER mode) and unknown awaitables
+      auto mux = tmc::mux_many<int, 2>();
+      co_await mux.fork_clang(0, tmc::as_task(tmc::spawn(task_int(5))));
+      co_await mux.fork_clang(1, tmc::as_task(unknown_awaitable_int{6}));
+
+      int sum = 0;
+      for (size_t i = co_await mux; i != mux.end(); i = co_await mux) {
+        sum += mux[i];
+      }
+      EXPECT_EQ(sum, 11);
+
+      size_t alloc_count = tmc::debug::get_task_alloc_count();
+      EXPECT_EQ(alloc_count, 0);
+    }
+  }());
+}
+
+// Test HALO with aw_mux_tuple::fork_clang() + tmc::as_task()
+TEST_F(CATEGORY, mux_tuple_fork_clang_as_task) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    tmc::debug::set_task_alloc_count(0);
+    {
+      // HALO: as_task() of known (WRAPPER mode) and unknown awaitables
+      tmc::mux_tuple<int, int> mux;
+      co_await mux.fork_clang<0>(tmc::as_task(tmc::spawn(task_int(5))));
+      co_await mux.fork_clang<1>(tmc::as_task(unknown_awaitable_int{6}));
+
+      int sum = 0;
+      for (size_t i = co_await mux; i != mux.end(); i = co_await mux) {
+        switch (i) {
+        case 0:
+          sum += mux.get<0>();
+          break;
+        case 1:
+          sum += mux.get<1>();
+          break;
+        }
+      }
+      EXPECT_EQ(sum, 11);
+
+      size_t alloc_count = tmc::debug::get_task_alloc_count();
+      EXPECT_EQ(alloc_count, 0);
+    }
   }());
 }
 
