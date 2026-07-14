@@ -8,6 +8,7 @@
 #include <gtest/gtest.h>
 
 #include <array>
+#include <type_traits>
 
 #define CATEGORY test_atomic_condvar
 
@@ -262,6 +263,34 @@ TEST_F(CATEGORY, co_notify_no_symmetric) {
     EXPECT_EQ(tmc::current_priority(), 1);
     co_await aa;
     co_await std::move(t);
+  }());
+}
+
+// The atomic_condvar awaitables are movable so that utility functions
+// (spawn(), fork_group, spawn_group, ...) can capture them by value into a
+// wrapper task. This makes it safe to pass a temporary and defer the
+// co_await.
+static_assert(std::is_move_constructible_v<tmc::aw_atomic_condvar<int>>);
+static_assert(!std::is_copy_constructible_v<tmc::aw_atomic_condvar<int>>);
+static_assert(
+  std::is_move_constructible_v<tmc::aw_atomic_condvar_co_notify<int>>
+);
+static_assert(
+  !std::is_copy_constructible_v<tmc::aw_atomic_condvar_co_notify<int>>
+);
+
+TEST_F(CATEGORY, fork_temporary_await) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    tmc::atomic_condvar<int> cv(1);
+    // The temporary returned by await() is destroyed at the end of this
+    // statement, but the forked wrapper task owns a copy of it, which
+    // suspends until the value changes.
+    auto t = tmc::spawn(cv.await(1)).fork();
+    co_await waiter_count_accessor::wait_for_waiter_count(cv, 1);
+    cv.ref().store(2, std::memory_order_seq_cst);
+    cv.notify_one();
+    co_await std::move(t);
+    co_await waiter_count_accessor::wait_for_waiter_count(cv, 0);
   }());
 }
 

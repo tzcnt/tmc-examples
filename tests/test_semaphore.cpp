@@ -8,6 +8,7 @@
 #include <gtest/gtest.h>
 
 #include <array>
+#include <type_traits>
 
 #define CATEGORY test_semaphore
 
@@ -804,6 +805,34 @@ TEST_F(CATEGORY, co_release_return_no_awaiter_or_parent) {
     // This should be resumed with the correct priority.
     EXPECT_EQ(sem.count(), 1);
     EXPECT_EQ(tmc::current_priority(), 0);
+  }());
+}
+
+// The semaphore awaitables are movable so that utility functions (spawn(),
+// fork_group, spawn_group, ...) can capture them by value into a wrapper
+// task. This makes it safe to pass a temporary and defer the co_await.
+static_assert(std::is_move_constructible_v<tmc::aw_semaphore_acquire_scope>);
+static_assert(!std::is_copy_constructible_v<tmc::aw_semaphore_acquire_scope>);
+static_assert(std::is_move_constructible_v<tmc::aw_semaphore_co_release>);
+static_assert(!std::is_copy_constructible_v<tmc::aw_semaphore_co_release>);
+static_assert(
+  std::is_move_constructible_v<tmc::aw_semaphore_co_release_return<int>>
+);
+
+TEST_F(CATEGORY, fork_temporary_acquire_scope) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    tmc::semaphore sem(0);
+    // The temporary returned by acquire_scope() is destroyed at the end of
+    // this statement, but the forked wrapper task owns a copy of it, which
+    // suspends on the depleted semaphore.
+    auto t = tmc::spawn(sem.acquire_scope()).fork();
+    co_await waiter_count_accessor::wait_for_waiter_count(sem, 1);
+    sem.release();
+    {
+      auto scope = co_await std::move(t);
+      EXPECT_EQ(sem.count(), 0);
+    }
+    EXPECT_EQ(sem.count(), 1);
   }());
 }
 

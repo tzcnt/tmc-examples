@@ -7,6 +7,7 @@
 #include <gtest/gtest.h>
 
 #include <array>
+#include <type_traits>
 #include <vector>
 
 #define CATEGORY test_rw_lock
@@ -522,6 +523,43 @@ TEST_F(CATEGORY, stress) {
     EXPECT_EQ(a, static_cast<size_t>((TASK_COUNT / 4) * ITERS));
     EXPECT_EQ(b, static_cast<size_t>((TASK_COUNT / 4) * ITERS));
     rw.unlock_read();
+  }());
+}
+
+// The rw_lock awaitables are movable so that utility functions (spawn(),
+// fork_group, spawn_group, ...) can capture them by value into a wrapper
+// task. This makes it safe to pass a temporary and defer the co_await.
+static_assert(std::is_move_constructible_v<tmc::aw_rw_lock_read>);
+static_assert(!std::is_copy_constructible_v<tmc::aw_rw_lock_read>);
+static_assert(std::is_move_constructible_v<tmc::aw_rw_lock_write>);
+static_assert(!std::is_copy_constructible_v<tmc::aw_rw_lock_write>);
+static_assert(std::is_move_constructible_v<tmc::aw_rw_lock_read_scope>);
+static_assert(!std::is_copy_constructible_v<tmc::aw_rw_lock_read_scope>);
+static_assert(std::is_move_constructible_v<tmc::aw_rw_lock_write_scope>);
+static_assert(!std::is_copy_constructible_v<tmc::aw_rw_lock_write_scope>);
+
+TEST_F(CATEGORY, fork_temporary_lock_scopes) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    tmc::rw_lock rw;
+    co_await rw.lock_write();
+    // The temporaries returned by lock_read_scope() / lock_write_scope() are
+    // destroyed at the end of their statements, but the forked wrapper tasks
+    // own copies of them, which suspend on the write-locked rw_lock.
+    auto tr = tmc::spawn(rw.lock_read_scope()).fork();
+    co_await waiter_count_accessor::wait_for_waiter_count(rw, 1);
+    auto tw = tmc::spawn(rw.lock_write_scope()).fork();
+    co_await waiter_count_accessor::wait_for_waiter_count(rw, 2);
+    rw.unlock_write();
+    {
+      auto readScope = co_await std::move(tr);
+      EXPECT_EQ(rw.reader_count(), 1u);
+    }
+    EXPECT_EQ(rw.reader_count(), 0u);
+    {
+      auto writeScope = co_await std::move(tw);
+      EXPECT_EQ(rw.is_write_locked(), true);
+    }
+    EXPECT_EQ(rw.is_write_locked(), false);
   }());
 }
 

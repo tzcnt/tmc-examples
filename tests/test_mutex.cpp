@@ -1,11 +1,13 @@
 #include "atomic_awaitable.hpp"
 #include "test_common.hpp"
 #include "tmc/mutex.hpp"
+#include "tmc/spawn_group.hpp"
 #include "waiter_count_accessor.hpp"
 
 #include <gtest/gtest.h>
 
 #include <array>
+#include <type_traits>
 
 #define CATEGORY test_mutex
 
@@ -772,6 +774,72 @@ TEST_F(CATEGORY, co_unlock_return_no_awaiter_or_parent) {
     // This should be resumed with the correct priority.
     EXPECT_EQ(mut.is_locked(), false);
     EXPECT_EQ(tmc::current_priority(), 0);
+  }());
+}
+
+// The mutex awaitables are movable so that utility functions (spawn(),
+// fork_group, spawn_group, ...) can capture them by value into a wrapper
+// task. This makes it safe to pass a temporary and defer the co_await.
+static_assert(std::is_move_constructible_v<tmc::aw_mutex_lock_scope>);
+static_assert(!std::is_copy_constructible_v<tmc::aw_mutex_lock_scope>);
+static_assert(std::is_move_constructible_v<tmc::aw_mutex_co_unlock>);
+static_assert(!std::is_copy_constructible_v<tmc::aw_mutex_co_unlock>);
+static_assert(std::is_move_constructible_v<tmc::aw_mutex_co_unlock_return<int>>);
+
+TEST_F(CATEGORY, fork_temporary_lock_scope) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    tmc::mutex mut;
+    co_await mut;
+    // The temporary returned by lock_scope() is destroyed at the end of this
+    // statement, but the forked wrapper task owns a copy of it, which
+    // suspends on the contended mutex.
+    auto t = tmc::spawn(mut.lock_scope()).fork();
+    co_await waiter_count_accessor::wait_for_waiter_count(mut, 1);
+    mut.unlock();
+    {
+      auto scope = co_await std::move(t);
+      EXPECT_EQ(mut.is_locked(), true);
+    }
+    EXPECT_EQ(mut.is_locked(), false);
+  }());
+}
+
+TEST_F(CATEGORY, task_co_return_lock_scope) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    tmc::mutex mut;
+    // task_promise stores results that are not move-assignable (such as
+    // mutex_scope) by emplacing into the optional result storage.
+    {
+      auto scope =
+        co_await [](tmc::mutex& Mut) -> tmc::task<tmc::mutex_scope> {
+        co_return co_await Mut.lock_scope();
+      }(mut);
+      EXPECT_EQ(mut.is_locked(), true);
+    }
+    EXPECT_EQ(mut.is_locked(), false);
+    {
+      auto scope = co_await tmc::spawn(
+        [](tmc::mutex& Mut) -> tmc::task<tmc::mutex_scope> {
+          co_return co_await Mut.lock_scope();
+        }(mut)
+      );
+      EXPECT_EQ(mut.is_locked(), true);
+    }
+    EXPECT_EQ(mut.is_locked(), false);
+  }());
+}
+
+TEST_F(CATEGORY, spawn_group_temporary_co_unlock) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    tmc::mutex mut;
+    co_await mut;
+    // The spawn_group captures the temporary co_unlock() awaitable by value.
+    // It is not initiated until the group is awaited, well after the
+    // temporary has been destroyed.
+    auto sg = tmc::spawn_group(mut.co_unlock());
+    EXPECT_EQ(mut.is_locked(), true);
+    co_await std::move(sg);
+    EXPECT_EQ(mut.is_locked(), false);
   }());
 }
 
