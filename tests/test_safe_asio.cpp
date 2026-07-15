@@ -97,6 +97,23 @@ TEST_F(CATEGORY, timer_wait_until) {
   }());
 }
 
+// Move-assigning an asio_safe_timer releases the target's own state (dropping it
+// to zero refs, so it is deleted) and adopts the source's underlying timer +
+// tiny_mutex. The moved-to timer must stay usable (its wait completes via the
+// moved mutex) and the moved-from timer must destroy cleanly.
+TEST_F(CATEGORY, timer_move_assign) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    tmc::asio_safe_timer t1{make_timer()};
+    tmc::asio_safe_timer t2{make_timer()};
+    t1 = std::move(t2); // releases t1's original state; t2 is left moved-from
+    auto start = std::chrono::steady_clock::now();
+    auto [ec] = co_await t1.async_wait_for(std::chrono::milliseconds(20));
+    auto elapsed = std::chrono::steady_clock::now() - start;
+    EXPECT_FALSE(ec);
+    EXPECT_GE(elapsed, std::chrono::milliseconds(19));
+  }());
+}
+
 static tmc::task<int> timed_wait_report_abort(tmc::asio_safe_timer& T) {
   auto [ec] = co_await T.async_wait_for(std::chrono::milliseconds(50));
   co_return ec == asio_ns::error::operation_aborted ? 1 : 0;
@@ -175,6 +192,47 @@ TEST_F(CATEGORY, socket_echo) {
     safe_acceptor acc{safe_acceptor::acceptor_type{tmc::asio_executor()}};
     auto ep = co_await listen_local(acc);
     co_await tmc::spawn_tuple(echo_server(acc), echo_client(ep));
+    auto ec = co_await acc.close();
+    EXPECT_FALSE(ec);
+  }());
+}
+
+// Moving an asio_safe_socket transfers both the underlying Asio socket and its
+// internal tiny_mutex; the moved-to socket must stay fully usable and the
+// moved-from wrapper must be safely destructible.
+static tmc::task<void> moved_echo_server(safe_socket Safe) {
+  // Safe was move-constructed into this coroutine frame from the caller (a
+  // by-value coroutine parameter, which the wrapper's move ctor enables). Its
+  // tiny_mutex was moved along the way, so exercising async_* here proves the
+  // moved mutex still serializes initiations.
+  char buf[5]{};
+  auto [rec, rn] = co_await Safe.async_read(asio_ns::buffer(buf, 5));
+  EXPECT_FALSE(rec);
+  EXPECT_EQ(rn, 5u);
+  auto [wec, wn] = co_await Safe.async_write(asio_ns::buffer(buf, 5));
+  EXPECT_FALSE(wec);
+  EXPECT_EQ(wn, 5u);
+  auto sec = co_await Safe.close();
+  EXPECT_FALSE(sec);
+}
+
+static tmc::task<void> move_server(safe_acceptor& Acc) {
+  auto [ec, sock] = co_await Acc.async_accept();
+  EXPECT_FALSE(ec);
+  safe_socket safe{std::move(sock)};
+  // Explicit local move-construction: transfers the socket + tiny_mutex.
+  safe_socket moved{std::move(safe)};
+  // Move again, this time into the handler coroutine's frame.
+  co_await moved_echo_server(std::move(moved));
+  // `safe` and `moved` are both moved-from here; both must destroy cleanly at
+  // the end of this scope (their tiny_mutex state was nulled by the move).
+}
+
+TEST_F(CATEGORY, socket_move) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    safe_acceptor acc{safe_acceptor::acceptor_type{tmc::asio_executor()}};
+    auto ep = co_await listen_local(acc);
+    co_await tmc::spawn_tuple(move_server(acc), echo_client(ep));
     auto ec = co_await acc.close();
     EXPECT_FALSE(ec);
   }());
