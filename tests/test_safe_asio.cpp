@@ -7,6 +7,14 @@
 // variables, and it does not prevent violation of the "only 1 read + 1 write may be
 // active at a time" rule. Users are still responsible for that.
 
+// As documented in Asio issues, TSan on MacOS trips on the kqueue reactor. Since this is
+// an upstream problem we can't solve, just disable TSan for these tests under that
+// specific configuration.
+// https://github.com/chriskohlhoff/asio/issues/983
+// https://github.com/chriskohlhoff/asio/issues/1657
+#include "tmc/detail/tsan.hpp" // IWYU pragma: keep
+#if !defined(TMC_HAS_TSAN) || !defined(__APPLE__)
+
 #include "test_common.hpp"
 #include "tmc/asio/ex_asio.hpp"
 #include "tmc/asio/safe_acceptor.hpp"
@@ -574,3 +582,5 @@ TEST_F(CATEGORY, socket_accessors_and_send_receive) {
 }
 
 #undef CATEGORY
+
+#endif // TSAN_ENABLED && __APPLE__
