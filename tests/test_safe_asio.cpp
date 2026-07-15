@@ -81,7 +81,7 @@ static tmc::task<tcp::endpoint> listen_local(safe_acceptor& Acc) {
   EXPECT_FALSE(ec);
   ec = co_await Acc.listen();
   EXPECT_FALSE(ec);
-  co_return Acc.acceptor_unsafe().local_endpoint();
+  co_return Acc.inner().local_endpoint();
 }
 
 TEST_F(CATEGORY, timer_wait) {
