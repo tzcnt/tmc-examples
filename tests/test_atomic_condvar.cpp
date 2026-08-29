@@ -272,12 +272,8 @@ TEST_F(CATEGORY, co_notify_no_symmetric) {
 // co_await.
 static_assert(std::is_move_constructible_v<tmc::aw_atomic_condvar<int>>);
 static_assert(!std::is_copy_constructible_v<tmc::aw_atomic_condvar<int>>);
-static_assert(
-  std::is_move_constructible_v<tmc::aw_atomic_condvar_co_notify<int>>
-);
-static_assert(
-  !std::is_copy_constructible_v<tmc::aw_atomic_condvar_co_notify<int>>
-);
+static_assert(std::is_move_constructible_v<tmc::aw_atomic_condvar_co_notify<int>>);
+static_assert(!std::is_copy_constructible_v<tmc::aw_atomic_condvar_co_notify<int>>);
 
 TEST_F(CATEGORY, fork_temporary_await) {
   test_async_main(ex(), []() -> tmc::task<void> {
@@ -291,6 +287,58 @@ TEST_F(CATEGORY, fork_temporary_await) {
     cv.notify_one();
     co_await std::move(t);
     co_await waiter_count_accessor::wait_for_waiter_count(cv, 0);
+  }());
+}
+
+// Stress the lock-free waiter list: many waiters suspend concurrently while
+// the value is flipped and notify is called from multiple tasks at once. This
+// races producers (await_suspend publishing + rechecking) against concurrent
+// consumers (the WAKING/PENDING handoff). A lost wakeup would hang the test;
+// an over-wake would resume a waiter whose condition isn't met (here, await(0)
+// only legitimately resumes once value != 0, which is permanent).
+TEST_F(CATEGORY, concurrent_stress) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    static constexpr size_t WAITERS = 100;
+    static constexpr size_t NOTIFIERS = 2;
+    for (size_t round = 0; round < 20; ++round) {
+      tmc::atomic_condvar<int> cv(0);
+      std::atomic<size_t> woken{0};
+
+      auto waiter =
+        [](tmc::atomic_condvar<int>& CV, std::atomic<size_t>& Woken) -> tmc::task<void> {
+        co_await CV.await(0);
+        Woken.fetch_add(1, std::memory_order_relaxed);
+      };
+
+      std::vector<tmc::task<void>> waiters;
+      waiters.reserve(WAITERS);
+      for (size_t i = 0; i < WAITERS; ++i) {
+        waiters.push_back(waiter(cv, woken));
+      }
+      auto wt = tmc::spawn_many(waiters.data(), waiters.size()).fork();
+
+      // Concurrently: flip the value (so every waiter becomes eligible) and
+      // hammer notify from several tasks. Keep notifying until all are woken so
+      // no legitimate wakeup can be lost without hanging.
+      auto notifier =
+        [](tmc::atomic_condvar<int>& CV, std::atomic<size_t>& Woken) -> tmc::task<void> {
+        CV.ref().store(1, std::memory_order_seq_cst);
+        while (Woken.load(std::memory_order_relaxed) < WAITERS) {
+          CV.notify_all();
+          co_await tmc::yield();
+        }
+      };
+      std::vector<tmc::task<void>> notifiers;
+      notifiers.reserve(NOTIFIERS);
+      for (size_t i = 0; i < NOTIFIERS; ++i) {
+        notifiers.push_back(notifier(cv, woken));
+      }
+      co_await tmc::spawn_many(notifiers.data(), notifiers.size());
+
+      co_await std::move(wt);
+      EXPECT_EQ(woken.load(), WAITERS);
+      EXPECT_EQ(waiter_count_accessor::waiter_count(cv), 0u);
+    }
   }());
 }
 
