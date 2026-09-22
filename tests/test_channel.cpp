@@ -887,6 +887,75 @@ TEST_F(CATEGORY, token_copy_move) {
   }());
 }
 
+// Test that a default-constructed (empty) token can be linked to a channel
+// later by assignment, and that valid() reports the empty state.
+TEST_F(CATEGORY, default_constructed_token) {
+  test_async_main(ex(), []() -> tmc::task<void> {
+    // Empty tokens can be constructed, copied, moved, assigned, and destroyed.
+    tmc::chan_tok<size_t, chan_config<0>> empty1;
+    EXPECT_FALSE(empty1.valid());
+    auto empty2 = empty1; // copy from empty
+    EXPECT_FALSE(empty2.valid());
+    auto empty3 = std::move(empty2); // move from empty
+    EXPECT_FALSE(empty3.valid());
+    empty1 = empty3; // empty = empty (copy)
+    EXPECT_FALSE(empty1.valid());
+    empty1 = std::move(empty3); // empty = empty (move)
+    EXPECT_FALSE(empty1.valid());
+
+    // Copy-assign a valid token into an empty token.
+    auto chan = tmc::make_channel<size_t, chan_config<0>>();
+    EXPECT_TRUE(chan.valid());
+    tmc::chan_tok<size_t, chan_config<0>> tokA;
+    tokA = chan;
+    EXPECT_TRUE(tokA.valid());
+    chan.post(1u);
+    {
+      auto v = co_await tokA.pull();
+      EXPECT_TRUE(v.has_value());
+      EXPECT_EQ(v.value(), 1);
+    }
+
+    // Move-assign a valid token into an empty token. tokA has acquired a
+    // hazard pointer (by pulling), which is adopted by tokB.
+    tmc::chan_tok<size_t, chan_config<0>> tokB;
+    tokB = std::move(tokA);
+    EXPECT_TRUE(tokB.valid());
+    EXPECT_FALSE(tokA.valid()); // moved-from token is empty again
+    chan.post(2u);
+    {
+      auto v = co_await tokB.pull();
+      EXPECT_TRUE(v.has_value());
+      EXPECT_EQ(v.value(), 2);
+    }
+
+    // Assigning an empty token into a valid token empties it, releasing its
+    // channel reference and hazard pointer.
+    tokB = tmc::chan_tok<size_t, chan_config<0>>{};
+    EXPECT_FALSE(tokB.valid());
+  }());
+}
+
+// The motivating use case for the default constructor: a default-constructible
+// class holding a channel member that is created after the class's constructor
+// runs.
+TEST_F(CATEGORY, token_deferred_init_member) {
+  struct holder {
+    tmc::chan_tok<size_t> channel;
+    void init() { channel = tmc::make_channel<size_t>(); }
+  };
+  test_async_main(ex(), []() -> tmc::task<void> {
+    holder h;
+    EXPECT_FALSE(h.channel.valid());
+    h.init();
+    EXPECT_TRUE(h.channel.valid());
+    h.channel.post(42u);
+    auto v = co_await h.channel.pull();
+    EXPECT_TRUE(v.has_value());
+    EXPECT_EQ(v.value(), 42);
+  }());
+}
+
 // Test with multiple producers and consumers
 TEST_F(CATEGORY, mpmc) {
   test_async_main(ex(), []() -> tmc::task<void> {
