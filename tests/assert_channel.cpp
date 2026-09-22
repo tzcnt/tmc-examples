@@ -22,7 +22,7 @@ TEST(CATEGORY, empty_token_try_pull) {
   EXPECT_DEATH(
     {
       tmc::chan_tok<int> tok;
-      auto v = tok.try_pull();
+      tok.try_pull();
     },
     "empty"
   );
