@@ -15,23 +15,44 @@ The scripts currently only support x86-64 architecture, as they need to parse as
 
 If you find any problems while testing these scripts, please open an issue on this repository (tmc-examples). PRs are also welcome.
 
+### Requirements (both scripts)
+- An executable built by Clang or GCC with debug info (`-g`). Tested with Clang 19, 20, 21 and GCC 13, 14, 16.
+- Debug (`-O0`) builds give exact line numbers.
+- Optimized builds (e.g. `RelWithDebInfo`) also work, with two caveats:
+  - Clang 19 and older don't emit the coroutine frame debug info when optimizing, so you get no async frames. Clang 20+ is fine.
+  - With GCC, LLDB sometimes cannot find the async stack of a thread (GDB can).
+
+Awaits that go through `fork()`, `spawn_many()` or `spawn_tuple()` are part of the async stack too. Locals of the async frames are not available.
+
+A regression suite for both scripts is in `tests/coro_backtrace/` (`tests/coro_backtrace/run.py`, see the README there). It needs GDB and/or LLDB and tests every `clang++` / `g++` version it finds.
+
 ### LLDB Script Status: It works on my machine :man_shrugging:
 Requirements:
-- LLDB 22 (this is a pre-release LLDB version)
-- Debug (-O0 -g) executable created by Clang or GCC
+- LLDB 22 or newer
 
-To load the script, execute `command script import ./coro_backtrace_lldb.py` inside LLDB. See the `test.lldb` file for usage example.
+To load the script, execute `command script import ./coro_backtrace_lldb.py` inside LLDB, after the target has been created. See the `test.lldb` file for usage example.
 
 IDE integration is provided in this repo via the `launch.json` file for VS Code with the LLDB DAP plugin. This also requires the `lldb-dap` version 22 executable to be available. This will display the synthetic async stack frames in your Call Stack window.
 
-### GDB Script Status: Works in CLI only
+Known issues:
+- If the same coroutine function appears more than once in the async stack (recursion), VS Code shows the first of those frames in place of the others. `bt` in the console is correct. This is a limitation of LLDB 22 and 23; [llvm-project#223834](https://github.com/llvm/llvm-project/pull/223834), which is not in a release yet, should remove it.
+- The script works around three LLDB bugs that the async frames run into:
+  - Two crashes when evaluating an expression (including a VS Code Watch) while an async frame is selected. Both are fixed on LLVM `main` (the first by [llvm-project#239795](https://github.com/llvm/llvm-project/pull/239795)) but not in any release as of LLDB 23.1.5. For a coroutine that is a member function, LLDB warns that `this` is not accessible and then evaluates the expression.
+  - An abort with `Resource deadlock avoided` while printing a backtrace of a GCC optimized build. This one is fixed in LLDB 23.
+- With a core file, a batch script that asks for a backtrace immediately after loading the core and importing the script can hang inside LLDB (about 1 run in 10 here). Typing the commands by hand is not affected.
+- If LLDB still crashes with an async frame selected, set the environment variable `CORO_BT_FRAME_MODE=dict` before starting LLDB (or run `script coro_backtrace_lldb.FRAME_MODE = "dict"` after loading the script) to make the script hand LLDB plain frames instead. That mode loses the `[fork]` marker, and some GCC optimized-build line numbers.
+
+In VS Code, async frames are greyed out and forked awaits are marked `[fork]`. The console `bt` marks async frames `[synthetic]` but does not show `[fork]`, and it prints GCC coroutines under the compiler's internal names (`fib(frame_ptr=<unavailable>)`), where VS Code shows `fib`.
+
+### GDB Script Status: Works in CLI and VS Code
 Requirements:
-- Tested with GDB 16. IDK the lowest supported version
-- Debug (-O0 -g) executable created by Clang or GCC
+- Tested with GDB 17.2. IDK the lowest supported version
 
-To load the script, execute `source coro_backtrace_gdb.py` inside GDB. See the `test.gdb` file for usage example.
+To load the script, execute `source coro_backtrace_gdb.py` inside GDB. See the `test.gdb` file for usage example. Async frames are marked `[async]`, and `[fork] [async]` for forked awaits.
 
-IDE integration for VSCode (with C++ tools debugger extension) is currently broken, as GDB does not allow providing the `level` field for synthetic frames, but VSCode expects a `level` for every frame.
+The script also pretty-prints `std::coroutine_handle` values, and provides `p *$get_coro_frame(handle)` and `p *$get_coro_promise(handle)`.
+
+IDE integration is provided in this repo via the `launch.json` file for VS Code with the C/C++ extension (tested with version 1.35.6). GDB does not provide the `level` field for synthetic frames, and earlier versions of the extension expected one for every frame.
 
 ## tmc-examples
 This repository contains examples of how to use the TooManyCooks asynchronous runtime. The main library project repository can be found at:
